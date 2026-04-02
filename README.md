@@ -1,4 +1,4 @@
-# Fitness Mobile App - Enterprise Edition
+# Fitness App - Enterprise Edition
 
 🎯 ** Quality Transformation**
 
