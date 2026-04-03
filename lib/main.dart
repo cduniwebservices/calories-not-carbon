@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Core theme and models
 import 'theme/global_theme.dart';
 import 'models/fitness_models.dart';
+import 'services/local_storage_service.dart';
+import 'services/sync_service.dart';
 
 // Core screens for the single flow
 import 'features/welcome/welcome_screen.dart';
@@ -22,6 +26,21 @@ import 'services/cache_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Hive for local storage
+  await Hive.initFlutter();
+
+  // Initialize Supabase (replace with your actual credentials)
+  await Supabase.initialize(
+    url: 'YOUR_SUPABASE_URL',
+    anonKey: 'YOUR_SUPABASE_ANON_KEY',
+  );
+
+  // Register Hive adapters and open boxes
+  await LocalStorageService.init();
+
+  // Start connectivity listener for auto-sync
+  SyncService().startListening();
 
   // Initialize only essential services
   final logger = EnterpriseLogger();

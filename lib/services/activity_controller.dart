@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:uuid/uuid.dart';
 import '../models/fitness_models.dart';
 import '../services/location_service.dart';
+import '../services/local_storage_service.dart';
 
 /// Million-dollar level activity controller for real-time fitness tracking
 class ActivityController extends ChangeNotifier {
@@ -298,6 +299,10 @@ class ActivityController extends ChangeNotifier {
           routePoints: _routePoints,
           waypoints: _waypoints,
         );
+
+        // Save activity locally for offline-first sync
+        await LocalStorageService.saveActivity(_currentSession!);
+        debugPrint('💾 ActivityController: Activity saved locally');
       }
 
       debugPrint(
