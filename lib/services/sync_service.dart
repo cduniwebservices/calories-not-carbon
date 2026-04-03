@@ -76,7 +76,7 @@ class SyncService {
       }
 
       onSyncComplete?.call(
-        'Sync complete: $_synced synced, $_failedCount failed',
+        'Sync complete: $_syncedCount synced, $_failedCount failed',
       );
     } catch (e) {
       onSyncError?.call('Sync failed: $e');
