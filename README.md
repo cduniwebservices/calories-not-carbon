@@ -1,4 +1,4 @@
-# Fitness App - Enterprise Edition
+# GPS Tracking App - Enterprise Edition
 
 🎯 ** Quality Transformation**
 
