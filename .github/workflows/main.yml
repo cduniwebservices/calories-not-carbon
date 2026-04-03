@@ -3,8 +3,6 @@ name: Flutter CI/CD
 on:
   push:
     branches: [master]
-  pull_request:
-    branches: [master]
 
 jobs:
   build-android:
@@ -12,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4 # Stable v4/v5 compatible with Node 24
+        uses: actions/checkout@v4
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -24,9 +22,10 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.2'
+          # Updated to 3.41.6 to meet the Dart SDK ^3.8.1 requirement
+          flutter-version: '3.41.6' 
           channel: 'stable'
-          cache: true # Uses internal actions/cache@v5 logic in 2026 versions
+          cache: true
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -44,7 +43,7 @@ jobs:
         run: flutter build apk --release
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4 # v4+ resolves the Node deprecation
+        uses: actions/upload-artifact@v4
         with:
           name: android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
@@ -60,7 +59,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.2'
+          flutter-version: '3.41.6'
           channel: 'stable'
           cache: true
 
