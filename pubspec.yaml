@@ -45,6 +45,9 @@ dependencies:
   # Cloud sync
   supabase_flutter: ^2.0.0
 
+  # Crash reporting & monitoring
+  sentry_flutter: ^9.0.0
+
   # Hardware Access
   sensors_plus: ^4.0.2
 

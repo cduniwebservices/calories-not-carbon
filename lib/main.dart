@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 // Core theme and models
 import 'theme/global_theme.dart';
@@ -24,37 +25,46 @@ import 'services/enterprise_logger.dart';
 import 'services/performance_service.dart';
 import 'services/cache_manager.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive for local storage
-  await Hive.initFlutter();
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = const String.fromEnvironment('SENTRY_DSN');
+      options.tracesSampleRate = 1.0;
+      options.profilesSampleRate = 1.0;
+    },
+    appRunner: () async {
+      // Initialize Hive for local storage
+      await Hive.initFlutter();
 
-  // Initialize Supabase (credentials injected via build-time environment variables)
-  await Supabase.initialize(
-    url: const String.fromEnvironment('SUPABASE_URL'),
-    anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY'),
+      // Initialize Supabase (credentials injected via build-time environment variables)
+      await Supabase.initialize(
+        url: const String.fromEnvironment('SUPABASE_URL'),
+        anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY'),
+      );
+
+      // Register Hive adapters and open boxes
+      await LocalStorageService.init();
+
+      // Start connectivity listener for auto-sync
+      SyncService().startListening();
+
+      // Initialize only essential services
+      final logger = EnterpriseLogger();
+      logger.initialize();
+
+      final performanceService = PerformanceService();
+      performanceService.init();
+
+      final cacheManager = CacheManager();
+      await cacheManager.preloadCriticalData();
+
+      logger.logInfo('App Startup', 'Fitness tracking app initialized');
+
+      runApp(const ProviderScope(child: FitnessApp()));
+    },
   );
-
-  // Register Hive adapters and open boxes
-  await LocalStorageService.init();
-
-  // Start connectivity listener for auto-sync
-  SyncService().startListening();
-
-  // Initialize only essential services
-  final logger = EnterpriseLogger();
-  logger.initialize();
-
-  final performanceService = PerformanceService();
-  performanceService.init();
-
-  final cacheManager = CacheManager();
-  await cacheManager.preloadCriticalData();
-
-  logger.logInfo('App Startup', 'Fitness tracking app initialized');
-
-  runApp(const ProviderScope(child: FitnessApp()));
 }
 
 class FitnessApp extends StatelessWidget {

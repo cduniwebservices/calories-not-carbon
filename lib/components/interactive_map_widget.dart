@@ -745,32 +745,6 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget>
                     ),
                 ],
               ),
-
-              // Enhanced glassmorphism overlay with better blur effects
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.1),
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.3),
-                      ],
-                      stops: const [0.0, 0.5, 1.0],
-                    ),
-                  ),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.02),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
