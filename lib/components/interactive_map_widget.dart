@@ -607,133 +607,114 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget>
         children: [
           // FlutterMap with clean display
           FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter:
-                      _currentLocation ?? const LatLng(51.5074, -0.1278),
-                  initialZoom: 15.0,
-                  minZoom: 5.0,
-                  maxZoom: 18.0,
-                  onTap: (tapPosition, point) {
-                    if (widget.onLocationTap != null) {
-                      widget.onLocationTap!(point);
-                    }
-                  },
-                  onMapReady: () {
-                    debugPrint('✅ MapWidget: FlutterMap is ready');
-                    // Start loading animation
-                    if (mounted) {
-                      _loadingController.repeat(reverse: true);
-                    }
-                  },
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _currentLocation ?? const LatLng(51.5074, -0.1278),
+              initialZoom: 15.0,
+              minZoom: 5.0,
+              maxZoom: 18.0,
+              onTap: (tapPosition, point) {
+                if (widget.onLocationTap != null) {
+                  widget.onLocationTap!(point);
+                }
+              },
+              onMapReady: () {
+                debugPrint('✅ MapWidget: FlutterMap is ready');
+                if (mounted) {
+                  _loadingController.repeat(reverse: true);
+                }
+              },
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.fitness.mobile',
+                tileDisplay: const TileDisplay.fadeIn(
+                  duration: Duration(milliseconds: 300),
                 ),
-                children: [
-                  // Base map tiles with enhanced loading
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.fitness.mobile',
-                    // Enhanced tile display options for better loading experience
-                    tileDisplay: const TileDisplay.fadeIn(
-                      duration: Duration(milliseconds: 300),
+              ),
+              if (widget.showRoute && _routePoints.isNotEmpty)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: _routePoints,
+                      strokeWidth: 5.0,
+                      color: widget.routeColor ?? accent,
                     ),
-                  ),
-
-                  // Route polylines with enhanced styling
-                  if (widget.showRoute && _routePoints.isNotEmpty)
-                    PolylineLayer(
-                      polylines: [
-                        // Enhanced route polyline with better styling
-                        Polyline(
-                          points: _routePoints,
-                          strokeWidth: 5.0,
-                          color: widget.routeColor ?? accent,
-                        ),
-                        // Shadow polyline for depth
-                        Polyline(
-                          points: _routePoints,
-                          strokeWidth: 8.0,
-                          color: Colors.black.withOpacity(0.3),
-                        ),
-                      ],
+                    Polyline(
+                      points: _routePoints,
+                      strokeWidth: 8.0,
+                      color: Colors.black.withOpacity(0.3),
                     ),
-
-                  // Enhanced marker layers
-                  if (widget.showCurrentLocation && _currentLocation != null)
-                    MarkerLayer(
-                      markers: [
-                        // Current location marker with advanced animation
-                        Marker(
-                          point: _currentLocation!,
-                          width: 60,
-                          height: 60,
-                          child: AnimatedBuilder(
-                            animation: _pulseController,
-                            builder: (context, child) {
-                              // Create multiple pulse rings with different delays
-                              return Stack(
-                                alignment: Alignment.center,
-                                children:
-                                    List.generate(3, (index) {
-                                      final delay = index * 0.3;
-                                      return AnimatedBuilder(
-                                        animation: _pulseController,
-                                        builder: (context, child) {
-                                          final progress =
-                                              (_pulseController.value + delay) %
-                                              1.0;
-                                          return Transform.scale(
-                                            scale: 0.5 + (progress * 1.5),
-                                            child: Container(
-                                              width: 60,
-                                              height: 60,
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: accent.withOpacity(
-                                                    0.6 - (progress * 0.6),
-                                                  ),
-                                                  width: 2,
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      );
-                                    })..add(
-                                      // Center marker
-                                      Container(
-                                        width: 20,
-                                        height: 20,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: accent,
-                                          border: Border.all(
-                                            color: Colors.white,
-                                            width: 3,
+                  ],
+                ),
+              if (widget.showCurrentLocation && _currentLocation != null)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: _currentLocation!,
+                      width: 60,
+                      height: 60,
+                      child: AnimatedBuilder(
+                        animation: _pulseController,
+                        builder: (context, child) {
+                          return Stack(
+                            alignment: Alignment.center,
+                            children: List.generate(3, (index) {
+                              final delay = index * 0.3;
+                              return AnimatedBuilder(
+                                animation: _pulseController,
+                                builder: (context, child) {
+                                  final progress =
+                                      (_pulseController.value + delay) % 1.0;
+                                  return Transform.scale(
+                                    scale: 0.5 + (progress * 1.5),
+                                    child: Container(
+                                      width: 60,
+                                      height: 60,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: accent.withOpacity(
+                                            0.6 - (progress * 0.6),
                                           ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withOpacity(
-                                                0.3,
-                                              ),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
+                                          width: 2,
                                         ),
                                       ),
                                     ),
+                                  );
+                                },
                               );
-                            },
-                          ),
-                        ),
-                      ],
+                            })..add(
+                                  Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: accent,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 3,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.3),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                          );
+                        },
+                      ),
                     ),
-                ],
-              ),
-          ],
-        ),
+                  ],
+                ),
+            ],
+          ),
+        ],
       );
     } catch (e) {
       debugPrint('❌ MapWidget: Error building map - $e');
