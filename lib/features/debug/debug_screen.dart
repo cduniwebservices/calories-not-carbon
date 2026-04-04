@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,42 +11,94 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import '../../models/fitness_models.dart';
 import '../../services/local_storage_service.dart';
 import '../../services/sync_service.dart';
+import '../../services/activity_controller.dart';
+import '../../providers/activity_providers.dart';
 import '../../theme/global_theme.dart';
 
-class DebugScreen extends StatefulWidget {
+class DebugScreen extends ConsumerStatefulWidget {
   const DebugScreen({super.key});
 
   @override
-  State<DebugScreen> createState() => _DebugScreenState();
+  ConsumerState<DebugScreen> createState() => _DebugScreenState();
 }
 
-class _DebugScreenState extends State<DebugScreen>
+class _DebugScreenState extends ConsumerState<DebugScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final List<String> _logs = [];
   final ScrollController _logScrollController = ScrollController();
-  StreamSubscription? _gpsSubscription;
   String _queryText = '';
   String _queryResult = '';
+  ActivityState? _lastKnownState;
+  List<LatLng> _lastRoutePoints = [];
+  FitnessStats? _lastStats;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _startGpsMonitoring();
     _addLog('🔧 Debug screen opened');
     _addLog('📦 Local DB activities: ${LocalStorageService.getAllActivities().length}');
+    _startGpsPolling();
   }
 
   @override
   void dispose() {
-    _gpsSubscription?.cancel();
+    _pollTimer?.cancel();
     _logScrollController.dispose();
     _tabController.dispose();
     super.dispose();
   }
 
+  /// Poll the activity controller every second for GPS data
+  void _startGpsPolling() {
+    _pollTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+
+      final activityState = ref.watch(activityStateProvider);
+      final stats = ref.watch(fitnessStatsProvider);
+      final routePoints = ref.watch(routePointsProvider);
+
+      // Log state changes
+      if (activityState != _lastKnownState) {
+        _addLog('🔄 State: ${_lastKnownState?.name ?? 'N/A'} → $activityState');
+        _lastKnownState = activityState;
+      }
+
+      // Log new route points
+      if (routePoints.length > _lastRoutePoints.length) {
+        final newPoints = routePoints.skip(_lastRoutePoints.length).toList();
+        for (final point in newPoints) {
+          _addLog(
+            '📍 GPS: ${point.latitude.toStringAsFixed(6)}, ${point.longitude.toStringAsFixed(6)}',
+          );
+        }
+        _lastRoutePoints = routePoints;
+      }
+
+      // Log stats updates during activity
+      if (activityState == ActivityState.running && stats != _lastStats) {
+        if (_lastStats != null) {
+          final dist = stats.totalDistanceMeters - (_lastStats?.totalDistanceMeters ?? 0);
+          if (dist > 0) {
+            _addLog(
+              '📊 Dist: ${stats.formattedDistance} | Speed: ${(stats.currentSpeedMps * 3.6).toStringAsFixed(1)} km/h | Cal: ${stats.estimatedCalories} | Route points: ${routePoints.length}',
+            );
+          }
+        }
+        _lastStats = stats;
+      }
+
+      // Log GPS availability
+      if (activityState == ActivityState.running && routePoints.isEmpty) {
+        _addLog('⚠️ Activity running but NO GPS route points received!');
+      }
+    });
+  }
+
   void _addLog(String message) {
+    if (!mounted) return;
     setState(() {
       final timestamp = DateTime.now().toString().substring(11, 23);
       _logs.add('[$timestamp] $message');
@@ -59,11 +112,6 @@ class _DebugScreenState extends State<DebugScreen>
         );
       }
     });
-  }
-
-  void _startGpsMonitoring() {
-    // Monitor activity changes from local storage
-    _addLog('📡 GPS monitor started');
   }
 
   @override
@@ -104,8 +152,66 @@ class _DebugScreenState extends State<DebugScreen>
   }
 
   Widget _buildLogsTab() {
+    final activityState = ref.watch(activityStateProvider);
+    final stats = ref.watch(fitnessStatsProvider);
+    final routePoints = ref.watch(routePointsProvider);
+
     return Column(
       children: [
+        // Live GPS status panel
+        Container(
+          padding: const EdgeInsets.all(12),
+          color: Colors.black87,
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    activityState == ActivityState.running ? Icons.circle : Icons.circle_outlined,
+                    size: 10,
+                    color: activityState == ActivityState.running
+                        ? Colors.green
+                        : activityState == ActivityState.paused
+                        ? Colors.orange
+                        : Colors.grey,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'State: ${activityState.name.toUpperCase()}',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  const Spacer(),
+                  Text(
+                    'Points: ${routePoints.length}',
+                    style: TextStyle(color: routePoints.isNotEmpty ? Colors.green : Colors.red, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              if (activityState != ActivityState.idle) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Text('📏 ${stats.formattedDistance}', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                    const SizedBox(width: 12),
+                    Text('⚡ ${(stats.currentSpeedMps * 3.6).toStringAsFixed(1)} km/h', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                    const SizedBox(width: 12),
+                    Text('🔥 ${stats.estimatedCalories} cal', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                    const SizedBox(width: 12),
+                    Text('⏱️ ${stats.formattedDuration}', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                  ],
+                ),
+                if (routePoints.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '📍 Last: ${routePoints.last.latitude.toStringAsFixed(6)}, ${routePoints.last.longitude.toStringAsFixed(6)}',
+                    style: const TextStyle(color: Colors.greenAccent, fontSize: 11, fontFamily: 'monospace'),
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+        // Log list
         Container(
           padding: const EdgeInsets.all(12),
           color: Colors.black54,

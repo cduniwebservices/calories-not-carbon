@@ -294,8 +294,8 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
         unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.35),
         labelStyle: TextStyle(fontWeight: FontWeight.w700),
         tabs: const [
-          Tab(icon: Icon(Icons.map, size: 22), text: 'Map'),
-          Tab(icon: Icon(Icons.analytics, size: 22), text: 'Stats'),
+          Tab(icon: Icon(Icons.map, size: 24), text: 'Map'),
+          Tab(icon: Icon(Icons.storage, size: 24), text: 'Stats'),
         ],
       ),
     );
