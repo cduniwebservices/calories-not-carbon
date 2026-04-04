@@ -210,13 +210,24 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
               children: [
                 GestureDetector(
                   onTap: () => context.go('/debug'),
-                  child: Text(
-                    'Calories Not Carbon',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      fontSize: isCompact ? 18 : null,
+                  child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Calories Not Carbon',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: isCompact ? 18 : null,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      speedIcon,
+                      color: GlobalTheme.primaryNeon,
+                      size: isCompact ? 20 : 24,
+                    ),
+                  ],
+                ),
                 ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.2, end: 0),
 
                 SizedBox(height: isCompact ? 1 : 2),
@@ -574,7 +585,7 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
       case ActivityState.running:
         return theme.primaryColor;
       case ActivityState.paused:
-        return Colors.orange;
+        return GlobalTheme.primaryAccent;
       case ActivityState.completed:
         return Colors.green;
     }

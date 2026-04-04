@@ -97,7 +97,7 @@ class FitnessStatsWidget extends StatelessWidget {
         break;
       case ActivityState.paused:
         icon = Icons.pause_circle_filled;
-        color = Colors.orange;
+        color = GlobalTheme.primaryAccent;
         break;
       case ActivityState.completed:
         icon = Icons.check_circle;
@@ -505,7 +505,7 @@ class ActivityControlsWidget extends StatelessWidget {
         text = 'Pause';
         icon = Icons.pause;
         onPressed = onPause;
-        color = Colors.orange;
+        color = GlobalTheme.primaryAccent;
         break;
       case ActivityState.paused:
         text = 'Resume';
@@ -613,8 +613,8 @@ class ActivityControlsWidget extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: isLoading
-                    ? theme.colorScheme.error.withOpacity(0.5)
-                    : theme.colorScheme.error,
+                    ? GlobalTheme.primaryNeon.withOpacity(0.5)
+                    : GlobalTheme.primaryNeon,
                 width: 2,
               ),
             ),
@@ -625,8 +625,8 @@ class ActivityControlsWidget extends StatelessWidget {
                   Icons.stop,
                   size: 18,
                   color: isLoading
-                      ? theme.colorScheme.error.withOpacity(0.5)
-                      : theme.colorScheme.error,
+                      ? GlobalTheme.primaryNeon.withOpacity(0.5)
+                      : GlobalTheme.primaryNeon,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -635,8 +635,8 @@ class ActivityControlsWidget extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     fontSize: 15,
                     color: isLoading
-                        ? theme.colorScheme.error.withOpacity(0.5)
-                        : theme.colorScheme.error,
+                        ? GlobalTheme.primaryNeon.withOpacity(0.5)
+                        : GlobalTheme.primaryNeon,
                   ),
                 ),
               ],

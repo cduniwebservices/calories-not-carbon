@@ -232,41 +232,38 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget>
               borderRadius: BorderRadius.circular(28),
               child: Stack(
                 children: [
-                  // Enhanced backdrop with sophisticated glassmorphism effect
+                  // Enhanced backdrop without blur for better map visibility
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.black.withOpacity(0.2),
+                          Colors.black.withOpacity(0.1),
                           Colors.transparent,
-                          Colors.black.withOpacity(0.6),
+                          Colors.black.withOpacity(0.4),
                         ],
                         stops: const [0.0, 0.4, 1.0],
                       ),
                     ),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Colors.white.withOpacity(0.1),
-                              Colors.white.withOpacity(0.02),
-                              Colors.transparent,
-                            ],
-                            stops: const [0.0, 0.3, 1.0],
-                          ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.02),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.white.withOpacity(0.05),
+                            Colors.white.withOpacity(0.01),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.3, 1.0],
                         ),
                       ),
                     ),
                   ),
 
-                  // Safety fallback layer when map has no data
+                  // Safety fallback layer when map has no data - no blur
                   if (!_isMapReady && !_isLoading && !_hasError)
                     Container(
                       decoration: BoxDecoration(
@@ -279,56 +276,53 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget>
                           ],
                         ),
                       ),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.03),
-                          ),
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(24),
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        accent.withOpacity(0.2),
-                                        accent.withOpacity(0.1),
-                                      ],
-                                    ),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: accent.withOpacity(0.3),
-                                      width: 2,
-                                    ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.03),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      accent.withOpacity(0.2),
+                                      accent.withOpacity(0.1),
+                                    ],
                                   ),
-                                  child: Icon(
-                                    Icons.map_outlined,
-                                    size: 48,
-                                    color: accent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: accent.withOpacity(0.3),
+                                    width: 2,
                                   ),
                                 ),
-                                const SizedBox(height: 20),
-                                Text(
-                                  'Map Ready',
-                                  style: theme.textTheme.titleLarge?.copyWith(
-                                    color: GlobalTheme.textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.5,
-                                  ),
+                                child: Icon(
+                                  Icons.map_outlined,
+                                  size: 48,
+                                  color: accent,
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Tap to explore your route',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: GlobalTheme.textSecondary
-                                        .withOpacity(0.8),
-                                  ),
+                              ),
+                              const SizedBox(height: 20),
+                              Text(
+                                'Map Ready',
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  color: GlobalTheme.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.5,
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Tap to explore your route',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: GlobalTheme.textSecondary
+                                      .withOpacity(0.8),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -358,7 +352,7 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget>
                   // Top overlay with timer and stats
                   _buildTopOverlay(theme, accent),
 
-                  // Enhanced loading state with polished glassmorphism
+                  // Enhanced loading state with polished appearance - no blur
                   if (_isLoading)
                     Container(
                       decoration: BoxDecoration(
@@ -366,142 +360,133 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget>
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            GlobalTheme.backgroundPrimary.withOpacity(0.95),
-                            GlobalTheme.backgroundSecondary.withOpacity(0.9),
+                            GlobalTheme.backgroundPrimary.withOpacity(0.9),
+                            GlobalTheme.backgroundSecondary.withOpacity(0.85),
                             Colors.black.withOpacity(0.1),
                           ],
                           stops: const [0.0, 0.7, 1.0],
                         ),
                       ),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
-                          ),
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                // Enhanced loading container with gradient and animation
-                                AnimatedBuilder(
-                                  animation: _loadingController,
-                                  builder: (context, child) {
-                                    return Transform.scale(
-                                      scale:
-                                          1.0 +
-                                          (_loadingController.value * 0.1),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(28),
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              accent.withOpacity(0.3),
-                                              accent.withOpacity(0.1),
-                                            ],
-                                          ),
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: accent.withOpacity(0.4),
-                                            width: 2,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: accent.withOpacity(0.3),
-                                              blurRadius: 20,
-                                              offset: const Offset(0, 8),
-                                            ),
-                                            BoxShadow(
-                                              color: Colors.white.withOpacity(
-                                                0.1,
-                                              ),
-                                              blurRadius: 5,
-                                              offset: const Offset(0, -2),
-                                            ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.02),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Enhanced loading container with gradient and animation
+                              AnimatedBuilder(
+                                animation: _loadingController,
+                                builder: (context, child) {
+                                  return Transform.scale(
+                                    scale:
+                                        1.0 +
+                                        (_loadingController.value * 0.1),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(28),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            accent.withOpacity(0.3),
+                                            accent.withOpacity(0.1),
                                           ],
                                         ),
-                                        child: Icon(
-                                          Icons.gps_fixed,
-                                          size: 52,
-                                          color: accent,
-                                          shadows: [
-                                            Shadow(
-                                              color: Colors.black.withOpacity(
-                                                0.3,
-                                              ),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: accent.withOpacity(0.4),
+                                          width: 2,
                                         ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: accent.withOpacity(0.3),
+                                            blurRadius: 20,
+                                            offset: const Offset(0, 8),
+                                          ),
+                                          BoxShadow(
+                                            color: Colors.white.withOpacity(
+                                              0.1,
+                                            ),
+                                            blurRadius: 5,
+                                            offset: const Offset(0, -2),
+                                          ),
+                                        ],
                                       ),
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 32),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.3),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.1),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: BackdropFilter(
-                                    filter: ImageFilter.blur(
-                                      sigmaX: 8,
-                                      sigmaY: 8,
-                                    ),
-                                    child: Text(
-                                      'Initializing GPS...',
-                                      style: theme.textTheme.titleLarge
-                                          ?.copyWith(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w600,
-                                            letterSpacing: 0.8,
-                                            shadows: [
-                                              Shadow(
-                                                color: Colors.black.withOpacity(
-                                                  0.5,
-                                                ),
-                                                blurRadius: 4,
-                                                offset: const Offset(0, 1),
-                                              ),
-                                            ],
+                                      child: Icon(
+                                        Icons.gps_fixed,
+                                        size: 52,
+                                        color: accent,
+                                        shadows: [
+                                          Shadow(
+                                            color: Colors.black.withOpacity(
+                                              0.3,
+                                            ),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
                                           ),
-                                      textAlign: TextAlign.center,
+                                        ],
+                                      ),
                                     ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 32),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.1),
+                                    width: 1,
                                   ),
                                 ),
-                                const SizedBox(height: 20),
-                                // Enhanced circular progress indicator
-                                Container(
-                                  width: 48,
-                                  height: 48,
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.2),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: accent.withOpacity(0.3),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: CircularProgressIndicator(
-                                    color: accent,
-                                    strokeWidth: 3,
-                                    backgroundColor: Colors.white.withOpacity(
-                                      0.1,
-                                    ),
+                                child: Text(
+                                  'Initializing GPS...',
+                                  style: theme.textTheme.titleLarge
+                                      ?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.8,
+                                        shadows: [
+                                          Shadow(
+                                            color: Colors.black.withOpacity(
+                                              0.5,
+                                            ),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 1),
+                                          ),
+                                        ],
+                                      ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              // Enhanced circular progress indicator
+                              Container(
+                                width: 48,
+                                height: 48,
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.2),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: accent.withOpacity(0.3),
+                                    width: 1,
                                   ),
                                 ),
-                              ],
-                            ),
+                                child: CircularProgressIndicator(
+                                  color: accent,
+                                  strokeWidth: 3,
+                                  backgroundColor: Colors.white.withOpacity(
+                                    0.1,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -833,15 +818,13 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.4),
+        color: Colors.black.withOpacity(0.6),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: accent.withOpacity(0.3), width: 1),
+        border: Border.all(color: accent.withOpacity(0.4), width: 1.5),
       ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
             Text(
               value,
               style: TextStyle(
@@ -910,14 +893,14 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget>
       width: 48,
       height: 48,
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.7),
+        color: Colors.black.withOpacity(0.85),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accent.withOpacity(0.3), width: 1),
+        border: Border.all(color: accent.withOpacity(0.5), width: 2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -939,18 +922,16 @@ class _InteractiveMapWidgetState extends State<InteractiveMapWidget>
                 },
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-              child: isLoading
-                  ? Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(accent),
-                      ),
-                    )
-                  : Icon(icon, color: accent, size: 20),
-            ),
+            alignment: Alignment.center,
+            child: isLoading
+                ? Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(accent),
+                    ),
+                  )
+                : Icon(icon, color: accent, size: 24),
           ),
         ),
       ),

@@ -71,7 +71,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      'FITNESS TRACKER',
+                      'HEALTHY HUMANS, HEALTHY PLANET',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: GlobalTheme.textSecondary,
                         fontWeight: FontWeight.w600,
@@ -116,9 +116,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           'assets/icons/icon-logo-4-color.svg',
                           fit: BoxFit.contain,
                           width: MediaQuery.of(context).size.width * 0.75,
-                          theme: const SvgTheme(
-                            currentColor: Color(0xFF7fb768),
-                          ),
                         ),
                       ),
                     ),
