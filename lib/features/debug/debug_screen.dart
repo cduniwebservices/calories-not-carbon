@@ -15,6 +15,8 @@ import '../../services/activity_controller.dart';
 import '../../providers/activity_providers.dart';
 import '../../theme/global_theme.dart';
 
+import 'package:flutter/foundation.dart';
+
 class DebugScreen extends ConsumerStatefulWidget {
   const DebugScreen({super.key});
 
@@ -33,6 +35,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
   List<LatLng> _lastRoutePoints = [];
   FitnessStats? _lastStats;
   Timer? _pollTimer;
+  DebugPrintCallback? _oldDebugPrint;
 
   @override
   void initState() {
@@ -41,10 +44,24 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
     _addLog('🔧 Debug screen opened');
     _addLog('📦 Local DB activities: ${LocalStorageService.getAllActivities().length}');
     _startGpsPolling();
+    
+    // Intercept debugPrint to show in UI
+    _oldDebugPrint = debugPrint;
+    debugPrint = (String? message, {int? wrapWidth}) {
+      if (message != null) {
+        _addLog(message);
+      }
+      if (_oldDebugPrint != null) {
+        _oldDebugPrint!(message, wrapWidth: wrapWidth);
+      }
+    };
   }
 
   @override
   void dispose() {
+    if (_oldDebugPrint != null) {
+      debugPrint = _oldDebugPrint!;
+    }
     _pollTimer?.cancel();
     _logScrollController.dispose();
     _tabController.dispose();

@@ -124,8 +124,16 @@ class LocationService {
       }
 
       // Start position stream
-      _positionSubscription = Geolocator.getPositionStream().listen(
-        _onLocationUpdate,
+      _positionSubscription = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 0, // Receive all updates for debugging
+        ),
+      ).listen(
+        (position) {
+          debugPrint('📡 LocationService: RAW GPS update received: ${position.latitude}, ${position.longitude} (Acc: ${position.accuracy}m)');
+          _onLocationUpdate(position);
+        },
         onError: _onLocationError,
         cancelOnError: false,
       );

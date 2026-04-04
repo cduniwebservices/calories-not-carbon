@@ -371,26 +371,34 @@ class ActivityController extends ChangeNotifier {
       }
     });
   }
+void _onLocationUpdate(dynamic locationData) {
+  if (_state != ActivityState.running) {
+    debugPrint('🏃 ActivityController: Ignoring update - not in running state (Current: $_state)');
+    return;
+  }
 
-  void _onLocationUpdate(dynamic locationData) {
-    if (_state != ActivityState.running) return;
+  try {
+    final newLocation = LatLng(locationData.latitude, locationData.longitude);
+    final timestamp = DateTime.now();
 
-    try {
-      final newLocation = LatLng(locationData.latitude, locationData.longitude);
-      final timestamp = DateTime.now();
+    debugPrint('📡 ActivityController: Processing update: ${newLocation.latitude}, ${newLocation.longitude}');
 
-      // Calculate distance increment
-      if (_lastKnownLocation != null) {
-        final distance = Geolocator.distanceBetween(
-          _lastKnownLocation!.latitude,
-          _lastKnownLocation!.longitude,
-          newLocation.latitude,
-          newLocation.longitude,
-        );
+    // Calculate distance increment
+    if (_lastKnownLocation != null) {
+      final distance = Geolocator.distanceBetween(
+        _lastKnownLocation!.latitude,
+        _lastKnownLocation!.longitude,
+        newLocation.latitude,
+        newLocation.longitude,
+      );
 
-        // Only process if movement is significant
-        if (distance >= _minimumDistanceThreshold) {
-          _totalDistance += distance;
+      debugPrint('📏 ActivityController: Distance from last: ${distance.toStringAsFixed(2)}m (Threshold: $_minimumDistanceThreshold\m)');
+
+      // Only process if movement is significant
+      if (distance >= _minimumDistanceThreshold) {
+        debugPrint('✅ ActivityController: Movement significant, updating stats');
+        _totalDistance += distance;
+...
           _routePoints.add(newLocation);
 
           // Update current speed from GPS if available
