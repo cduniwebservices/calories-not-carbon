@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../models/fitness_models.dart';
 import '../../../providers/activity_providers.dart';
@@ -207,11 +208,14 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Calories Not Carbon',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontSize: isCompact ? 18 : null,
+                GestureDetector(
+                  onTap: () => context.go('/debug'),
+                  child: Text(
+                    'Calories Not Carbon',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isCompact ? 18 : null,
+                    ),
                   ),
                 ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.2, end: 0),
 

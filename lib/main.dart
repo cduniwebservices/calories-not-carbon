@@ -19,6 +19,7 @@ import 'features/fitness/screens/session_summary_screen.dart';
 import 'features/fitness/screens/history_screen.dart';
 import 'features/fitness/screens/permission_denied_screen.dart';
 import 'features/onboarding/permission_onboarding.dart';
+import 'features/debug/debug_screen.dart';
 
 // Essential services
 import 'services/enterprise_logger.dart';
@@ -189,6 +190,16 @@ final GoRouter _router = GoRouter(
       pageBuilder: (context, state) => _buildPageWithTransition(
         key: state.pageKey,
         child: const PermissionDeniedScreen(),
+      ),
+    ),
+
+    // Secret debug screen
+    GoRoute(
+      path: '/debug',
+      name: 'debug',
+      pageBuilder: (context, state) => _buildPageWithTransition(
+        key: state.pageKey,
+        child: const DebugScreen(),
       ),
     ),
   ],
