@@ -140,13 +140,6 @@ class LocationService {
         return false;
       }
 
-      // Listen to data from background isolate
-      FlutterForegroundTask.receiveData.listen((data) {
-        if (data is Map<String, dynamic>) {
-          _onBackgroundLocationUpdate(data);
-        }
-      });
-
       // Start foreground position stream (keeps working alongside background)
       _positionSubscription = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(

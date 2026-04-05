@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:isolate';
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
@@ -13,7 +12,6 @@ class BackgroundLocationService {
   BackgroundLocationService._internal();
 
   bool _isInitialized = false;
-  ReceivePort? _receivePort;
 
   /// Initialize foreground task
   Future<void> initialize() async {
@@ -36,7 +34,7 @@ class BackgroundLocationService {
         playSound: false,
       ),
       foregroundTaskOptions: ForegroundTaskOptions(
-        eventAction: ForegroundTaskEventAction.repeat,
+        eventAction: ForegroundTaskEventAction.repeat(1000),
         autoRunOnBoot: false,
         allowWifiLock: true,
         allowWakeLock: true,
@@ -46,9 +44,6 @@ class BackgroundLocationService {
     _isInitialized = true;
     debugPrint('✅ BackgroundLocationService: Initialized');
   }
-
-  /// Get receive port for listening to data from background
-  ReceivePort? get receivePort => _receivePort;
 
   /// Start foreground task with location tracking
   Future<bool> startTracking() async {
@@ -73,8 +68,9 @@ class BackgroundLocationService {
         callback: startLocationTrackingCallback,
       );
 
-      debugPrint('✅ BackgroundLocationService: Service started - success: ${result is ServiceRequestSuccess}');
-      return result is ServiceRequestSuccess;
+      final success = result is ServiceRequestSuccess;
+      debugPrint('✅ BackgroundLocationService: Service started - success: $success');
+      return success;
     } catch (e) {
       debugPrint('❌ BackgroundLocationService: Failed to start service: $e');
       return false;
@@ -111,8 +107,6 @@ class BackgroundLocationService {
 
   /// Dispose resources
   void dispose() {
-    _receivePort?.close();
-    _receivePort = null;
     _isInitialized = false;
   }
 }
