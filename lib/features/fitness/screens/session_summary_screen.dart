@@ -205,26 +205,50 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
 
         // Congratulations text
         Text(
-          'Run Complete!',
+          'Activity Complete!',
           style: theme.textTheme.headlineLarge?.copyWith(
             color: GlobalTheme.textPrimary,
             fontWeight: FontWeight.w900,
           ),
         ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2, end: 0),
 
-        const SizedBox(height: GlobalTheme.spacing8),
+        const SizedBox(height: 8),
 
-        Text(
-          'Great job on completing your ${widget.session.activityType.displayName.toLowerCase()}!',
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: GlobalTheme.textSecondary,
-            height: 1.5,
-          ),
-          textAlign: TextAlign.center,
+        Consumer(
+          builder: (context, ref, child) {
+            final goalState = ref.watch(goalProvider);
+            final selectedGoal = goalState.selectedGoal;
+
+            String subTitle = 'Great job on completing your ${widget.session.activityType.displayName.toLowerCase()}!';
+
+            if (selectedGoal != null) {
+              final distanceKm = widget.session.stats.totalDistanceMeters / 1000;
+              final co2Saved = distanceKm * selectedGoal.co2PerKm;
+
+              // Format to grams or kilograms based on amount
+              String formattedCo2;
+              if (co2Saved < 1.0) {
+                formattedCo2 = '${(co2Saved * 1000).toStringAsFixed(0)}g';
+              } else {
+                formattedCo2 = '${co2Saved.toStringAsFixed(2)}kg';
+              }
+
+              subTitle = 'You saved $formattedCo2 CO2 from polluting the Earth';
+            }
+
+            return Text(
+              subTitle,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: GlobalTheme.textSecondary,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            );
+          },
         ).animate().fadeIn(delay: 500.ms),
-      ],
-    );
-  }
+        ],
+        );
+        }
 
   Widget _buildMainStats(ThemeData theme, FitnessStats stats) {
     final mainStats = [
@@ -499,103 +523,131 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
   }
 
   Widget _buildDetailedMetrics(ThemeData theme, FitnessStats stats) {
-    final detailedMetrics = [
-      {
-        'label': 'Calories Burned',
-        'value': stats.formattedCalories,
-        'icon': Icons.local_fire_department_rounded,
-      },
-      {
-        'label': 'Steps',
-        'value': stats.formattedSteps,
-        'icon': Icons.directions_walk_rounded,
-      },
-      {
-        'label': 'Elevation Gain',
-        'value': stats.formattedElevation,
-        'icon': Icons.trending_up_rounded,
-      },
-      {
-        'label': 'Average Speed',
-        'value': '${(stats.averageSpeedMps * 3.6).toStringAsFixed(1)} km/h',
-        'icon': Icons.speed_rounded,
-      },
-    ];
+    return Consumer(
+      builder: (context, ref, child) {
+        final goalState = ref.watch(goalProvider);
+        final selectedGoal = goalState.selectedGoal;
+        
+        String co2Value = '--';
+        if (selectedGoal != null) {
+          final distanceKm = stats.totalDistanceMeters / 1000;
+          final co2Saved = distanceKm * selectedGoal.co2PerKm;
+          if (co2Saved < 1.0) {
+            co2Value = '${(co2Saved * 1000).toStringAsFixed(0)}g';
+          } else {
+            co2Value = '${co2Saved.toStringAsFixed(2)}kg';
+          }
+        }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Detailed Metrics',
-          style: theme.textTheme.titleLarge?.copyWith(
-            color: GlobalTheme.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        final detailedMetrics = [
+          {
+            'label': 'CO2 Saved',
+            'value': co2Value,
+            'icon': Icons.eco_rounded,
+            'color': GlobalTheme.statusSuccess,
+          },
+          {
+            'label': 'Calories Burned',
+            'value': stats.formattedCalories,
+            'icon': Icons.local_fire_department_rounded,
+            'color': GlobalTheme.primaryAccent,
+          },
+          {
+            'label': 'Steps',
+            'value': stats.formattedSteps,
+            'icon': Icons.directions_walk_rounded,
+            'color': GlobalTheme.statusInfo,
+          },
+          {
+            'label': 'Elevation Gain',
+            'value': stats.formattedElevation,
+            'icon': Icons.trending_up_rounded,
+            'color': GlobalTheme.statusWarning,
+          },
+          {
+            'label': 'Average Speed',
+            'value': '${(stats.averageSpeedMps * 3.6).toStringAsFixed(1)} km/h',
+            'icon': Icons.speed_rounded,
+            'color': GlobalTheme.primaryAction,
+          },
+        ];
 
-        const SizedBox(height: GlobalTheme.spacing16),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Detailed Metrics',
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: GlobalTheme.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
 
-        ...detailedMetrics.asMap().entries.map((entry) {
-          final index = entry.key;
-          final metric = entry.value;
+            const SizedBox(height: GlobalTheme.spacing16),
 
-          return Container(
-                margin: const EdgeInsets.only(bottom: GlobalTheme.spacing12),
-                padding: const EdgeInsets.all(GlobalTheme.spacing16),
-                decoration: BoxDecoration(
-                  color: GlobalTheme.surfaceCard,
-                  borderRadius: BorderRadius.circular(GlobalTheme.radiusMedium),
-                  border: Border.all(
-                    color: GlobalTheme.surfaceBorder.withOpacity(0.5),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(GlobalTheme.spacing8),
-                      decoration: BoxDecoration(
-                        color: GlobalTheme.primaryAccent.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(
-                          GlobalTheme.radiusSmall,
+            ...detailedMetrics.asMap().entries.map((entry) {
+              final index = entry.key;
+              final metric = entry.value;
+
+              return Container(
+                    margin: const EdgeInsets.only(bottom: GlobalTheme.spacing12),
+                    padding: const EdgeInsets.all(GlobalTheme.spacing16),
+                    decoration: BoxDecoration(
+                      color: GlobalTheme.surfaceCard,
+                      borderRadius: BorderRadius.circular(GlobalTheme.radiusMedium),
+                      border: Border.all(
+                        color: GlobalTheme.surfaceBorder.withOpacity(0.5),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(GlobalTheme.spacing8),
+                          decoration: BoxDecoration(
+                            color: (metric['color'] as Color).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(
+                              GlobalTheme.radiusSmall,
+                            ),
+                          ),
+                          child: Icon(
+                            metric['icon'] as IconData,
+                            color: metric['color'] as Color,
+                            size: 20,
+                          ),
                         ),
-                      ),
-                      child: Icon(
-                        metric['icon'] as IconData,
-                        color: GlobalTheme.primaryAccent,
-                        size: 20,
-                      ),
-                    ),
 
-                    const SizedBox(width: GlobalTheme.spacing16),
+                        const SizedBox(width: GlobalTheme.spacing16),
 
-                    Expanded(
-                      child: Text(
-                        metric['label'] as String,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: GlobalTheme.textSecondary,
-                          fontWeight: FontWeight.w500,
+                        Expanded(
+                          child: Text(
+                            metric['label'] as String,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: GlobalTheme.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
 
-                    Text(
-                      metric['value'] as String,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: GlobalTheme.textPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
+                        Text(
+                          metric['value'] as String,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: GlobalTheme.textPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              )
-              .animate()
-              .fadeIn(
-                delay: Duration(milliseconds: 1400 + (index * 100)),
-                duration: 400.ms,
-              )
-              .slideX(begin: 0.3, end: 0);
-        }),
-      ],
+                  )
+                  .animate()
+                  .fadeIn(
+                    delay: Duration(milliseconds: 1400 + (index * 100)),
+                    duration: 400.ms,
+                  )
+                  .slideX(begin: 0.3, end: 0);
+            }),
+          ],
+        );
+      },
     );
   }
 
