@@ -769,12 +769,12 @@ class _InteractiveMapWidgetState extends ConsumerState<InteractiveMapWidget>
                     ),
                   ),
                 ],
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildTopOverlay(ThemeData theme, Color accent, FitnessStats stats) {

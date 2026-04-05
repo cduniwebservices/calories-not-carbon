@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:isolate';
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
@@ -13,14 +12,12 @@ class BackgroundLocationService {
   BackgroundLocationService._internal();
 
   bool _isInitialized = false;
-  final _receivePort = ReceivePort();
-  SendPort? _sendPort;
 
   /// Initialize foreground task
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    // Configure foreground task options
+    // Configure foreground task options for v9.x
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: 'location_tracking_channel',
@@ -31,26 +28,17 @@ class BackgroundLocationService {
         showWhen: true,
         playSound: false,
         enableVibration: false,
-        iconData: const NotificationIconData(
-          resType: ResourceType.mipmap,
-          resPrefix: ResourcePrefix.ic,
-          name: 'launcher',
-        ),
       ),
       iosNotificationOptions: const IOSNotificationOptions(
         showNotification: true,
         playSound: false,
       ),
       foregroundTaskOptions: const ForegroundTaskOptions(
-        interval: 1000, // Run every 1000ms (1 second)
         autoRunOnBoot: false,
         allowWifiLock: true,
         allowWakeLock: true,
       ),
     );
-
-    // Set up receive port to get messages from isolate
-    _receivePort.listen(_handleMessageFromIsolate);
 
     _isInitialized = true;
     debugPrint('✅ BackgroundLocationService: Initialized');
@@ -65,26 +53,22 @@ class BackgroundLocationService {
         return true;
       }
 
-      // Request permissions for foreground service
-      if (!await FlutterForegroundTask.canDrawOverlays) {
-        await FlutterForegroundTask.openSystemAlertWindowSettings();
-      }
-
       // Request notification permission (Android 13+)
-      if (!await FlutterForegroundTask.isIgnoringBatteryOptimizations) {
-        await FlutterForegroundTask.requestIgnoreBatteryOptimization();
+      final notificationPermission = await FlutterForegroundTask.requestNotificationPermission();
+      if (!notificationPermission) {
+        debugPrint('❌ BackgroundLocationService: Notification permission denied');
+        return false;
       }
 
       // Start foreground service
       final result = await FlutterForegroundTask.startService(
-        serviceId: 256,
         notificationTitle: '🏃 Workout in Progress',
         notificationText: 'Tracking your location...',
         callback: startLocationTrackingCallback,
       );
 
-      debugPrint('✅ BackgroundLocationService: Service started - $result');
-      return result;
+      debugPrint('✅ BackgroundLocationService: Service started - success: ${result.success}');
+      return result.success;
     } catch (e) {
       debugPrint('❌ BackgroundLocationService: Failed to start service: $e');
       return false;
@@ -116,25 +100,11 @@ class BackgroundLocationService {
     );
   }
 
-  /// Get send port for communicating with isolate
-  SendPort? get sendPort => _sendPort;
-
-  /// Handle messages from isolate
-  void _handleMessageFromIsolate(dynamic message) {
-    if (message is SendPort) {
-      _sendPort = message;
-      debugPrint('✅ BackgroundLocationService: Got send port from isolate');
-    } else if (message is Map<String, dynamic>) {
-      debugPrint('📡 BackgroundLocationService: Received data from isolate: $message');
-    }
-  }
-
   /// Check if service is running
   Future<bool> get isRunning => FlutterForegroundTask.isRunningService;
 
   /// Dispose resources
   void dispose() {
-    _receivePort.close();
     _isInitialized = false;
   }
 }
@@ -148,11 +118,9 @@ void startLocationTrackingCallback() {
 /// Task handler for location tracking in foreground
 class LocationTrackingTaskHandler extends TaskHandler {
   StreamSubscription<Position>? _positionSubscription;
-  SendPort? _sendPort;
 
   @override
-  Future<void> onStart(DateTime timestamp, SendPort? sendPort) async {
-    _sendPort = sendPort;
+  Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
     debugPrint('🎯 LocationTrackingTaskHandler: Started');
 
     // Start listening to GPS updates
@@ -160,7 +128,6 @@ class LocationTrackingTaskHandler extends TaskHandler {
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.best,
         distanceFilter: 0, // Get every update
-        timeLimit: null,
       ),
     ).listen(
       (Position position) {
@@ -170,21 +137,17 @@ class LocationTrackingTaskHandler extends TaskHandler {
         debugPrint('❌ LocationTrackingTaskHandler: GPS error: $error');
       },
     );
-
-    // Send initial message to main isolate
-    sendPort?.send({'type': 'started', 'timestamp': timestamp.toIso8601String()});
   }
 
   @override
-  Future<void> onEvent(DateTime timestamp, SendPort? sendPort) async {
-    // This is called every interval (1 second)
-    // We don't need to do anything here since GPS stream handles updates
-    _sendPort = sendPort;
+  Future<void> onRepeatEvent(DateTime timestamp) async {
+    // This is called periodically
+    // GPS stream handles the actual location updates
   }
 
   @override
-  Future<void> onDestroy(DateTime timestamp, SendPort? sendPort) async {
-    debugPrint('🛑 LocationTrackingTaskHandler: Destroyed');
+  Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {
+    debugPrint('🛑 LocationTrackingTaskHandler: Destroyed (timeout: $isTimeout)');
     await _positionSubscription?.cancel();
     _positionSubscription = null;
   }
@@ -198,18 +161,12 @@ class LocationTrackingTaskHandler extends TaskHandler {
   void onNotificationPressed() {
     debugPrint('🔘 Notification pressed');
     // Could open the app here
-  }
-
-  @override
-  void onNotificationDismissed() {
-    debugPrint('🔘 Notification dismissed');
+    FlutterForegroundTask.launchApp();
   }
 
   void _onLocationUpdate(Position position) {
-    final locationData = LocationData.fromPosition(position);
-
     // Send location data to main isolate
-    _sendPort?.send({
+    final data = {
       'type': 'location',
       'latitude': position.latitude,
       'longitude': position.longitude,
@@ -218,7 +175,9 @@ class LocationTrackingTaskHandler extends TaskHandler {
       'heading': position.heading,
       'speed': position.speed,
       'timestamp': position.timestamp?.toIso8601String() ?? DateTime.now().toIso8601String(),
-    });
+    };
+
+    FlutterForegroundTask.sendDataToMain(data);
 
     debugPrint(
       '📡 LocationTrackingTaskHandler: GPS - '

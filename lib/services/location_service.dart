@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:isolate';
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'background_location_service.dart';
@@ -28,7 +28,6 @@ class LocationService {
   // Background location service
   final BackgroundLocationService _backgroundService = BackgroundLocationService();
   StreamSubscription? _backgroundLocationSubscription;
-  ReceivePort? _backgroundReceivePort;
 
   // Current state tracking
   LocationData? _currentLocation;
@@ -141,12 +140,12 @@ class LocationService {
         return false;
       }
 
-      // Set up receive port to get location updates from background isolate
-      _backgroundReceivePort = ReceivePort();
-      _backgroundReceivePort!.listen(_onBackgroundLocationUpdate);
-
-      // Send sendPort to background task
-      _backgroundService.sendPort?.send(_backgroundReceivePort!.sendPort);
+      // Listen to data from background isolate
+      FlutterForegroundTask.receiveData.listen((data) {
+        if (data is Map<String, dynamic>) {
+          _onBackgroundLocationUpdate(data);
+        }
+      });
 
       // Start foreground position stream (keeps working alongside background)
       _positionSubscription = Geolocator.getPositionStream(
@@ -195,10 +194,6 @@ class LocationService {
 
       // Stop background service
       await _backgroundService.stopTracking();
-
-      // Clean up receive port
-      await _backgroundReceivePort?.close();
-      _backgroundReceivePort = null;
 
       _isTracking = false;
       debugPrint('✅ LocationService: Location tracking stopped');
