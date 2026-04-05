@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'background_location_service.dart';
 
 /// Enterprise-level location service for million-dollar app quality
 class LocationService {
@@ -23,6 +25,11 @@ class LocationService {
       _permissionController.stream;
   Stream<LocationServiceStatus> get serviceStream => _serviceController.stream;
 
+  // Background location service
+  final BackgroundLocationService _backgroundService = BackgroundLocationService();
+  StreamSubscription? _backgroundLocationSubscription;
+  ReceivePort? _backgroundReceivePort;
+
   // Current state tracking
   LocationData? _currentLocation;
   LocationPermissionStatus _permissionStatus = LocationPermissionStatus.unknown;
@@ -41,6 +48,9 @@ class LocationService {
       debugPrint(
         '🌍 LocationService: Initializing enterprise location service...',
       );
+
+      // Initialize background service
+      await _backgroundService.initialize();
 
       // Initial permission and service checks
       await _updatePermissionStatus();
@@ -123,11 +133,26 @@ class LocationService {
         return false;
       }
 
-      // Start position stream
+      // Start background foreground task for continuous tracking
+      // This keeps GPS active when app is in background or screen is off
+      final backgroundStarted = await _backgroundService.startTracking();
+      if (!backgroundStarted) {
+        debugPrint('❌ LocationService: Failed to start background service');
+        return false;
+      }
+
+      // Set up receive port to get location updates from background isolate
+      _backgroundReceivePort = ReceivePort();
+      _backgroundReceivePort!.listen(_onBackgroundLocationUpdate);
+
+      // Send sendPort to background task
+      _backgroundService.sendPort?.send(_backgroundReceivePort!.sendPort);
+
+      // Start foreground position stream (keeps working alongside background)
       _positionSubscription = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 0, // Receive all updates for debugging
+          accuracy: LocationAccuracy.best,
+          distanceFilter: 0, // Receive all updates for high accuracy
         ),
       ).listen(
         (position) {
@@ -141,7 +166,7 @@ class LocationService {
       // Get initial position
       try {
         final Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
+          desiredAccuracy: LocationAccuracy.best,
         );
         _onLocationUpdate(position);
       } catch (e) {
@@ -149,7 +174,7 @@ class LocationService {
       }
 
       _isTracking = true;
-      debugPrint('✅ LocationService: Location tracking started');
+      debugPrint('✅ LocationService: Location tracking started with background service');
       return true;
     } catch (e) {
       debugPrint('❌ LocationService: Failed to start tracking: $e');
@@ -164,10 +189,18 @@ class LocationService {
     try {
       debugPrint('🛑 LocationService: Stopping location tracking...');
 
+      // Stop foreground stream
       await _positionSubscription?.cancel();
       _positionSubscription = null;
-      _isTracking = false;
 
+      // Stop background service
+      await _backgroundService.stopTracking();
+
+      // Clean up receive port
+      await _backgroundReceivePort?.close();
+      _backgroundReceivePort = null;
+
+      _isTracking = false;
       debugPrint('✅ LocationService: Location tracking stopped');
     } catch (e) {
       debugPrint('❌ LocationService: Error stopping tracking: $e');
@@ -264,6 +297,42 @@ class LocationService {
   void _onLocationError(dynamic error) {
     debugPrint('❌ LocationService: Location error: $error');
     // Could emit error state to stream if needed
+  }
+
+  /// Handle location updates from background isolate
+  void _onBackgroundLocationUpdate(dynamic message) {
+    if (message is SendPort) {
+      // Store send port for communication
+      return;
+    }
+
+    if (message is Map<String, dynamic>) {
+      if (message['type'] == 'location') {
+        try {
+          final locationData = LocationData(
+            latitude: message['latitude'] as double,
+            longitude: message['longitude'] as double,
+            accuracy: message['accuracy'] as double,
+            altitude: message['altitude'] as double?,
+            heading: message['heading'] as double?,
+            speed: message['speed'] as double?,
+            timestamp: DateTime.parse(message['timestamp'] as String),
+          );
+
+          _currentLocation = locationData;
+          _locationController.add(locationData);
+
+          debugPrint(
+            '📍 LocationService: Background location updated - '
+            'Lat: ${locationData.latitude.toStringAsFixed(6)}, '
+            'Lng: ${locationData.longitude.toStringAsFixed(6)}, '
+            'Acc: ${locationData.accuracy.toStringAsFixed(1)}m',
+          );
+        } catch (e) {
+          debugPrint('❌ LocationService: Error processing background location: $e');
+        }
+      }
+    }
   }
 
   Future<void> _updatePermissionStatus() async {

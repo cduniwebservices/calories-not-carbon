@@ -27,6 +27,7 @@ dependencies:
   latlong2: ^0.9.1
   geolocator: ^10.1.0
   permission_handler: ^11.2.0
+  flutter_foreground_task: ^0.14.0
   
   # Charts & Data Visualization
   fl_chart: ^0.68.0
