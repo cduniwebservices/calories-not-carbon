@@ -40,7 +40,7 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
       subtitle: 'Your personal fitness companion',
       description:
           'Track your activities, monitor your progress, and achieve your fitness goals with precision GPS tracking.',
-      icon: Icons.fitness_center;
+      icon: Icons.fitness_center,
       color: GlobalTheme.primaryAccent,
     ),
     OnboardingPage(
@@ -421,6 +421,10 @@ class OnboardingPage {
     required this.subtitle,
     required this.description,
     required this.icon,
+    required this.color,
+  });
+}
+his.icon,
     required this.color,
   });
 }

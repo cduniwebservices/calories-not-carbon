@@ -6,6 +6,7 @@ import '../../../theme/global_theme.dart';
 import '../../../models/fitness_models.dart';
 import '../../../providers/activity_providers.dart';
 import '../../../providers/goal_provider.dart';
+import '../../../components/app_button.dart';
 import '../../../services/navigation_service.dart';
 
 /// Session summary screen shown after completing a run

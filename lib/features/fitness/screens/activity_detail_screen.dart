@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../theme/global_theme.dart';
 import '../../../models/fitness_models.dart';
+import '../../../components/app_button.dart';
 import '../../../services/navigation_service.dart';
 
 /// Detailed activity history screen with replay functionality
