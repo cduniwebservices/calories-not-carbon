@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../components/app_button.dart';
 import '../../theme/global_theme.dart';
+import '../../services/version_service.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -138,27 +139,43 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       ),
                     );
                   },
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'CALORIES NOT',
-                        style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          height: 1.0,
-                          color: GlobalTheme.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        'CARBON',
-                        style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          height: 1.0,
-                          color: GlobalTheme.primaryNeon,
-                        ),
-                      ),
-                    ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'CALORIES NOT',
+                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
+                    color: GlobalTheme.textPrimary,
                   ),
+                ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'CARBON',
+                      style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        height: 1.0,
+                        color: GlobalTheme.primaryNeon,
+                      ),
+                    ),
+                    const Spacer(),
+                    // Version number - subtle, right-aligned
+                    Text(
+                      VersionService.version,
+                      style: TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w300,
+                        color: const Color(0xFF1A1A1A), // Subtle - slightly lighter than background
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
                 ),
 
                 const SizedBox(height: 40),

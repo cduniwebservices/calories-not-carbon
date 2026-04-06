@@ -22,8 +22,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          # Updated to 3.41.6 to meet the Dart SDK ^3.8.1 requirement
-          flutter-version: '3.41.6' 
+          flutter-version: '3.41.6'
           channel: 'stable'
           cache: true
 
@@ -33,14 +32,29 @@ jobs:
           path: ~/.pub-cache
           key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
 
+      - name: Generate Version Number
+        id: version
+        run: |
+          YEAR=$(date -u +%Y)
+          YY=$(date -u +%y)
+          DAY_OF_YEAR=$(date -u +%j)
+          HOUR=$(date -u +%H)
+          MIN=$(date -u +%M)
+          SEC=$(date -u +%S)
+          MAJOR=$((YY - 25))
+          DAY_ZERO_INDEXED=$((DAY_OF_YEAR - 1))
+          SECONDS_ELAPSED=$((DAY_ZERO_INDEXED * 86400 + HOUR * 3600 + MIN * 60 + SEC))
+          SECONDS_IN_YEAR=31536000
+          MINOR=$(python3 -c "pct=${SECONDS_ELAPSED}/${SECONDS_IN_YEAR}; print(f'{int(pct*1000000):06d}')")
+          VERSION="${MAJOR}.${MINOR}"
+          echo "Generated version: ${VERSION}"
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
       - name: Install dependencies
         run: flutter pub get
 
-      #- name: Run tests
-      #  run: flutter test
-
       - name: Build APK
-        run: flutter build apk --release --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+        run: flutter build apk --release --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }} --dart-define=APP_VERSION=${{ env.VERSION }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -63,11 +77,29 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Generate Version Number
+        id: version
+        run: |
+          YEAR=$(date -u +%Y)
+          YY=$(date -u +%y)
+          DAY_OF_YEAR=$(date -u +%j)
+          HOUR=$(date -u +%H)
+          MIN=$(date -u +%M)
+          SEC=$(date -u +%S)
+          MAJOR=$((YY - 25))
+          DAY_ZERO_INDEXED=$((DAY_OF_YEAR - 1))
+          SECONDS_ELAPSED=$((DAY_ZERO_INDEXED * 86400 + HOUR * 3600 + MIN * 60 + SEC))
+          SECONDS_IN_YEAR=31536000
+          MINOR=$(python3 -c "pct=${SECONDS_ELAPSED}/${SECONDS_IN_YEAR}; print(f'{int(pct*1000000):06d}')")
+          VERSION="${MAJOR}.${MINOR}"
+          echo "Generated version: ${VERSION}"
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build iOS
-        run: flutter build ios --release --no-codesign --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+        run: flutter build ios --release --no-codesign --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }} --dart-define=APP_VERSION=${{ env.VERSION }}
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
