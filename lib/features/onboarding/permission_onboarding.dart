@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../services/permission_service.dart';
 import '../../services/location_service.dart';
 import '../../components/modern_ui_components.dart';
+import '../../components/app_button.dart';
 import '../../theme/global_theme.dart';
 
 /// Enterprise-level permission onboarding flow
@@ -421,10 +422,6 @@ class OnboardingPage {
     required this.subtitle,
     required this.description,
     required this.icon,
-    required this.color,
-  });
-}
-his.icon,
     required this.color,
   });
 }
