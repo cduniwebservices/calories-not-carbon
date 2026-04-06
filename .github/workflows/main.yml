@@ -42,8 +42,9 @@ jobs:
           MIN=$(date -u +%M)
           SEC=$(date -u +%S)
           MAJOR=$((YY - 25))
-          DAY_ZERO_INDEXED=$((DAY_OF_YEAR - 1))
-          SECONDS_ELAPSED=$((DAY_ZERO_INDEXED * 86400 + HOUR * 3600 + MIN * 60 + SEC))
+          # Strip leading zeros to avoid octal interpretation
+          DAY_ZERO_INDEXED=$((10#$DAY_OF_YEAR - 1))
+          SECONDS_ELAPSED=$((DAY_ZERO_INDEXED * 86400 + 10#$HOUR * 3600 + 10#$MIN * 60 + 10#$SEC))
           SECONDS_IN_YEAR=31536000
           MINOR=$(python3 -c "pct=${SECONDS_ELAPSED}/${SECONDS_IN_YEAR}; print(f'{int(pct*1000000):06d}')")
           VERSION="${MAJOR}.${MINOR}"
@@ -87,8 +88,9 @@ jobs:
           MIN=$(date -u +%M)
           SEC=$(date -u +%S)
           MAJOR=$((YY - 25))
-          DAY_ZERO_INDEXED=$((DAY_OF_YEAR - 1))
-          SECONDS_ELAPSED=$((DAY_ZERO_INDEXED * 86400 + HOUR * 3600 + MIN * 60 + SEC))
+          # Strip leading zeros to avoid octal interpretation
+          DAY_ZERO_INDEXED=$((10#$DAY_OF_YEAR - 1))
+          SECONDS_ELAPSED=$((DAY_ZERO_INDEXED * 86400 + 10#$HOUR * 3600 + 10#$MIN * 60 + 10#$SEC))
           SECONDS_IN_YEAR=31536000
           MINOR=$(python3 -c "pct=${SECONDS_ELAPSED}/${SECONDS_IN_YEAR}; print(f'{int(pct*1000000):06d}')")
           VERSION="${MAJOR}.${MINOR}"
