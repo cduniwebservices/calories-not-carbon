@@ -42,7 +42,6 @@ jobs:
           MIN=$(date -u +%M)
           SEC=$(date -u +%S)
           MAJOR=$((YY - 25))
-          # Strip leading zeros to avoid octal interpretation
           DAY_ZERO_INDEXED=$((10#$DAY_OF_YEAR - 1))
           SECONDS_ELAPSED=$((DAY_ZERO_INDEXED * 86400 + 10#$HOUR * 3600 + 10#$MIN * 60 + 10#$SEC))
           SECONDS_IN_YEAR=31536000
@@ -50,6 +49,7 @@ jobs:
           VERSION="${MAJOR}.${MINOR}"
           echo "Generated version: ${VERSION}"
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Install dependencies
         run: flutter pub get
@@ -57,11 +57,16 @@ jobs:
       - name: Build APK
         run: flutter build apk --release --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }} --dart-define=APP_VERSION=${{ env.VERSION }}
 
+      - name: Rename APK with Version
+        run: |
+          mkdir -p build/app/outputs/flutter-apk/renamed
+          cp build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/renamed/android-app-${{ env.VERSION }}.apk"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: android-app-${{ env.VERSION }}
+          path: build/app/outputs/flutter-apk/renamed/android-app-${{ env.VERSION }}.apk
 
   build-ios:
     name: Build iOS App
@@ -88,7 +93,6 @@ jobs:
           MIN=$(date -u +%M)
           SEC=$(date -u +%S)
           MAJOR=$((YY - 25))
-          # Strip leading zeros to avoid octal interpretation
           DAY_ZERO_INDEXED=$((10#$DAY_OF_YEAR - 1))
           SECONDS_ELAPSED=$((DAY_ZERO_INDEXED * 86400 + 10#$HOUR * 3600 + 10#$MIN * 60 + 10#$SEC))
           SECONDS_IN_YEAR=31536000
@@ -96,6 +100,7 @@ jobs:
           VERSION="${MAJOR}.${MINOR}"
           echo "Generated version: ${VERSION}"
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Install dependencies
         run: flutter pub get
@@ -103,8 +108,17 @@ jobs:
       - name: Build iOS
         run: flutter build ios --release --no-codesign --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }} --dart-define=APP_VERSION=${{ env.VERSION }}
 
+      - name: Rename iOS App with Version
+        run: |
+          cd build/ios/iphoneos
+          # Find the .app directory (should be Runner.app or similar)
+          APP_DIR=$(find . -maxdepth 1 -name "*.app" -type d | head -1)
+          if [ -n "$APP_DIR" ]; then
+            mv "$APP_DIR" "ios-app-${{ env.VERSION }}.app"
+          fi
+
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: ios-ipa
-          path: build/ios/iphoneos/
+          name: ios-app-${{ env.VERSION }}
+          path: build/ios/iphoneos/ios-app-${{ env.VERSION }}.app

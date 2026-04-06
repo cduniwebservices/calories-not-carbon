@@ -150,29 +150,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     color: GlobalTheme.textPrimary,
                   ),
                 ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'CARBON',
-                      style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        height: 1.0,
-                        color: GlobalTheme.primaryNeon,
-                      ),
-                    ),
-                    const Spacer(),
-                    // Version number - subtle, right-aligned
-                    Text(
-                      VersionService.version,
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w300,
-                        color: const Color(0xFF1A1A1A), // Subtle - slightly lighter than background
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
+                Text(
+                  'CARBON',
+                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
+                    color: GlobalTheme.primaryNeon,
+                  ),
                 ),
               ],
             ),
@@ -206,7 +190,22 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                const Spacer(),
+
+                // Version number - subtle, bottom-centered
+                Opacity(
+                  opacity: 0.5,
+                  child: Text(
+                    VersionService.displayVersion,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: GlobalTheme.textTertiary,
+                          fontSize: 10,
+                          letterSpacing: 0.8,
+                        ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
               ],
             ),
           ),

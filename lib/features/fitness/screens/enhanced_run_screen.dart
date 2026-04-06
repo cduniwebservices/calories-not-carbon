@@ -376,31 +376,31 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
     FitnessStats stats,
     ActivityActions actions,
   ) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          // Large timer display
-          FitnessTimerWidget(
-            duration: stats.activeDuration,
-            state: state,
-            accentColor: theme.primaryColor,
-          ).animate().fadeIn(delay: 200.ms),
+    return Stack(
+      children: [
+        // Stats content
+        Positioned.fill(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: 120, // Space for floating buttons
+            ),
+            child: StatsDisplay(
+              stats: stats,
+              state: state,
+              accentColor: theme.primaryColor,
+            ),
+          ),
+        ),
 
-          const SizedBox(height: 24),
-
-          // Main fitness stats
-          FitnessStatsWidget(
-            stats: stats,
-            state: state,
-            accentColor: theme.primaryColor,
-            showDetailedStats: true,
-          ).animate().fadeIn(delay: 400.ms).slideX(begin: 0.2, end: 0),
-
-          const SizedBox(height: 24),
-
-          // Control buttons
-          ActivityControlsWidget(
+        // Floating controls at the bottom
+        Positioned(
+          bottom: 24,
+          left: 16,
+          right: 16,
+          child: ActivityControlsWidget(
             state: state,
             activityType: actions.activityType,
             onPause: () => _handlePauseActivity(actions),
@@ -408,13 +408,403 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
             onStop: () => _handleStopActivity(actions),
             accentColor: theme.primaryColor,
             isLoading: _isLoading,
-          ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.2, end: 0),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
-          const SizedBox(height: 20),
+/// Specialized widget for the high-end stats display
+class StatsDisplay extends ConsumerWidget {
+  final FitnessStats stats;
+  final ActivityState state;
+  final Color accentColor;
+
+  const StatsDisplay({
+    super.key,
+    required this.stats,
+    required this.state,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final goalState = ref.watch(goalProvider);
+    final selectedGoal = goalState.selectedGoal ?? sampleGoals.first;
+    
+    // Calculate CO2 saved
+    final distanceKm = stats.totalDistanceMeters / 1000.0;
+    final co2SavedKg = distanceKm * selectedGoal.co2PerKm;
+    
+    return Column(
+      children: [
+        // 1. Large Timer Display
+        _buildLargeTimer(theme, stats.activeDuration),
+        
+        const SizedBox(height: 8),
+        Text(
+          'ACTIVE DURATION',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: GlobalTheme.textTertiary,
+            letterSpacing: 1.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+
+        const SizedBox(height: 32),
+
+        // 2. CO2 Saved Section (Green Panel)
+        _buildCO2Panel(theme, co2SavedKg),
+
+        const SizedBox(height: 32),
+
+        // 3. Stats Grid (4 items)
+        _buildStatsGrid(theme),
+
+        const SizedBox(height: 40),
+
+        // 4. Max Speed & Elevation Gain
+        _buildSecondaryStats(theme),
+
+        const SizedBox(height: 40),
+
+        // 5. Time Moving & Time Stationary
+        _buildTimeStats(theme),
+
+        const SizedBox(height: 40),
+
+        // 6. Start Times
+        _buildStartTimes(theme),
+
+        const SizedBox(height: 40),
+
+        // 7. Weather & Humidity
+        _buildWeatherInfo(theme),
+
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget _buildLargeTimer(ThemeData theme, Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    final seconds = duration.inSeconds % 60;
+
+    final timeText = hours > 0
+        ? '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}'
+        : '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+
+    return Text(
+      timeText,
+      style: theme.textTheme.displayLarge?.copyWith(
+        fontSize: 100,
+        fontWeight: FontWeight.w800,
+        color: GlobalTheme.primaryNeon,
+        letterSpacing: -4,
+        height: 1.0,
+        shadows: [
+          Shadow(
+            color: GlobalTheme.primaryNeon.withOpacity(0.3),
+            blurRadius: 20,
+          ),
         ],
       ),
     );
   }
+
+  Widget _buildCO2Panel(ThemeData theme, double co2Saved) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F1A0F),
+        borderRadius: BorderRadius.circular(4),
+        border: const Border(
+          top: BorderSide(color: Color(0xFF1A331A), width: 1),
+          bottom: BorderSide(color: Color(0xFF1A331A), width: 1),
+        ),
+        image: DecorationImage(
+          image: const AssetImage('assets/images/leaf_texture.png'), // Placeholder if not exist
+          opacity: 0.1,
+          fit: BoxFit.cover,
+          onError: (_, __) => {},
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'CURRENT CO2 SAVED:',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: const Color(0xFF4A664A),
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'CO2 OFFSET POTENTIAL:',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: const Color(0xFF4A664A),
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.eco_outlined, color: GlobalTheme.primaryAccent, size: 32),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'CO2 SAVED: ',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: GlobalTheme.primaryAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          TextSpan(
+                            text: '${co2Saved.toStringAsFixed(1)} kg',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: GlobalTheme.primaryAccent,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      'Offset: ${(co2Saved * 1000 / 5.2).toStringAsFixed(0)} g', // Arbitrary calculation for 'Offset'
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF4A664A),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsGrid(ThemeData theme) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildGridItem(theme, 'DISTANCE\n(km)', stats.formattedDistance.split(' ')[0], Icons.directions_run),
+            _buildGridItem(theme, 'AVG SPEED\n(km/h)', (stats.averageSpeedMps * 3.6).toStringAsFixed(1), Icons.speed),
+            _buildGridItem(theme, 'CURRENT\nPACE', stats.formattedCurrentPace, Icons.timer_outlined),
+            _buildGridItem(theme, 'CALORIES', stats.estimatedCalories.toString(), Icons.local_fire_department_outlined),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGridItem(ThemeData theme, String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: GlobalTheme.textTertiary,
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Icon(icon, color: GlobalTheme.primaryNeon, size: 24),
+        const SizedBox(height: 12),
+        Text(
+          value,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w900,
+            fontSize: 22,
+            color: Colors.white,
+          ),
+        ),
+        Text(
+          label.contains('DISTANCE') ? 'km' : (label.contains('SPEED') ? 'km/h' : (label.contains('PACE') ? '/km' : 'cal')),
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: GlobalTheme.textTertiary,
+            fontSize: 10,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSecondaryStats(ThemeData theme) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _buildHalfWidthStat(theme, 'MAX SPEED (km/h):', '${(stats.maxSpeedMps * 3.6).toStringAsFixed(1)} km/h', Icons.speed),
+        _buildHalfWidthStat(theme, 'ELEVATION GAIN (m):', '${stats.elevationGain.toStringAsFixed(0)} m', Icons.terrain_outlined),
+      ],
+    );
+  }
+
+  Widget _buildHalfWidthStat(ThemeData theme, String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: GlobalTheme.textTertiary,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Icon(icon, color: GlobalTheme.primaryNeon, size: 28),
+        const SizedBox(height: 12),
+        Text(
+          value,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w900,
+            color: GlobalTheme.primaryNeon,
+            fontSize: 24,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimeStats(ThemeData theme) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _buildHalfWidthStat(theme, 'TIME MOVING:', stats.formattedActiveDuration, Icons.directions_walk),
+        _buildHalfWidthStat(theme, 'TIME STATIONARY:', _formatDuration(stats.totalDuration - stats.activeDuration), Icons.pause_circle_outline),
+      ],
+    );
+  }
+
+  Widget _buildStartTimes(ThemeData theme) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _buildTimeItem(theme, 'LOCAL START:', _formatTime(stats.startTime), 'ACST'),
+        _buildTimeItem(theme, 'UTC START:', _formatTime(stats.startTime.toUtc()), 'UTC'),
+      ],
+    );
+  }
+
+  Widget _buildTimeItem(ThemeData theme, String label, String value, String tz) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: GlobalTheme.textTertiary,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          value,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w900,
+            color: GlobalTheme.primaryNeon,
+            fontSize: 24,
+          ),
+        ),
+        Text(
+          tz,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: GlobalTheme.textTertiary,
+            fontSize: 10,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWeatherInfo(ThemeData theme) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _buildWeatherItem(theme, 'CURRENT WEATHER:', '28°C, Partly Cloudy', Icons.wb_cloudy_outlined),
+        _buildWeatherItem(theme, 'HUMIDITY:', '65%', Icons.opacity),
+      ],
+    );
+  }
+
+  Widget _buildWeatherItem(ThemeData theme, String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: GlobalTheme.textTertiary,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (label.contains('WEATHER'))
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: GlobalTheme.primaryNeon, size: 28),
+              const SizedBox(width: 8),
+              Text(
+                value.split(',')[0],
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: GlobalTheme.primaryNeon,
+                  fontSize: 24,
+                ),
+              ),
+            ],
+          )
+        else
+          Icon(icon, color: GlobalTheme.primaryNeon, size: 28),
+        const SizedBox(height: 8),
+        Text(
+          label.contains('WEATHER') ? value.split(',')[1].trim() : value,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w900,
+            color: GlobalTheme.primaryNeon,
+            fontSize: 24,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDuration(Duration d) {
+    final m = d.inMinutes;
+    final s = d.inSeconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  String _formatTime(DateTime dt) {
+    final h = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    final m = dt.minute.toString().padLeft(2, '0');
+    final p = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$h:$m $p';
+  }
+}
 
   Widget _buildFeaturesShowcase(ThemeData theme) {
     final mediaQuery = MediaQuery.of(context);

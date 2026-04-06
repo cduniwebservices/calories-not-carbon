@@ -309,8 +309,7 @@ class FitnessStatsWidget extends StatelessWidget {
   }
 }
 
-/// Activity control buttons widget
-class ActivityControlsWidget extends StatelessWidget {
+class ActivityControlsWidget extends StatefulWidget {
   final ActivityState state;
   final ActivityType activityType;
   final VoidCallback? onStart;
@@ -335,14 +334,51 @@ class ActivityControlsWidget extends StatelessWidget {
   });
 
   @override
+  State<ActivityControlsWidget> createState() => _ActivityControlsWidgetState();
+}
+
+class _ActivityControlsWidgetState extends State<ActivityControlsWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _stopLongPressController;
+  bool _isLongPressing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _stopLongPressController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    );
+    _stopLongPressController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        widget.onStop?.call();
+        _stopLongPressController.reset();
+        setState(() => _isLongPressing = false);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _stopLongPressController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = accentColor ?? theme.primaryColor;
-    final mediaQuery = MediaQuery.of(context);
-    final isCompact = mediaQuery.size.height < 700;
+    final accent = widget.accentColor ?? theme.primaryColor;
 
+    if (widget.state == ActivityState.idle) {
+      return _buildIdleControls(theme, accent);
+    }
+
+    return _buildActiveControls(theme, accent);
+  }
+
+  Widget _buildIdleControls(ThemeData theme, Color accent) {
     return Container(
-      padding: EdgeInsets.all(isCompact ? 16 : 20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(20),
@@ -353,26 +389,126 @@ class ActivityControlsWidget extends StatelessWidget {
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
-          BoxShadow(
-            color: accent.withOpacity(0.1),
-            blurRadius: 32,
-            offset: const Offset(0, 12),
-          ),
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Activity type selector
-          if (state == ActivityState.idle) ...[
-            _buildActivityTypeSelector(theme, accent),
-            SizedBox(height: isCompact ? 16 : 20),
-          ],
-
-          // Control buttons
-          _buildControlButtons(theme, accent),
+          _buildActivityTypeSelector(theme, accent),
+          const SizedBox(height: 20),
+          _buildPrimaryButton(theme, accent),
         ],
       ),
     ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0);
+  }
+
+  Widget _buildActiveControls(ThemeData theme, Color accent) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121212),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Hold to Stop Button
+          Expanded(
+            flex: 3,
+            child: GestureDetector(
+              onLongPressStart: (_) {
+                setState(() => _isLongPressing = true);
+                _stopLongPressController.forward();
+                HapticFeedback.mediumImpact();
+              },
+              onLongPressEnd: (_) {
+                setState(() => _isLongPressing = false);
+                if (_stopLongPressController.status != AnimationStatus.completed) {
+                  _stopLongPressController.reverse();
+                }
+              },
+              child: Stack(
+                children: [
+                  Container(
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: GlobalTheme.primaryNeon,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Hold to Stop',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Progress Overlay
+                  AnimatedBuilder(
+                    animation: _stopLongPressController,
+                    builder: (context, child) {
+                      return FractionallySizedBox(
+                        widthFactor: _stopLongPressController.value,
+                        child: Container(
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Pause/Resume Button
+          Expanded(
+            flex: 1,
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                if (widget.state == ActivityState.running) {
+                  widget.onPause?.call();
+                } else {
+                  widget.onResume?.call();
+                }
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                ),
+                child: Center(
+                  child: Text(
+                    widget.state == ActivityState.running ? 'Pause' : 'Resume',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildActivityTypeSelector(ThemeData theme, Color accent) {
@@ -384,85 +520,50 @@ class ActivityControlsWidget extends StatelessWidget {
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.bold,
           ),
-        ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.1, end: 0),
-
+        ),
         const SizedBox(height: 12),
-
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: ActivityType.values.asMap().entries.map((entry) {
-              final index = entry.key;
-              final type = entry.value;
-              final isSelected = type == activityType;
-
+            children: ActivityType.values.map((type) {
+              final isSelected = type == widget.activityType;
               return Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: InkWell(
-                      onTap: onActivityTypeChanged != null
-                          ? () async {
-                              await HapticService.fitnessHaptic('light');
-                              onActivityTypeChanged!(type);
-                            }
-                          : null,
+                padding: const EdgeInsets.only(right: 12),
+                child: InkWell(
+                  onTap: widget.onActivityTypeChanged != null
+                      ? () => widget.onActivityTypeChanged!(type)
+                      : null,
+                  borderRadius: BorderRadius.circular(25),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected ? accent : theme.scaffoldBackgroundColor,
                       borderRadius: BorderRadius.circular(25),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeInOutCubic,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? accent
-                              : theme.scaffoldBackgroundColor,
-                          borderRadius: BorderRadius.circular(25),
-                          border: Border.all(
-                            color: isSelected
-                                ? accent
-                                : theme.dividerColor.withOpacity(0.3),
-                            width: isSelected ? 2 : 1,
-                          ),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: accent.withOpacity(0.2),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _getActivityIcon(type),
-                              size: 16,
-                              color: isSelected ? Colors.white : accent,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              type.displayName,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? Colors.white
-                                    : theme.colorScheme.onSurface,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
+                      border: Border.all(
+                        color: isSelected ? accent : theme.dividerColor.withOpacity(0.3),
                       ),
                     ),
-                  )
-                  .animate(delay: Duration(milliseconds: 300 + (index * 100)))
-                  .fadeIn(duration: 400.ms)
-                  .slideX(begin: 0.3, end: 0, curve: Curves.easeOutCubic);
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _getActivityIcon(type),
+                          size: 16,
+                          color: isSelected ? Colors.black : accent,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          type.displayName,
+                          style: TextStyle(
+                            color: isSelected ? Colors.black : theme.colorScheme.onSurface,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
             }).toList(),
           ),
         ),
@@ -470,205 +571,50 @@ class ActivityControlsWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildControlButtons(ThemeData theme, Color accent) {
-    return Row(
-      children: [
-        // Secondary action button
-        if (state == ActivityState.running || state == ActivityState.paused)
-          Expanded(child: _buildSecondaryButton(theme, accent)),
-
-        if (state == ActivityState.running || state == ActivityState.paused)
-          const SizedBox(width: 16),
-
-        // Primary action button
-        Expanded(
-          flex: state == ActivityState.idle ? 1 : 2,
-          child: _buildPrimaryButton(theme, accent),
-        ),
-      ],
-    );
-  }
-
   Widget _buildPrimaryButton(ThemeData theme, Color accent) {
-    String text;
-    IconData icon;
-    VoidCallback? onPressed;
-    Color color;
-    final bool isOutline = state == ActivityState.paused;
-
-    switch (state) {
-      case ActivityState.idle:
-        text = 'Start ${activityType.displayName}';
-        icon = Icons.play_arrow;
-        onPressed = onStart;
-        color = accent;
-        break;
-      case ActivityState.running:
-        text = 'Pause';
-        icon = Icons.pause;
-        onPressed = onPause;
-        color = GlobalTheme.statusSuccess;
-        break;
-    case ActivityState.paused:
-      text = 'Resume';
-      icon = Icons.play_arrow;
-      onPressed = onResume;
-      color = GlobalTheme.primaryNeon;
-      break;
-      case ActivityState.completed:
-        text = 'Start New';
-        icon = Icons.refresh;
-        onPressed = onStart;
-        color = accent;
-        break;
-    }
-
-    return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          child: InkWell(
-            onTap: isLoading
-                ? null
-                : () async {
-                    // Add haptic feedback before action
-                    await HapticService.fitnessHaptic('light');
-                    onPressed?.call();
-                  },
-            borderRadius: BorderRadius.circular(16),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOutCubic,
-              padding: EdgeInsets.symmetric(vertical: isLoading ? 18 : 16),
-              decoration: BoxDecoration(
-                color: isOutline 
-                    ? Colors.transparent 
-                    : (isLoading ? color.withOpacity(0.7) : color),
-                borderRadius: BorderRadius.circular(16),
-                border: isOutline 
-                    ? Border.all(color: color, width: 2) 
-                    : null,
-                boxShadow: isOutline ? null : [
-                  BoxShadow(
-                    color: color.withOpacity(isLoading ? 0.2 : 0.3),
-                    blurRadius: isLoading ? 8 : 12,
-                    offset: Offset(0, isLoading ? 2 : 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (isLoading)
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          isOutline ? color : Colors.white,
-                        ),
-                      ),
-                    ).animate().scale(
-                      duration: 300.ms,
-                      curve: Curves.elasticOut,
-                    )
-                  else
-                    Icon(
-                      icon, 
-                      color: isOutline ? color : Colors.white, 
-                      size: 20,
-                    )
-                        .animate()
-                        .scale(duration: 200.ms)
-                        .then()
-                        .shimmer(
-                          duration: 1500.ms,
-                          color: (isOutline ? color : Colors.white).withOpacity(0.4),
-                        ),
-
-                  SizedBox(width: isLoading ? 12 : 8),
-
-                  Text(
-                    isLoading ? 'Processing...' : text,
-                    style: TextStyle(
-                      color: isOutline ? color : Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ).animate().fadeIn(duration: 200.ms),
-                ],
-              ),
-            ),
-          ),
-        )
-        .animate()
-        .scale(duration: 300.ms, curve: Curves.elasticOut)
-        .then()
-        .shimmer(duration: 2000.ms, color: Colors.white.withOpacity(0.1));
-  }
-
-  Widget _buildSecondaryButton(ThemeData theme, Color accent) {
     return InkWell(
-          onTap: isLoading
-              ? null
-              : () async {
-                  await HapticService.fitnessHaptic('light');
-                  onStop?.call();
-                },
+      onTap: widget.isLoading ? null : widget.onStart,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: accent,
           borderRadius: BorderRadius.circular(16),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOutCubic,
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isLoading
-                    ? GlobalTheme.primaryNeon.withOpacity(0.5)
-                    : GlobalTheme.primaryNeon,
-                width: 2,
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: accent.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.stop,
-                  size: 18,
-                  color: isLoading
-                      ? GlobalTheme.primaryNeon.withOpacity(0.5)
-                      : GlobalTheme.primaryNeon,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Stop',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                    color: isLoading
-                        ? GlobalTheme.primaryNeon.withOpacity(0.5)
-                        : GlobalTheme.primaryNeon,
+          ],
+        ),
+        child: Center(
+          child: widget.isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                )
+              : Text(
+                  'Start ${widget.activityType.displayName}',
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
                 ),
-              ],
-            ),
-          ),
-        )
-        .animate()
-        .fadeIn(duration: 300.ms)
-        .slideX(begin: -0.2, end: 0, curve: Curves.easeOutCubic);
+        ),
+      ),
+    );
   }
 
   IconData _getActivityIcon(ActivityType type) {
     switch (type) {
-      case ActivityType.running:
-        return Icons.directions_run;
-      case ActivityType.walking:
-        return Icons.directions_walk;
-      case ActivityType.cycling:
-        return Icons.directions_bike;
-      case ActivityType.hiking:
-        return Icons.terrain;
+      case ActivityType.running: return Icons.directions_run;
+      case ActivityType.walking: return Icons.directions_walk;
+      case ActivityType.cycling: return Icons.directions_bike;
+      case ActivityType.hiking: return Icons.terrain;
     }
   }
 }
