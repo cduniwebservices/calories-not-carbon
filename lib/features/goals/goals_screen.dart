@@ -6,6 +6,7 @@ import '../../components/goal_swiper.dart';
 import '../../components/profile_header.dart';
 import '../../theme/global_theme.dart';
 import '../../providers/goal_provider.dart';
+import '../debug/debug_screen.dart';
 
 class GoalsScreen extends ConsumerStatefulWidget {
   const GoalsScreen({super.key});
@@ -51,6 +52,10 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
     });
   }
 
+  void _openDebugScreen() {
+    DebugScreenOverlay.show(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final goalState = ref.watch(goalProvider);
@@ -66,7 +71,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
               children: [
                 const SizedBox(height: 24),
 
-                // Profile header
+                // Profile header with debug access
                 TweenAnimationBuilder<double>(
                   duration: const Duration(milliseconds: 500),
                   tween: Tween<double>(begin: 0.0, end: 1.0),
@@ -80,7 +85,35 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                       ),
                     );
                   },
-                  child: const ProfileHeader(),
+                  child: Row(
+                    children: [
+                      const Expanded(child: ProfileHeader()),
+                      // Debug button - positioned to the right of profile header
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _openDebugScreen,
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: GlobalTheme.surfaceCard.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: GlobalTheme.primaryNeon.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.bug_report,
+                              color: GlobalTheme.primaryNeon.withOpacity(0.7),
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
 
                 const SizedBox(height: 32),

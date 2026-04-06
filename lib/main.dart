@@ -193,13 +193,26 @@ final GoRouter _router = GoRouter(
       ),
     ),
 
-    // Secret debug screen
+    // Secret debug screen - uses overlay modal
     GoRoute(
       path: '/debug',
       name: 'debug',
-      pageBuilder: (context, state) => _buildPageWithTransition(
+      pageBuilder: (context, state) => CustomTransitionPage(
         key: state.pageKey,
         child: const DebugScreen(),
+        opaque: false,
+        barrierDismissible: true,
+        barrierColor: Colors.black.withOpacity(0.3),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeInOut,
+            ),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 300),
       ),
     ),
   ],

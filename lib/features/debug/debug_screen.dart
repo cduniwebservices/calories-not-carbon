@@ -3,7 +3,6 @@ import 'dart:math';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:latlong2/latlong.dart';
@@ -19,6 +18,35 @@ import '../../providers/activity_providers.dart';
 import '../../theme/global_theme.dart';
 
 import 'package:flutter/foundation.dart';
+
+/// Static helper to show the debug screen as a full-screen overlay
+class DebugScreenOverlay {
+  static void show(BuildContext context) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierDismissible: true,
+        barrierColor: Colors.black.withOpacity(0.3),
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return FadeTransition(
+            opacity: animation,
+            child: const DebugScreen(),
+          );
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeInOut,
+            ),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+  }
+}
 
 class DebugScreen extends ConsumerStatefulWidget {
   const DebugScreen({super.key});
@@ -176,17 +204,19 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: GlobalTheme.backgroundPrimary,
+      backgroundColor: Colors.black.withOpacity(0.95),
       appBar: AppBar(
         title: const Text('🔧 Debug Console', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.black87,
+        elevation: 0,
         automaticallyImplyLeading: false,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.white, size: 28),
+            onPressed: () => Navigator.of(context).pop(),
+            tooltip: 'Close Debug Console',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: GlobalTheme.primaryNeon,
@@ -195,7 +225,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
           tabs: const [
             Tab(icon: Icon(Icons.stream), text: 'Logs'),
             Tab(icon: Icon(Icons.storage), text: 'Local DB'),
-            Tab(icon: Icon(Icons.route), text: 'Mock Route'),
+            Tab(icon: Icon(Icons.route), text: 'Simulate'),
             Tab(icon: Icon(Icons.bug_report), text: 'Sentry'),
           ],
         ),
@@ -532,24 +562,80 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
             onTap: () => _generateMockRoute('cycling', 15000),
           ),
 
-          const SizedBox(height: 32),
+    const SizedBox(height: 32),
 
-          // Manual sync button
-          ElevatedButton.icon(
-            onPressed: () async {
-              _addLog('🔄 Manual sync triggered...');
-              await SyncService().manualSync();
-              _addLog('✅ Manual sync complete');
-              setState(() {});
+    // Manual sync button
+    ElevatedButton.icon(
+      onPressed: () async {
+        _addLog('🔄 Manual sync triggered...');
+        await SyncService().manualSync();
+        _addLog('✅ Manual sync complete');
+        setState(() {});
+      },
+      icon: const Icon(Icons.cloud_upload, color: Colors.purple),
+      label: const Text('Force Sync to Supabase', style: TextStyle(color: Colors.purple)),
+      style: ElevatedButton.styleFrom(backgroundColor: GlobalTheme.surfaceCard),
+    ),
+
+    const SizedBox(height: 48),
+
+    // Access hidden app screens section
+    Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: GlobalTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: GlobalTheme.primaryNeon.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.visibility, color: GlobalTheme.primaryNeon, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Access Hidden App Screens',
+                style: TextStyle(
+                  color: GlobalTheme.primaryNeon,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Navigate to permission and onboarding screens for testing',
+            style: TextStyle(color: Colors.grey, fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          _buildMockRouteButton(
+            icon: Icons.onboarding_rounded,
+            label: 'Test Permission Onboarding',
+            color: Colors.cyan,
+            onTap: () {
+              Navigator.of(context).pop();
+              context.go('/permission-onboarding');
             },
-            icon: const Icon(Icons.cloud_upload, color: Colors.purple),
-            label: const Text('Force Sync to Supabase', style: TextStyle(color: Colors.purple)),
-            style: ElevatedButton.styleFrom(backgroundColor: GlobalTheme.surfaceCard),
+          ),
+          const SizedBox(height: 12),
+          _buildMockRouteButton(
+            icon: Icons.location_off_rounded,
+            label: 'Test Permission Denied Screen',
+            color: Colors.redAccent,
+            onTap: () {
+              Navigator.of(context).pop();
+              context.go('/permission-denied');
+            },
           ),
         ],
       ),
-    );
-  }
+    ),
+  ],
+),
+);
+}
 
   Widget _buildMockRouteButton({
     required IconData icon,
