@@ -198,22 +198,20 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
 
           const SizedBox(width: 12),
 
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-              GestureDetector(
-                onTap: () => DebugScreenOverlay.show(context),
-                child: Text(
-                  'Calories Not Carbon',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: GlobalTheme.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-                  ),
-                ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.2, end: 0),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    GestureDetector(
+                      onTap: () => DebugScreenOverlay.show(context),
+                      child: Text(
+                        'Calories Not Carbon',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: GlobalTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.2, end: 0),
 
                 const SizedBox(height: 2),
 
