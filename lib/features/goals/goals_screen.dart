@@ -85,35 +85,9 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                       ),
                     );
                   },
-                  child: Row(
-                    children: [
-                      const Expanded(child: ProfileHeader()),
-                      // Debug button - positioned to the right of profile header
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: _openDebugScreen,
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: GlobalTheme.surfaceCard.withOpacity(0.5),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: GlobalTheme.primaryNeon.withOpacity(0.3),
-                                width: 1,
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.bug_report,
-                              color: GlobalTheme.primaryNeon.withOpacity(0.7),
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+            child: ProfileHeader(
+              onUserNameTap: () => DebugScreenOverlay.show(context),
+            ),
                 ),
 
                 const SizedBox(height: 32),

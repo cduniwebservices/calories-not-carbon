@@ -617,7 +617,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
             color: Colors.cyan,
             onTap: () {
               Navigator.of(context).pop();
-              context.go('/permission-onboarding');
+              context.push('/permission-onboarding');
             },
           ),
           const SizedBox(height: 12),
@@ -627,7 +627,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
             color: Colors.redAccent,
             onTap: () {
               Navigator.of(context).pop();
-              context.go('/permission-denied');
+              context.push('/permission-denied');
             },
           ),
         ],

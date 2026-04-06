@@ -5,8 +5,13 @@ import '../services/navigation_service.dart';
 
 class ProfileHeader extends ConsumerWidget {
   final bool showNotification;
+  final VoidCallback? onUserNameTap;
 
-  const ProfileHeader({super.key, this.showNotification = true});
+  const ProfileHeader({
+    super.key,
+    this.showNotification = true,
+    this.onUserNameTap,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,11 +30,14 @@ class ProfileHeader extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Anonymous User',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: GlobalTheme.textPrimary,
-                  fontWeight: FontWeight.w600,
+              GestureDetector(
+                onTap: onUserNameTap,
+                child: Text(
+                  'Anonymous User',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: GlobalTheme.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               Text(

@@ -11,6 +11,7 @@ import '../../../components/fitness_tracking_widgets.dart';
 import '../../../services/navigation_service.dart';
 import '../../../services/haptic_service.dart';
 import '../../../theme/global_theme.dart';
+import '../../debug/debug_screen.dart';
 
 /// Million-dollar level fitness tracking screen with real-time GPS integration
 class EnhancedRunScreen extends ConsumerStatefulWidget {
@@ -201,14 +202,16 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                GestureDetector(
-                  onTap: () => context.go('/debug'),
-                  child: Text(
-                    'Calories Not Carbon',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: GlobalTheme.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
+              GestureDetector(
+                onTap: () => DebugScreenOverlay.show(context),
+                child: Text(
+                  'Calories Not Carbon',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: GlobalTheme.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
                   ),
                 ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.2, end: 0),
 
