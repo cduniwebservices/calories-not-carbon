@@ -232,7 +232,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                     );
                   },
                   child: AppButton.primary(
-                    text: 'COMMENCE JOURNEY',
+                    text: 'COMMENCE ACTIVITY',
                     width: double.infinity,
                     onPressed: () => context.go('/run'),
                   ),

@@ -181,6 +181,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   child: AppButton.primary(
                     text: 'GET STARTED',
                     width: double.infinity,
+                    icon: Icons.rocket_launch_rounded,
                     onPressed: () async {
                       await HapticFeedback.mediumImpact();
                       if (mounted) {

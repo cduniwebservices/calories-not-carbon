@@ -116,9 +116,10 @@ class _AppButtonState extends State<AppButton>
             scale: _scaleAnimation.value,
             child: Container(
               width: widget.width,
+              height: 56, // Fixed height for consistency
               padding:
                   widget.padding ??
-                  const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  const EdgeInsets.symmetric(horizontal: 24), // Reduced horizontal padding since we have fixed height
               decoration: BoxDecoration(
                 color: _getBackgroundColor(),
                 gradient: _getGradient(),
@@ -127,28 +128,36 @@ class _AppButtonState extends State<AppButton>
                 boxShadow: _getBoxShadow(),
               ),
               child: widget.isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                  ? const Center(
+                      child: SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                        ),
                       ),
                     )
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        if (widget.icon != null) ...[
-                          Icon(widget.icon, color: _getTextColor(), size: 18),
-                          const SizedBox(width: 8),
+                        // Show icon for primary buttons or if explicitly provided
+                        if (widget.icon != null || widget.type == AppButtonType.primary) ...[
+                          Icon(
+                            widget.icon ?? Icons.play_arrow_rounded, // Default icon if none provided
+                            color: _getTextColor(), 
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
                         ],
                         Text(
-                          widget.text,
+                          widget.type == AppButtonType.primary ? widget.text.toUpperCase() : widget.text,
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(
                                 color: _getTextColor(),
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: widget.type == AppButtonType.primary ? 1.2 : 0,
                               ),
                         ),
                       ],

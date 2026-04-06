@@ -39,8 +39,8 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
       title: 'Welcome to Fitness Pro',
       subtitle: 'Your personal fitness companion',
       description:
-          'Track your runs, monitor your progress, and achieve your fitness goals with precision GPS tracking.',
-      icon: Icons.fitness_center,
+          'Track your activities, monitor your progress, and achieve your fitness goals with precision GPS tracking.',
+      icon: Icons.fitness_center;
       color: GlobalTheme.primaryAccent,
     ),
     OnboardingPage(
@@ -358,38 +358,14 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
             ),
 
           // Main action button
-          SizedBox(
+          AppButton.primary(
+            onPressed: _isLoading ? null : _nextPage,
+            isLoading: _isLoading,
+            text: _currentPage == _pages.length - 1
+                ? 'Grant Permissions'
+                : 'Continue',
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _nextPage,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _pages[_currentPage].color,
-                foregroundColor: _getButtonTextColor(),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Text(
-                      _currentPage == _pages.length - 1
-                          ? 'Grant Permissions'
-                          : 'Continue',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-            ),
+            icon: _currentPage == _pages.length - 1 ? Icons.lock_open_rounded : Icons.arrow_forward_rounded,
           ),
         ],
       ),

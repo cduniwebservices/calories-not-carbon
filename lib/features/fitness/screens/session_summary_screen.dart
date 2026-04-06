@@ -656,18 +656,11 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
     return Column(
       children: [
         // Primary action - Save and continue
-        SizedBox(
+        AppButton.primary(
+          onPressed: _saveAndContinue,
+          icon: Icons.check_circle_rounded,
+          text: 'Save Activity',
           width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _saveAndContinue,
-            icon: const Icon(Icons.check_circle_rounded),
-            label: const Text('Save Activity'),
-            style: theme.elevatedButtonTheme.style?.copyWith(
-              padding: WidgetStateProperty.all(
-                const EdgeInsets.symmetric(vertical: GlobalTheme.spacing16),
-              ),
-            ),
-          ),
         ),
 
         const SizedBox(height: GlobalTheme.spacing16),

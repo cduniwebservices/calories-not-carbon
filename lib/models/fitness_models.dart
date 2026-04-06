@@ -449,7 +449,68 @@ class Goal {
   }
 }
 
-/// Default goals for the app (empty until synced or created)
-final List<Goal> defaultGoals = [];
+/// Default travel modes for carbon calculation
+final List<Goal> defaultGoals = [
+  Goal(
+    id: 'petrol_diesel_car',
+    type: GoalType.petrolDieselCar,
+    title: 'Petrol/Diesel Car',
+    description:
+        'Track your carbon footprint from driving a conventional petrol or diesel car.',
+    level: GoalLevel.easy,
+    duration: const Duration(minutes: 30),
+    carbonOffsetPotential: 'High',
+    co2PerKm: 0.171,
+    icon: Icons.directions_car,
+  ),
+  Goal(
+    id: 'electric_vehicle',
+    type: GoalType.electricVehicle,
+    title: 'Electric Vehicle',
+    description:
+        'Compare the environmental impact of driving an electric vehicle versus conventional cars.',
+    level: GoalLevel.hard,
+    duration: const Duration(minutes: 45),
+    carbonOffsetPotential: 'Medium',
+    co2PerKm: 0.051,
+    icon: Icons.ev_station,
+  ),
+  Goal(
+    id: 'motorcycle',
+    type: GoalType.motorcycle,
+    title: 'Motorcycle',
+    description:
+        'Track the emissions and environmental impact of riding a motorcycle.',
+    level: GoalLevel.easy,
+    duration: const Duration(minutes: 40),
+    carbonOffsetPotential: 'Medium',
+    co2PerKm: 0.103,
+    icon: Icons.motorcycle,
+  ),
+  Goal(
+    id: 'train',
+    type: GoalType.train,
+    title: 'Train',
+    description:
+        'See how your train commute compares to other methods of transportation.',
+    level: GoalLevel.extreme,
+    duration: const Duration(hours: 2),
+    carbonOffsetPotential: 'Low',
+    co2PerKm: 0.041,
+    icon: Icons.train,
+  ),
+  Goal(
+    id: 'boat',
+    type: GoalType.boat,
+    title: 'Boat',
+    description:
+        'Track the carbon emissions from boat travel and water transportation.',
+    level: GoalLevel.hard,
+    duration: const Duration(minutes: 25),
+    carbonOffsetPotential: 'High',
+    co2PerKm: 0.267,
+    icon: Icons.directions_boat,
+  ),
+];
 
 

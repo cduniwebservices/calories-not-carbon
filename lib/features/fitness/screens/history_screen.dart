@@ -6,9 +6,10 @@ import '../../../theme/global_theme.dart';
 import '../../../models/fitness_models.dart';
 import '../../../providers/activity_providers.dart';
 import '../../../components/modern_ui_components.dart';
+import '../../../components/app_button.dart';
 import '../../../services/navigation_service.dart';
 
-/// Production-quality history screen for viewing past runs
+/// Production-quality history screen for viewing past activities
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
@@ -46,7 +47,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final runHistory = ref.watch(runHistoryProvider);
+    final activityHistory = ref.watch(runHistoryProvider);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -69,10 +70,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
 
               // History list or empty state
               Expanded(
-                child: runHistory.when(
-                  data: (runs) => runs.isEmpty
+                child: activityHistory.when(
+                  data: (activities) => activities.isEmpty
                       ? _buildEmptyState(theme)
-                      : _buildHistoryList(theme, runs),
+                      : _buildHistoryList(theme, activities),
                   loading: () => _buildLoadingState(theme),
                   error: (error, stack) =>
                       _buildErrorState(theme, error.toString()),
@@ -82,7 +83,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
           ),
         ),
       ),
-      floatingActionButton: null,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 20, right: 10),
+        child: AppButton.primary(
+          text: 'New Activity',
+          onPressed: () {
+             NavigationService.goToRun(context);
+          },
+        ),
+      ),
     );
   }
 
@@ -122,7 +131,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Run History',
+                  'Activity History',
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: GlobalTheme.textPrimary,
@@ -163,9 +172,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
                 const SizedBox(width: GlobalTheme.spacing4),
                 Consumer(
                   builder: (context, ref, child) {
-                    final totalRuns = ref.watch(totalRunsProvider);
+                    final totalActivities = ref.watch(totalActivitiesProvider);
                     return Text(
-                      '$totalRuns runs',
+                      '$totalActivities activities',
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: Colors.black,
                         fontWeight: FontWeight.w700,
@@ -245,24 +254,24 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
     );
   }
 
-  Widget _buildHistoryList(ThemeData theme, List<ActivitySession> runs) {
-    final filteredRuns = _filterRuns(runs);
+  Widget _buildHistoryList(ThemeData theme, List<ActivitySession> activities) {
+    final filteredActivities = _filterActivities(activities);
 
-    if (filteredRuns.isEmpty) {
+    if (filteredActivities.isEmpty) {
       return _buildEmptyFilterState(theme);
     }
 
     return ListView.builder(
       padding: const EdgeInsets.all(GlobalTheme.spacing16),
-      itemCount: filteredRuns.length,
+      itemCount: filteredActivities.length,
       itemBuilder: (context, index) {
-        final run = filteredRuns[index];
-        return _buildRunCard(theme, run, index);
+        final activity = filteredActivities[index];
+        return _buildActivityCard(theme, activity, index);
       },
     );
   }
 
-  Widget _buildRunCard(ThemeData theme, ActivitySession run, int index) {
+  Widget _buildActivityCard(ThemeData theme, ActivitySession activity, int index) {
     return Container(
           margin: const EdgeInsets.only(bottom: GlobalTheme.spacing16),
           decoration: BoxDecoration(
@@ -275,7 +284,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(GlobalTheme.radiusLarge),
-              onTap: () => _showRunDetails(run),
+              onTap: () => _showActivityDetails(activity),
               child: Padding(
                 padding: const EdgeInsets.all(GlobalTheme.spacing20),
                 child: Column(
@@ -288,15 +297,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
                           padding: const EdgeInsets.all(GlobalTheme.spacing8),
                           decoration: BoxDecoration(
                             color: _getActivityColor(
-                              run.activityType,
+                              activity.activityType,
                             ).withOpacity(0.2),
                             borderRadius: BorderRadius.circular(
                               GlobalTheme.radiusSmall,
                             ),
                           ),
                           child: Icon(
-                            _getActivityIcon(run.activityType),
-                            color: _getActivityColor(run.activityType),
+                            _getActivityIcon(activity.activityType),
+                            color: _getActivityColor(activity.activityType),
                             size: 20,
                           ),
                         ),
@@ -308,14 +317,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _formatActivityType(run.activityType),
+                                _formatActivityType(activity.activityType),
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   color: GlobalTheme.textPrimary,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                               Text(
-                                _formatDate(run.stats.startTime),
+                                _formatDate(activity.stats.startTime),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: GlobalTheme.textTertiary,
                                 ),
@@ -340,7 +349,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
                             ),
                           ),
                           child: Text(
-                            _formatDuration(run.stats.totalDuration),
+                            _formatDuration(activity.stats.totalDuration),
                             style: theme.textTheme.labelMedium?.copyWith(
                               color: GlobalTheme.textSecondary,
                               fontWeight: FontWeight.w600,
@@ -358,21 +367,21 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
                         _buildStatItem(
                           theme,
                           'Distance',
-                          '${(run.stats.totalDistanceMeters / 1000).toStringAsFixed(2)} km',
+                          '${(activity.stats.totalDistanceMeters / 1000).toStringAsFixed(2)} km',
                           Icons.route_rounded,
                         ),
                         const SizedBox(width: GlobalTheme.spacing24),
                         _buildStatItem(
                           theme,
                           'Pace',
-                          _formatPace(run.stats.averagePaceSecondsPerKm / 60),
+                          _formatPace(activity.stats.averagePaceSecondsPerKm / 60),
                           Icons.speed_rounded,
                         ),
                         const SizedBox(width: GlobalTheme.spacing24),
                         _buildStatItem(
                           theme,
                           'Calories',
-                          '${run.stats.estimatedCalories}',
+                          '${activity.stats.estimatedCalories}',
                           Icons.local_fire_department_rounded,
                         ),
                       ],
@@ -452,7 +461,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
             const SizedBox(height: GlobalTheme.spacing24),
 
             Text(
-              'No runs yet',
+              'No activities yet',
               style: theme.textTheme.headlineSmall?.copyWith(
                 color: GlobalTheme.textPrimary,
                 fontWeight: FontWeight.w700,
@@ -462,7 +471,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
             const SizedBox(height: GlobalTheme.spacing8),
 
             Text(
-              'Start your first run to see your\nprogress and achievements here',
+              'Start your first activity to see your\nprogress and achievements here',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: GlobalTheme.textSecondary,
                 height: 1.5,
@@ -472,21 +481,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
 
             const SizedBox(height: GlobalTheme.spacing32),
 
-            ElevatedButton.icon(
+            AppButton.primary(
               onPressed: () {
-                Navigator.of(context).pop();
                 NavigationService.goToRun(context);
               },
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('Start Running'),
-              style: theme.elevatedButtonTheme.style?.copyWith(
-                padding: WidgetStateProperty.all(
-                  const EdgeInsets.symmetric(
-                    horizontal: GlobalTheme.spacing24,
-                    vertical: GlobalTheme.spacing16,
-                  ),
-                ),
-              ),
+              text: 'START ACTIVITY',
             ).animate().fadeIn(delay: 700.ms).slideY(begin: 0.2, end: 0),
           ],
         ),
@@ -510,7 +509,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
             const SizedBox(height: GlobalTheme.spacing24),
 
             Text(
-              'No runs found',
+              'No activities found',
               style: theme.textTheme.headlineSmall?.copyWith(
                 color: GlobalTheme.textPrimary,
                 fontWeight: FontWeight.w700,
@@ -520,7 +519,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
             const SizedBox(height: GlobalTheme.spacing8),
 
             Text(
-              'Try adjusting your filter or\nstart a new run',
+              'Try adjusting your filter or\nstart a new activity',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: GlobalTheme.textSecondary,
                 height: 1.5,
@@ -536,7 +535,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
   Widget _buildLoadingState(ThemeData theme) {
     return const Center(
       child: LoadingStateCard(
-        message: 'Loading your run history...',
+        message: 'Loading your activity history...',
         accentColor: GlobalTheme.primaryAccent,
       ),
     );
@@ -602,27 +601,27 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
   }
 
   // Helper methods
-  List<ActivitySession> _filterRuns(List<ActivitySession> runs) {
+  List<ActivitySession> _filterActivities(List<ActivitySession> activities) {
     final now = DateTime.now();
 
     switch (_selectedFilter) {
       case 'This Week':
         final weekStart = now.subtract(Duration(days: now.weekday - 1));
-        return runs
-            .where((run) => run.stats.startTime.isAfter(weekStart))
+        return activities
+            .where((activity) => activity.stats.startTime.isAfter(weekStart))
             .toList();
       case 'This Month':
         final monthStart = DateTime(now.year, now.month, 1);
-        return runs
-            .where((run) => run.stats.startTime.isAfter(monthStart))
+        return activities
+            .where((activity) => activity.stats.startTime.isAfter(monthStart))
             .toList();
       case 'This Year':
         final yearStart = DateTime(now.year, 1, 1);
-        return runs
-            .where((run) => run.stats.startTime.isAfter(yearStart))
+        return activities
+            .where((activity) => activity.stats.startTime.isAfter(yearStart))
             .toList();
       default:
-        return runs;
+        return activities;
     }
   }
 
@@ -655,7 +654,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
   String _formatActivityType(ActivityType type) {
     switch (type) {
       case ActivityType.running:
-        return 'Morning Run';
+        return 'Morning Activity';
       case ActivityType.walking:
         return 'Walking';
       case ActivityType.cycling:
@@ -697,16 +696,16 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
     return '${minutes}:${seconds.toString().padLeft(2, '0')}/km';
   }
 
-  void _showRunDetails(ActivitySession run) {
-    NavigationService.goToActivityDetail(context, run);
+  void _showActivityDetails(ActivitySession activity) {
+    NavigationService.goToActivityDetail(context, activity);
   }
 }
 
-// Provider for total runs count
-final totalRunsProvider = Provider<int>((ref) {
+// Provider for total activities count
+final totalActivitiesProvider = Provider<int>((ref) {
   final history = ref.watch(runHistoryProvider);
   return history.when(
-    data: (runs) => runs.length,
+    data: (activities) => activities.length,
     loading: () => 0,
     error: (_, __) => 0,
   );

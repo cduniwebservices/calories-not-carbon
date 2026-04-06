@@ -101,5 +101,5 @@ jobs:
       - name: Upload iOS App
         uses: actions/upload-artifact@v4
         with:
-          name: ios-app-${{ env.VERSION }}.app
+          name: ios-app-${{ env.VERSION }}
           path: build/ios/iphoneos/ios-app-${{ env.VERSION }}.app

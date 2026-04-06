@@ -143,7 +143,14 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                       const SizedBox(height: 32),
                       
                       // 6. View Full Stats Button
-                      _buildFullStatsButton(theme),
+                      AppButton.primary(
+                        text: 'View Full Stats',
+                        width: double.infinity,
+                        icon: Icons.analytics_outlined,
+                        onPressed: () {
+                          // View full stats logic
+                        },
+                      ),
                       
                       const SizedBox(height: 40),
                     ],

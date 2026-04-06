@@ -396,7 +396,12 @@ class _ActivityControlsWidgetState extends State<ActivityControlsWidget>
         children: [
           _buildActivityTypeSelector(theme, accent),
           const SizedBox(height: 20),
-          _buildPrimaryButton(theme, accent),
+          AppButton.primary(
+            text: 'Start ${widget.activityType.displayName}',
+            onPressed: widget.onStart,
+            isLoading: widget.isLoading,
+            width: double.infinity,
+          ),
         ],
       ),
     ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0);
@@ -443,13 +448,21 @@ class _ActivityControlsWidgetState extends State<ActivityControlsWidget>
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Center(
-                      child: Text(
-                        'Hold to Stop',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                        ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.stop_rounded, color: Colors.black, size: 20),
+                          const SizedBox(width: 10),
+                          Text(
+                            'HOLD TO STOP',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -495,12 +508,27 @@ class _ActivityControlsWidgetState extends State<ActivityControlsWidget>
                   border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
                 ),
                 child: Center(
-                  child: Text(
-                    widget.state == ActivityState.running ? 'Pause' : 'Resume',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        widget.state == ActivityState.running 
+                            ? Icons.pause_rounded 
+                            : Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        widget.state == ActivityState.running ? 'PAUSE' : 'RESUME',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.0,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
