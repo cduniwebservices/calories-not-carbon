@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:latlong2/latlong.dart';
@@ -611,7 +612,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
           ),
           const SizedBox(height: 16),
           _buildMockRouteButton(
-            icon: Icons.onboarding_rounded,
+            icon: Icons.touch_app,
             label: 'Test Permission Onboarding',
             color: Colors.cyan,
             onTap: () {
@@ -621,7 +622,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
           ),
           const SizedBox(height: 12),
           _buildMockRouteButton(
-            icon: Icons.location_off_rounded,
+            icon: Icons.location_off,
             label: 'Test Permission Denied Screen',
             color: Colors.redAccent,
             onTap: () {
