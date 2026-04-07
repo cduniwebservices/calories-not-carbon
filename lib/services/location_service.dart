@@ -134,13 +134,18 @@ class LocationService {
 
       // Start background foreground task for continuous tracking
       // This keeps GPS active when app is in background or screen is off
-      final backgroundStarted = await _backgroundService.startTracking();
-      if (!backgroundStarted) {
-        debugPrint('❌ LocationService: Failed to start background service');
-        return false;
+      try {
+        final backgroundStarted = await _backgroundService.startTracking();
+        if (!backgroundStarted) {
+          debugPrint('⚠️ LocationService: Background service could not start. Tracking will only work while app is open.');
+        } else {
+          debugPrint('✅ LocationService: Background service started successfully.');
+        }
+      } catch (e) {
+        debugPrint('⚠️ LocationService: Error starting background service: $e');
       }
 
-      // Start foreground position stream (keeps working alongside background)
+      // Start foreground position stream (keeps working regardless of background service status)
       _positionSubscription = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.best,

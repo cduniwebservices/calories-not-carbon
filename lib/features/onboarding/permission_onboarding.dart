@@ -61,6 +61,14 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
       color: GlobalTheme.primaryNeon,
     ),
     OnboardingPage(
+      title: 'Notifications',
+      subtitle: 'Stay connected while tracking',
+      description:
+          'Notifications are required to keep GPS active when your screen is off or you switch to another app.',
+      icon: Icons.notifications_active,
+      color: GlobalTheme.primaryAction,
+    ),
+    OnboardingPage(
       title: 'Motion Sensors',
       subtitle: 'Enhanced step counting',
       description:

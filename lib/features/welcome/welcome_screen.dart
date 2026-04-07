@@ -182,7 +182,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     onPressed: () async {
                       await HapticFeedback.mediumImpact();
                       if (mounted) {
-                        context.go('/run'); // Default flow to run screen
+                        context.go('/goals'); 
                       }
                     },
                   ),

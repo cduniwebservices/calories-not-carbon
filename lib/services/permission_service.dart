@@ -32,9 +32,17 @@ class PermissionService {
     final results = <Permission, PermissionStatus>{};
 
     try {
-      // Request essential location permissions only
+      // Request essential location permissions
       final locationStatus = await Permission.location.request();
       results[Permission.location] = locationStatus;
+
+      // Request notification permission (Essential for background GPS on Android)
+      try {
+        final notificationStatus = await Permission.notification.request();
+        results[Permission.notification] = notificationStatus;
+      } catch (e) {
+        debugPrint('⚠️ Notification permission error: $e');
+      }
 
       // Try activity recognition but don't fail if not available
       try {
