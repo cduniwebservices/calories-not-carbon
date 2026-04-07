@@ -152,17 +152,14 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
     return Scaffold(
       backgroundColor: Colors.black.withOpacity(0.95),
       appBar: AppBar(
-        title: const Text('🔧 Debug Console', style: TextStyle(color: Colors.white)),
+        title: const Text('Debug Console', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.black87,
         elevation: 0,
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.white, size: 28),
-            onPressed: () => Navigator.of(context).pop(),
-            tooltip: 'Close Debug Console',
-          ),
-        ],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white, size: 20),
+          onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Go Back',
+        ),
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: GlobalTheme.primaryNeon,

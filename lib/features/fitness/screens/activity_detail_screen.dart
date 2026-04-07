@@ -147,7 +147,12 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                           _replayProgress,
                         ),
                         
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 12),
+
+                        // Shared Tooltip between charts
+                        _buildSharedTooltip(theme, displayStats),
+
+                        const SizedBox(height: 12),
                         
                         // 4. Speed Chart
                         _buildChartSection(
@@ -157,10 +162,6 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                           _speedSpots,
                           GlobalTheme.primaryAction,
                           _replayProgress,
-                          showTooltip: true,
-                          currentValue: (displayStats.currentSpeedMps * 3.6).toStringAsFixed(1),
-                          currentTime: _formatDuration(displayStats.activeDuration),
-                          currentDistance: (displayStats.totalDistanceMeters / 1000).toStringAsFixed(2),
                         ),
                         
                         const SizedBox(height: 24),
@@ -508,15 +509,23 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     List<FlSpot> spots, 
     Color color,
     double progress,
-    {bool showTooltip = false, String? currentValue, String? currentTime, String? currentDistance}
   ) {
     if (spots.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    final maxTime = spots.last.x;
-    final currentTimeX = maxTime * progress;
+    // Calculate current point and scaling for the dot
+    final currentIndex = (spots.length * progress).floor().clamp(0, spots.length - 1);
+    final currentSpot = spots[currentIndex];
     
+    final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
+    final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+    final rangeY = (maxY - minY).abs() < 0.001 ? 1.0 : (maxY - minY);
+    
+    // Calculate vertical offset (fl_chart Y increases UP, but Positioned 'top' increases DOWN)
+    final relativeY = (currentSpot.y - minY) / rangeY;
+    final dotTop = 100 * (1.0 - relativeY); // 100 is approx height of chart area inside the 120 container
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -586,6 +595,8 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                       rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                       topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     ),
+                    minY: minY,
+                    maxY: maxY,
                     borderData: FlBorderData(show: false),
                     lineBarsData: [
                       LineChartBarData(
@@ -619,50 +630,14 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                 bottom: 20,
                 child: Container(
                   width: 2,
-                  color: color,
+                  color: color.withOpacity(0.5),
                 ),
               ),
               
-              // Tooltip on the scrubber
-              if (showTooltip && progress > 0.1)
-                Positioned(
-                  left: 30 + (MediaQuery.of(context).size.width - 100) * progress - 45,
-                  top: 40,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 10,
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          currentTime ?? '',
-                          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
-                        ),
-                        Text(
-                          '$currentDistance km',
-                          style: const TextStyle(color: Colors.black, fontSize: 10),
-                        ),
-                        Text(
-                          '$currentValue km/h',
-                          style: const TextStyle(color: Colors.black, fontSize: 10),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              
-              // Dot on the scrubber line
+              // Dot on the scrubber line - now follows the curve
               Positioned(
                 left: 30 + (MediaQuery.of(context).size.width - 100) * progress - 5,
-                top: 20, // Adjust based on actual data point
+                top: dotTop + 10, // Adjusted for padding/alignment
                 child: Container(
                   width: 12,
                   height: 12,
@@ -670,12 +645,78 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                     color: color,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withOpacity(0.5),
+                        blurRadius: 8,
+                      ),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSharedTooltip(ThemeData theme, FitnessStats stats) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: (MediaQuery.of(context).size.width - 140) * _replayProgress,
+      ),
+      child: UnconstrainedBox(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          width: 120,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Text(
+                _formatDuration(stats.activeDuration),
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                ),
+              ),
+              const Divider(height: 12, color: Colors.black12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Icon(Icons.speed, size: 14, color: GlobalTheme.primaryAction),
+                  Text(
+                    '${(stats.currentSpeedMps * 3.6).toStringAsFixed(1)} km/h',
+                    style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Icon(Icons.terrain, size: 14, color: GlobalTheme.primaryNeon),
+                  Text(
+                    '${stats.elevationGain.toStringAsFixed(1)} m',
+                    style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
