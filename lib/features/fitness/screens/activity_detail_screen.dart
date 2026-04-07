@@ -137,31 +137,39 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                         
                         const SizedBox(height: 24),
                         
-                        // 3. Elevation Chart
-                        _buildChartSection(
-                          theme, 
-                          'Elevation vs Time', 
-                          'Elevation (m)', 
-                          _elevationSpots,
-                          GlobalTheme.primaryNeon,
-                          _replayProgress,
-                        ),
-                        
-                        const SizedBox(height: 12),
-
-                        // Shared Tooltip between charts
-                        _buildSharedTooltip(theme, displayStats),
-
-                        const SizedBox(height: 12),
-                        
-                        // 4. Speed Chart
-                        _buildChartSection(
-                          theme, 
-                          'Speed vs Time', 
-                          'Speed (km/h)', 
-                          _speedSpots,
-                          GlobalTheme.primaryAction,
-                          _replayProgress,
+                        // Overlapping Charts Section
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Column(
+                              children: [
+                                _buildChartSection(
+                                  theme, 
+                                  'Elevation vs Time', 
+                                  'Elevation (m)', 
+                                  _elevationSpots,
+                                  GlobalTheme.primaryNeon,
+                                  _replayProgress,
+                                ),
+                                const SizedBox(height: 12),
+                                _buildChartSection(
+                                  theme, 
+                                  'Speed vs Time', 
+                                  'Speed (km/h)', 
+                                  _speedSpots,
+                                  GlobalTheme.primaryAction,
+                                  _replayProgress,
+                                ),
+                              ],
+                            ),
+                            
+                            // Floating shared tooltip positioned between charts
+                            Positioned(
+                              top: 175, // Overlap point between elevation and speed charts
+                              left: 20 + (MediaQuery.of(context).size.width - 190) * _replayProgress,
+                              child: _buildSharedTooltip(theme, displayStats),
+                            ),
+                          ],
                         ),
                         
                         const SizedBox(height: 24),
@@ -514,16 +522,22 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
       return const SizedBox.shrink();
     }
 
-    // Calculate current point and scaling for the dot
-    final currentIndex = (spots.length * progress).floor().clamp(0, spots.length - 1);
-    final currentSpot = spots[currentIndex];
+    // Calculate interpolated point for smooth movement
+    final double exactIndex = (spots.length - 1) * progress;
+    final int lowerIndex = exactIndex.floor();
+    final int upperIndex = exactIndex.ceil();
+    final double t = exactIndex - lowerIndex;
+
+    final lowerSpot = spots[lowerIndex];
+    final upperSpot = spots[upperIndex];
+    final currentY = lowerSpot.y + (upperSpot.y - lowerSpot.y) * t;
     
     final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
     final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
     final rangeY = (maxY - minY).abs() < 0.001 ? 1.0 : (maxY - minY);
     
     // Calculate vertical offset (fl_chart Y increases UP, but Positioned 'top' increases DOWN)
-    final relativeY = (currentSpot.y - minY) / rangeY;
+    final relativeY = (currentY - minY) / rangeY;
     final dotTop = 100 * (1.0 - relativeY); // 100 is approx height of chart area inside the 120 container
 
     return Container(
@@ -634,7 +648,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                 ),
               ),
               
-              // Dot on the scrubber line - now follows the curve
+              // Dot on the scrubber line - smoothly follows the curve
               Positioned(
                 left: 30 + (MediaQuery.of(context).size.width - 100) * progress - 5,
                 top: dotTop + 10, // Adjusted for padding/alignment
@@ -662,61 +676,54 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
   }
 
   Widget _buildSharedTooltip(ThemeData theme, FitnessStats stats) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: (MediaQuery.of(context).size.width - 140) * _replayProgress,
+    return Container(
+      width: 130,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: UnconstrainedBox(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          width: 120,
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
-              ),
-            ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _formatDuration(stats.activeDuration),
+            style: const TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.w900,
+              fontSize: 14,
+            ),
           ),
-          child: Column(
+          const Divider(height: 12, color: Colors.black12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              const Icon(Icons.speed, size: 14, color: GlobalTheme.primaryAction),
               Text(
-                _formatDuration(stats.activeDuration),
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14,
-                ),
-              ),
-              const Divider(height: 12, color: Colors.black12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Icon(Icons.speed, size: 14, color: GlobalTheme.primaryAction),
-                  Text(
-                    '${(stats.currentSpeedMps * 3.6).toStringAsFixed(1)} km/h',
-                    style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Icon(Icons.terrain, size: 14, color: GlobalTheme.primaryNeon),
-                  Text(
-                    '${stats.elevationGain.toStringAsFixed(1)} m',
-                    style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                ],
+                '${(stats.currentSpeedMps * 3.6).toStringAsFixed(1)} km/h',
+                style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Icon(Icons.terrain, size: 14, color: GlobalTheme.primaryNeon),
+              Text(
+                '${stats.elevationGain.toStringAsFixed(1)} m',
+                style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
