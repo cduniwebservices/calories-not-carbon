@@ -138,38 +138,48 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                         const SizedBox(height: 24),
                         
                         // Overlapping Charts Section
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Column(
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final chartContainerWidth = constraints.maxWidth;
+                            // Data area width = Container Width - Container Padding (20+20) - Left Titles (40)
+                            final dataAreaWidth = chartContainerWidth - 40 - 40;
+                            final horizontalOffset = 40 + 40; // Left padding (20) + Chart padding (20) + Left Titles (40)
+                            final tooltipLeft = horizontalOffset + (dataAreaWidth * _replayProgress) - 65;
+
+                            return Stack(
+                              clipBehavior: Clip.none,
                               children: [
-                                _buildChartSection(
-                                  theme, 
-                                  'Elevation vs Time', 
-                                  'Elevation (m)', 
-                                  _elevationSpots,
-                                  GlobalTheme.primaryNeon,
-                                  _replayProgress,
+                                Column(
+                                  children: [
+                                    _buildChartSection(
+                                      theme, 
+                                      'Elevation vs Time', 
+                                      'Elevation (m)', 
+                                      _elevationSpots,
+                                      GlobalTheme.primaryNeon,
+                                      _replayProgress,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _buildChartSection(
+                                      theme, 
+                                      'Speed vs Time', 
+                                      'Speed (km/h)', 
+                                      _speedSpots,
+                                      GlobalTheme.primaryAction,
+                                      _replayProgress,
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 12),
-                                _buildChartSection(
-                                  theme, 
-                                  'Speed vs Time', 
-                                  'Speed (km/h)', 
-                                  _speedSpots,
-                                  GlobalTheme.primaryAction,
-                                  _replayProgress,
+                                
+                                // Floating shared tooltip positioned between charts
+                                Positioned(
+                                  top: 175, // Overlap point between elevation and speed charts
+                                  left: tooltipLeft,
+                                  child: _buildSharedTooltip(theme, displayStats),
                                 ),
                               ],
-                            ),
-                            
-                            // Floating shared tooltip positioned between charts
-                            Positioned(
-                              top: 175, // Overlap point between elevation and speed charts
-                              left: 20 + (MediaQuery.of(context).size.width - 190) * _replayProgress,
-                              child: _buildSharedTooltip(theme, displayStats),
-                            ),
-                          ],
+                            );
+                          }
                         ),
                         
                         const SizedBox(height: 24),
@@ -536,9 +546,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
     final rangeY = (maxY - minY).abs() < 0.001 ? 1.0 : (maxY - minY);
     
-    // Calculate vertical offset (fl_chart Y increases UP, but Positioned 'top' increases DOWN)
     final relativeY = (currentY - minY) / rangeY;
-    final dotTop = 100 * (1.0 - relativeY); // 100 is approx height of chart area inside the 120 container
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -559,116 +567,129 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              SizedBox(
-                height: 120,
-                child: LineChart(
-                  LineChartData(
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: true,
-                      getDrawingHorizontalLine: (value) => FlLine(
-                        color: Colors.white.withOpacity(0.1),
-                        strokeWidth: 1,
-                      ),
-                      getDrawingVerticalLine: (value) => FlLine(
-                        color: Colors.white.withOpacity(0.1),
-                        strokeWidth: 1,
-                      ),
-                    ),
-                    titlesData: FlTitlesData(
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 30,
-                          getTitlesWidget: (value, meta) => Text(
-                            value.toInt().toString(),
-                            style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10),
-                          ),
-                        ),
-                        axisNameWidget: Text(
-                          yLabel,
-                          style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10),
-                        ),
-                      ),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          getTitlesWidget: (value, meta) => Text(
-                            value.toInt().toString(),
-                            style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10),
-                          ),
-                        ),
-                        axisNameWidget: Text(
-                          'Time (m)',
-                          style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10),
-                        ),
-                      ),
-                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    ),
-                    minY: minY,
-                    maxY: maxY,
-                    borderData: FlBorderData(show: false),
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: spots,
-                        isCurved: true,
-                        color: color,
-                        barWidth: 3,
-                        isStrokeCapRound: true,
-                        dotData: const FlDotData(show: false),
-                        belowBarData: BarAreaData(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const leftReserved = 40.0;
+              const bottomReserved = 22.0;
+              final dataWidth = constraints.maxWidth - leftReserved;
+              final dataHeight = 120.0 - bottomReserved;
+              
+              final dotLeft = leftReserved + (dataWidth * progress);
+              final dotTop = dataHeight * (1.0 - relativeY);
+
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  SizedBox(
+                    height: 120,
+                    child: LineChart(
+                      LineChartData(
+                        gridData: FlGridData(
                           show: true,
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              color.withOpacity(0.3),
-                              color.withOpacity(0.0),
-                            ],
+                          drawVerticalLine: true,
+                          getDrawingHorizontalLine: (value) => FlLine(
+                            color: Colors.white.withOpacity(0.1),
+                            strokeWidth: 1,
+                          ),
+                          getDrawingVerticalLine: (value) => FlLine(
+                            color: Colors.white.withOpacity(0.1),
+                            strokeWidth: 1,
                           ),
                         ),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: leftReserved,
+                              getTitlesWidget: (value, meta) => Text(
+                                value.toInt().toString(),
+                                style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10),
+                              ),
+                            ),
+                            axisNameWidget: Text(
+                              yLabel,
+                              style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10),
+                            ),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: bottomReserved,
+                              getTitlesWidget: (value, meta) => Text(
+                                value.toInt().toString(),
+                                style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10),
+                              ),
+                            ),
+                            axisNameWidget: Text(
+                              'Time (m)',
+                              style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10),
+                            ),
+                          ),
+                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false, reservedSize: 0)),
+                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false, reservedSize: 0)),
+                        ),
+                        minY: minY,
+                        maxY: maxY,
+                        borderData: FlBorderData(show: false),
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: spots,
+                            isCurved: true,
+                            color: color,
+                            barWidth: 3,
+                            isStrokeCapRound: true,
+                            dotData: const FlDotData(show: false),
+                            belowBarData: BarAreaData(
+                              show: true,
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  color.withOpacity(0.3),
+                                  color.withOpacity(0.0),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-              
-              // Scrubber Vertical Line
-              Positioned(
-                left: 30 + (MediaQuery.of(context).size.width - 100) * progress,
-                top: 0,
-                bottom: 20,
-                child: Container(
-                  width: 2,
-                  color: color.withOpacity(0.5),
-                ),
-              ),
-              
-              // Dot on the scrubber line - smoothly follows the curve
-              Positioned(
-                left: 30 + (MediaQuery.of(context).size.width - 100) * progress - 5,
-                top: dotTop + 10, // Adjusted for padding/alignment
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withOpacity(0.5),
-                        blurRadius: 8,
+                  
+                  // Scrubber Vertical Line
+                  Positioned(
+                    left: dotLeft,
+                    top: 0,
+                    bottom: bottomReserved,
+                    child: Container(
+                      width: 2,
+                      color: color.withOpacity(0.5),
+                    ),
+                  ),
+                  
+                  // Dot on the scrubber line - smoothly follows the curve
+                  Positioned(
+                    left: dotLeft - 6,
+                    top: dotTop - 6,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: color.withOpacity(0.5),
+                            blurRadius: 8,
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            ],
+                ],
+              );
+            }
           ),
         ],
       ),
