@@ -70,32 +70,30 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     const Spacer(flex: 2),
 
                     // Main Illustration
-                    Center(
-                      child: Hero(
-                        tag: 'app_logo',
-                        child: Container(
-                          height: 320,
-                          width: 320,
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [Color(0xFF1A331A), Color(0xFF0F1A0F)],
+                    Hero(
+                      tag: 'app_logo',
+                      child: Container(
+                        height: 380,
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(40),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF1A331A), Color(0xFF0F1A0F)],
+                          ),
+                          borderRadius: BorderRadius.circular(40),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF42FF9E).withOpacity(0.1),
+                              blurRadius: 40,
+                              spreadRadius: 5,
                             ),
-                            borderRadius: BorderRadius.circular(40),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF42FF9E).withOpacity(0.1),
-                                blurRadius: 40,
-                                spreadRadius: 5,
-                              ),
-                            ],
-                          ),
-                          child: SvgPicture.asset(
-                            'assets/icons/icon-logo-4-color.svg',
-                            fit: BoxFit.contain,
-                          ),
+                          ],
+                        ),
+                        child: SvgPicture.asset(
+                          'assets/icons/icon-logo-4-color.svg',
+                          fit: BoxFit.contain,
                         ),
                       ),
                     ).animate().scale(duration: 800.ms, curve: Curves.easeOutBack),

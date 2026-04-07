@@ -43,8 +43,14 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
   }
 
   void _prepareChartData() {
+    _elevationSpots = [];
+    _speedSpots = [];
+
     if (widget.session.waypoints.isEmpty) {
       EnterpriseLogger().logWarning('ActivityDetailScreen', 'No waypoints found in session');
+      // Add default spots for visual representation even if no waypoints exist
+      _elevationSpots = [const FlSpot(0, 0), const FlSpot(100, 10)];
+      _speedSpots = [const FlSpot(0, 0), const FlSpot(100, 12)];
       return;
     }
     
@@ -52,7 +58,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     
     for (var i = 0; i < widget.session.waypoints.length; i++) {
       final waypoint = widget.session.waypoints[i];
-      final timeDiff = waypoint.timestamp.difference(startTime).inSeconds.toDouble();
+      final timeDiff = waypoint.timestamp.difference(startTime).inSeconds.toDouble() / 60; // Minutes
       
       if (waypoint.statsAtTime != null) {
         _elevationSpots.add(FlSpot(timeDiff, waypoint.statsAtTime!.elevationGain));
@@ -192,6 +198,16 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
               const Icon(Icons.error_outline, color: Colors.red, size: 48),
               const SizedBox(height: 16),
               const Text('Error loading activity details'),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  e.toString(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ),
+              const SizedBox(height: 24),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: const Text('Go Back'),
@@ -494,6 +510,10 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     double progress,
     {bool showTooltip = false, String? currentValue, String? currentTime, String? currentDistance}
   ) {
+    if (spots.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     final maxTime = spots.last.x;
     final currentTimeX = maxTime * progress;
     

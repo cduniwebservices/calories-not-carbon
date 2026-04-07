@@ -626,6 +626,32 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
     // Create session
     final duration = Duration(seconds: (distanceMeters / speed).toInt());
+    final startTime = DateTime.now().subtract(duration);
+    
+    // Generate mock waypoints (one every 100m or so)
+    final waypoints = <ActivityWaypoint>[];
+    for (var i = 0; i < points.length; i += (points.length / 10).floor().clamp(1, points.length)) {
+      final point = points[i];
+      final progress = i / points.length;
+      final waypointDuration = Duration(seconds: (duration.inSeconds * progress).toInt());
+      final waypointTimestamp = startTime.add(waypointDuration);
+      
+      waypoints.add(ActivityWaypoint(
+        location: point,
+        timestamp: waypointTimestamp,
+        type: i == 0 ? 'start' : (i >= points.length - 1 ? 'finish' : 'milestone'),
+        statsAtTime: FitnessStats(
+          totalDistanceMeters: distanceMeters * progress,
+          totalDuration: waypointDuration,
+          activeDuration: waypointDuration,
+          averageSpeedMps: speed,
+          currentSpeedMps: speed + (random.nextDouble() - 0.5),
+          startTime: startTime,
+          elevationGain: 50 * progress,
+        ),
+      ));
+    }
+
     final session = ActivitySession(
       id: const Uuid().v4(),
       activityType: ActivityType.values.firstWhere(
@@ -642,7 +668,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
         averagePaceSecondsPerKm: 1000 / speed,
         currentPaceSecondsPerKm: 1000 / speed,
         estimatedCalories: (distanceMeters / 1000 * 50).toInt(),
-        startTime: DateTime.now().subtract(duration),
+        startTime: startTime,
         endTime: DateTime.now(),
         totalSteps: type == 'walking' || type == 'running'
             ? (distanceMeters / 0.762).toInt()
@@ -650,7 +676,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
         elevationGain: random.nextDouble() * 50,
       ),
       routePoints: points,
-      waypoints: [],
+      waypoints: waypoints,
       metadata: {'device_id': LocalStorageService.getDeviceId(), 'source': 'mock'},
     );
 
