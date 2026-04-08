@@ -1,6 +1,7 @@
 import 'package:calories_not_carbon/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../services/permission_service.dart';
 import '../../services/location_service.dart';
 import '../../components/modern_ui_components.dart';
