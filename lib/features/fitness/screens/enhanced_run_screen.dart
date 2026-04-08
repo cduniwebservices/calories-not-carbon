@@ -667,6 +667,20 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
   }
 
   Future<void> _handleStopActivity(ActivityActions actions) async {
+    final distance = ref.read(fitnessStatsProvider).totalDistanceMeters;
+
+    // Check for minimum distance requirement (1km)
+    if (distance < 1000) {
+      final shouldDiscard = await _showInsufficientDistanceDialog();
+      if (shouldDiscard == true) {
+        actions.resetActivity();
+        if (mounted) {
+          context.go('/goals');
+        }
+      }
+      return;
+    }
+
     final shouldStop = await _showStopConfirmation();
     if (!shouldStop) return;
 
@@ -713,6 +727,78 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
         });
       }
     }
+  }
+
+  Future<bool> _showInsufficientDistanceDialog() async {
+    await HapticFeedback.heavyImpact();
+
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            backgroundColor: const Color(0xFF1A1A1A),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+              side: BorderSide(color: Colors.white.withOpacity(0.1)),
+            ),
+            titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+            contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            title: const Text(
+              'INSUFFICIENT DISTANCE RECORDED',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+                fontSize: 18,
+              ),
+            ),
+            content: const Text(
+              'Your activity does not meet the minimum distance requirement of 1km. This session will not be saved to your device.',
+              style: TextStyle(color: GlobalTheme.textSecondary, height: 1.5),
+            ),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            actions: [
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white70,
+                        side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('CONTINUE ACTIVITY'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: GlobalTheme.statusError,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'DISCARD',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   Future<bool> _showStopConfirmation() async {

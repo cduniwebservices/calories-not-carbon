@@ -85,7 +85,7 @@ class PermissionService {
   }
 
   /// Open app settings for permission management
-  Future<bool> openAppSettings() async {
+  Future<bool> openPermissionSettings() async {
     try {
       debugPrint('🔐 PermissionService: Opening app settings...');
       return await openAppSettings();
@@ -93,6 +93,14 @@ class PermissionService {
       debugPrint('❌ PermissionService: Error opening app settings: $e');
       return false;
     }
+  }
+
+  /// Request notification permission specifically
+  Future<PermissionStatus> requestNotificationPermission() async {
+    debugPrint('🔐 PermissionService: Requesting notification permission...');
+    final status = await Permission.notification.request();
+    await _updatePermissionState();
+    return status;
   }
 
   /// Show permission rationale dialog

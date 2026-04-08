@@ -142,9 +142,86 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
     });
 
     if (result.isSuccess) {
-      widget.onComplete();
+      // Check if notification permission was specifically denied
+      final notificationStatus = result.permissions[Permission.notification];
+      if (notificationStatus != null && notificationStatus.isDenied) {
+        _showNotificationExplanationDialog();
+      } else {
+        widget.onComplete();
+      }
     } else {
       _showPermissionDeniedDialog();
+    }
+  }
+
+  void _showNotificationExplanationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: GlobalTheme.surfaceCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Row(
+          children: [
+            Icon(Icons.notifications_paused_rounded, color: GlobalTheme.primaryAction, size: 28),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Notifications are Important',
+                style: TextStyle(color: GlobalTheme.textPrimary, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Without notification permissions, the app may not be able to maintain a stable GPS connection when your screen is off or when the app is in the background. This could lead to inaccurate distance tracking.',
+          style: TextStyle(color: GlobalTheme.textSecondary, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onComplete();
+            },
+            child: const Text(
+              'Continue Without',
+              style: TextStyle(color: GlobalTheme.textTertiary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await _retryNotificationPermission();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: GlobalTheme.primaryAction,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Try Again'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _retryNotificationPermission() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    final status = await _permissionService.requestNotificationPermission();
+    
+    setState(() {
+      _isLoading = false;
+    });
+    
+    if (status.isGranted) {
+      widget.onComplete();
+    } else {
+      // If still denied, just proceed to complete the flow since it's not "essential"
+      // but they were given a second chance and warned.
+      widget.onComplete();
     }
   }
 
@@ -155,19 +232,19 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
       builder: (context) => AlertDialog(
         backgroundColor: GlobalTheme.surfaceCard,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
+        title: const Row(
           children: [
             Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-            const SizedBox(width: 12),
-            const Text(
+            SizedBox(width: 12),
+            Text(
               'Permissions Required',
-              style: const TextStyle(color: GlobalTheme.textPrimary),
+              style: TextStyle(color: GlobalTheme.textPrimary),
             ),
           ],
         ),
         content: const Text(
           'Some features may not work properly without these permissions. You can change them later in the app settings.',
-          style: const TextStyle(color: GlobalTheme.textSecondary, height: 1.5),
+          style: TextStyle(color: GlobalTheme.textSecondary, height: 1.5),
         ),
         actions: [
           TextButton(
@@ -185,7 +262,7 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _permissionService.openAppSettings();
+              _permissionService.openPermissionSettings();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: GlobalTheme.primaryNeon,

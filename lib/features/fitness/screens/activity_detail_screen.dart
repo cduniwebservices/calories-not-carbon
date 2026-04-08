@@ -141,10 +141,14 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                         LayoutBuilder(
                           builder: (context, constraints) {
                             final chartContainerWidth = constraints.maxWidth;
-                            // Data area width = Container Width - Container Padding (20+20) - Left Titles (40)
-                            final dataAreaWidth = chartContainerWidth - 40 - 40;
-                            final horizontalOffset = 40 + 40; // Left padding (20) + Chart padding (20) + Left Titles (40)
-                            final tooltipLeft = horizontalOffset + (dataAreaWidth * _replayProgress) - 65;
+                            // Left Padding (20) + Chart Left Titles (40) = 60px
+                            const horizontalOffset = 20.0 + 40.0;
+                            // Data Area = Container Width - Container Padding (20+20) - Left Titles (40)
+                            final dataAreaWidth = chartContainerWidth - 40.0 - 40.0;
+                            
+                            final scrubberX = horizontalOffset + (dataAreaWidth * _replayProgress);
+                            // Clamp tooltip between left edge (0) and right edge (width - tooltip width)
+                            final tooltipLeft = (scrubberX - 65).clamp(0.0, chartContainerWidth - 130.0);
 
                             return Stack(
                               clipBehavior: Clip.none,
@@ -628,6 +632,8 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false, reservedSize: 0)),
                           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false, reservedSize: 0)),
                         ),
+                        minX: 0,
+                        maxX: spots.last.x,
                         minY: minY,
                         maxY: maxY,
                         borderData: FlBorderData(show: false),
