@@ -405,53 +405,76 @@ void _onLocationUpdate(dynamic locationData) {
         if (locationData.speed != null && locationData.speed > 0) {
           _currentSpeed = locationData.speed;
         } else {
-            // Calculate speed from distance and time
-            final timeDiff = timestamp
-                .difference(_getLastLocationTime())
-                .inMilliseconds;
-            if (timeDiff > 0) {
-              _currentSpeed = (distance / (timeDiff / 1000.0)); // m/s
-            }
+          // Calculate speed from distance and time
+          final timeDiff = timestamp
+              .difference(_getLastLocationTime())
+              .inMilliseconds;
+          if (timeDiff > 0) {
+            _currentSpeed = (distance / (timeDiff / 1000.0)); // m/s
           }
-
-          // Update max speed
-          if (_currentSpeed > _maxSpeed) {
-            _maxSpeed = _currentSpeed;
-          }
-
-          // Update speed history for averaging
-          _speedHistory.add(_currentSpeed);
-          if (_speedHistory.length > _speedHistoryLimit) {
-            _speedHistory.removeAt(0);
-          }
-
-          // Track elevation changes
-          if (locationData.altitude != null) {
-            if (_lastAltitude != null) {
-              final elevationChange = locationData.altitude - _lastAltitude!;
-              if (elevationChange > 0) {
-                _totalElevationGain += elevationChange;
-              }
-            }
-            _lastAltitude = locationData.altitude;
-          }
-
-          // Estimate step count (very basic estimation)
-          _stepCount += _estimateSteps(distance, _activityType);
-
-          _lastKnownLocation = newLocation;
-
-          // Update stats immediately for responsive UI
-          _updateStats();
         }
-      } else {
-        // First location
-        _lastKnownLocation = newLocation;
-        _routePoints.add(newLocation);
+
+        // Update max speed
+        if (_currentSpeed > _maxSpeed) {
+          _maxSpeed = _currentSpeed;
+        }
+
+        // Update speed history for averaging
+        _speedHistory.add(_currentSpeed);
+        if (_speedHistory.length > _speedHistoryLimit) {
+          _speedHistory.removeAt(0);
+        }
+
+        // Track elevation changes
         if (locationData.altitude != null) {
+          if (_lastAltitude != null) {
+            final elevationChange = locationData.altitude - _lastAltitude!;
+            if (elevationChange > 0) {
+              _totalElevationGain += elevationChange;
+            }
+          }
           _lastAltitude = locationData.altitude;
         }
+
+        // Estimate step count (very basic estimation)
+        _stepCount += _estimateSteps(distance, _activityType);
+
+        _lastKnownLocation = newLocation;
+
+        // Update stats immediately for responsive UI
+        _updateStats();
+
+        // RECORD POINT-IN-TIME DATA for historical graphs
+        _waypoints.add(
+          ActivityWaypoint(
+            location: newLocation,
+            timestamp: timestamp,
+            type: 'track_point',
+            statsAtTime: _stats,
+          ),
+        );
       }
+    } else {
+      // First location
+      _lastKnownLocation = newLocation;
+      _routePoints.add(newLocation);
+      if (locationData.altitude != null) {
+        _lastAltitude = locationData.altitude;
+      }
+      
+      // Update stats for first point
+      _updateStats();
+      
+      // Record initial waypoint with stats
+      _waypoints.add(
+        ActivityWaypoint(
+          location: newLocation,
+          timestamp: timestamp,
+          type: 'start_point',
+          statsAtTime: _stats,
+        ),
+      );
+    }
     } catch (e) {
       debugPrint('❌ ActivityController: Error processing location update: $e');
     }

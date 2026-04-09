@@ -307,12 +307,24 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                _getActivityTitle(activity),
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  color: GlobalTheme.textPrimary,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              Row(
+                                children: [
+                                  Text(
+                                    _getActivityTitle(activity),
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      color: GlobalTheme.textPrimary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  if (activity.isSynced) ...[
+                                    const SizedBox(width: 8),
+                                    const Icon(
+                                      Icons.cloud_done_rounded,
+                                      color: GlobalTheme.primaryAccent,
+                                      size: 14,
+                                    ),
+                                  ],
+                                ],
                               ),
                               Text(
                                 _formatDate(activity.stats.startTime),

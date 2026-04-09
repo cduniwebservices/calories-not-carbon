@@ -232,6 +232,8 @@ class ActivitySession {
     this.metadata = const {},
   });
 
+  bool get isSynced => metadata['synced'] == true;
+
   ActivitySession copyWith({
     String? id,
     ActivityType? activityType,
@@ -268,16 +270,33 @@ class ActivitySession {
       'endTime': stats.endTime?.toIso8601String(),
       'totalSteps': stats.totalSteps,
       'elevationGain': stats.elevationGain,
-      'routePoints': routePoints
-          .map((point) => {'lat': point.latitude, 'lng': point.longitude})
-          .toList(),
-      'waypoints': waypoints.map((wp) => wp.toJson()).toList(),
+      // Store rich waypoints data in the routePoints field for high fidelity
+      'routePoints': waypoints.map((wp) => wp.toJson()).toList(),
       'metadata': metadata,
     };
   }
 
   /// Create from JSON
   factory ActivitySession.fromJson(Map<String, dynamic> json) {
+    final rawRoute = json['routePoints'] as List? ?? [];
+    
+    // Determine if we have rich waypoint data or just simple coordinates
+    List<ActivityWaypoint> parsedWaypoints = [];
+    List<LatLng> parsedCoords = [];
+
+    if (rawRoute.isNotEmpty) {
+      if (rawRoute.first is Map && rawRoute.first.containsKey('location')) {
+        // High fidelity format (waypoints)
+        parsedWaypoints = rawRoute.map((wp) => ActivityWaypoint.fromJson(wp)).toList();
+        parsedCoords = parsedWaypoints.map((wp) => wp.location).toList();
+      } else {
+        // Legacy/simple format (LatLng only)
+        parsedCoords = rawRoute
+            .map((point) => LatLng(point['lat'], point['lng']))
+            .toList();
+      }
+    }
+
     return ActivitySession(
       id: json['id'],
       activityType: ActivityType.values.firstWhere(
@@ -302,16 +321,8 @@ class ActivitySession {
         totalSteps: json['totalSteps'] ?? 0,
         elevationGain: json['elevationGain']?.toDouble() ?? 0.0,
       ),
-      routePoints:
-          (json['routePoints'] as List?)
-              ?.map((point) => LatLng(point['lat'], point['lng']))
-              .toList() ??
-          [],
-      waypoints:
-          (json['waypoints'] as List?)
-              ?.map((wp) => ActivityWaypoint.fromJson(wp))
-              .toList() ??
-          [],
+      routePoints: parsedCoords,
+      waypoints: parsedWaypoints,
       metadata: json['metadata'] ?? {},
     );
   }

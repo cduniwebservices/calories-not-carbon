@@ -94,11 +94,7 @@ class SyncService {
   Future<bool> _uploadToSupabase(ActivitySession activity) async {
     try {
       final supabase = Supabase.instance.client;
-
-      // Convert route points to a simplified format for storage
-      final routeData = activity.routePoints
-          .map((point) => {'lat': point.latitude, 'lng': point.longitude})
-          .toList();
+      final sessionJson = activity.toJson();
 
       await supabase.from('activities').insert({
         'id': activity.id,
@@ -115,7 +111,7 @@ class SyncService {
         'elevation_gain': activity.stats.elevationGain,
         'start_time': activity.stats.startTime.toIso8601String(),
         'end_time': activity.stats.endTime?.toIso8601String(),
-        'route_points': routeData,
+        'route_points': sessionJson['routePoints'], // Use rich data from model
         'metadata': activity.metadata,
         'created_at': DateTime.now().toIso8601String(),
         'synced_at': DateTime.now().toIso8601String(),
@@ -126,6 +122,7 @@ class SyncService {
       return false;
     }
   }
+
 
   /// Get sync status
   Map<String, dynamic> getSyncStatus() {
