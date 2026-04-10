@@ -7,6 +7,7 @@ import '../../components/app_button.dart';
 import '../../theme/global_theme.dart';
 import '../../services/version_service.dart';
 import '../../services/sync_service.dart';
+import '../../services/permission_service.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
