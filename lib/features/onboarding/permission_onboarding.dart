@@ -36,42 +36,42 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
 
   final List<OnboardingPage> _pages = [
     OnboardingPage(
-      title: 'Welcome to Fitness Pro',
-      subtitle: 'Your personal fitness companion',
+      title: 'Welcome!',
+      subtitle: 'Your climate impact companion',
       description:
-          'Track your activities, monitor your progress, and achieve your fitness goals with precision GPS tracking.',
+          'Record your physical activities and see the carbon emissions you\'ve helped prevent. Every movement counts for the planet.',
       icon: Icons.fitness_center,
       color: GlobalTheme.primaryAccent,
     ),
     OnboardingPage(
-      title: 'Location Tracking',
-      subtitle: 'Accurate GPS for precise tracking',
+      title: 'Location Access',
+      subtitle: 'Measure your journeys',
       description:
-          'We use GPS to track your activity routes, calculate distance, pace, and provide detailed workout analytics.',
+          'GPS helps calculate the distance you\'ve traveled and the carbon savings from choosing active transport over driving.',
       icon: Icons.location_on,
       color: GlobalTheme.primaryAction,
     ),
     OnboardingPage(
-      title: 'Activity Recognition',
-      subtitle: 'Intelligent workout detection',
+      title: 'Activity Detection',
+      subtitle: 'Recognize your movement',
       description:
-          'Automatically detect different types of workouts and optimize tracking for each activity type.',
+          'Automatically identify different types of activities so your effort is accurately reflected in your climate impact.',
       icon: Icons.directions_run,
       color: GlobalTheme.primaryNeon,
     ),
     OnboardingPage(
-      title: 'Notifications',
-      subtitle: 'Stay connected while tracking',
+      title: 'Background Updates',
+      subtitle: 'Keep logging active',
       description:
-          'Notifications are required to keep GPS active when your screen is off or you switch to another app.',
+          'Notifications keep the app running in the background so your activities are captured even when the screen is off.',
       icon: Icons.notifications_active,
       color: GlobalTheme.primaryAction,
     ),
     OnboardingPage(
       title: 'Motion Sensors',
-      subtitle: 'Enhanced step counting',
+      subtitle: 'Count your steps',
       description:
-          'Access to motion sensors enables accurate step counting and cadence measurement during your workouts.',
+          'Motion sensors enable step counting and pace measurement, adding detail to your activity records.',
       icon: Icons.sensors,
       color: Colors.deepOrange,
     ),
@@ -100,6 +100,13 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
         });
       }
     });
+
+    // Check if permissions are already granted - skip onboarding if so
+    final currentState = _permissionService.currentState;
+    if (currentState == PermissionState.allGranted) {
+      debugPrint('✅ Permissions already granted, skipping onboarding');
+      widget.onComplete();
+    }
   }
 
   @override
@@ -177,7 +184,7 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
           ],
         ),
         content: const Text(
-          'Notifications are required to keep GPS active when your screen is off. Without this, tracking will be inaccurate.',
+          'Notifications keep the app running while your screen is off, so your activities are fully captured and your carbon impact is accurately calculated.',
           style: TextStyle(color: GlobalTheme.textSecondary, height: 1.5),
         ),
         actions: [
@@ -238,7 +245,7 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
           ],
         ),
         content: const Text(
-          'GPS and Activity permissions are mandatory for this app to function. Please enable them in your device settings to continue.',
+          'Location and activity permissions are needed to calculate your carbon impact. Please enable them in your device settings to continue.',
           style: TextStyle(color: GlobalTheme.textSecondary, height: 1.5),
         ),
         actions: [
@@ -252,7 +259,7 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
               foregroundColor: Colors.black,
               minimumSize: const Size(double.infinity, 50),
             ),
-            child: const Text('OPEN DEVICE SETTINGS'),
+            child: const Text('OPEN SETTINGS'),
           ),
         ],
       ),

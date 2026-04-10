@@ -116,9 +116,9 @@ class PermissionService {
             title: title ?? 'Location Access Required',
             message:
                 message ??
-                'This app needs access to your location to track your fitness activities, '
-                    'calculate distances, and provide accurate workout metrics. Your privacy '
-                    'is important to us - location data is only used for fitness tracking.',
+                'This app needs access to your location to record your physical activities, '
+                    'calculate distances, and measure the carbon emissions you\'ve helped prevent. Your privacy '
+                    'is important to us - location data is only used to calculate your climate impact.',
           ),
         ) ??
         false;
