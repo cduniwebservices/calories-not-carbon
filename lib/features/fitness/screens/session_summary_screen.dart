@@ -765,12 +765,17 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
 
             const SizedBox(height: GlobalTheme.spacing16),
 
-            ...detailedMetrics.asMap().entries.map((entry) {
-              final index = entry.key;
-              final metric = entry.value;
+            // Two-column grid layout for metrics
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: detailedMetrics.asMap().entries.map((entry) {
+                final index = entry.key;
+                final metric = entry.value;
 
-              return Container(
-                    margin: const EdgeInsets.only(bottom: GlobalTheme.spacing12),
+                return FractionallySizedBox(
+                  widthFactor: 0.48, // Slightly less than 0.5 to account for spacing
+                  child: Container(
                     padding: const EdgeInsets.all(GlobalTheme.spacing16),
                     decoration: BoxDecoration(
                       color: GlobalTheme.surfaceCard,
@@ -779,7 +784,8 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
                         color: GlobalTheme.surfaceBorder.withOpacity(0.5),
                       ),
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
                           padding: const EdgeInsets.all(GlobalTheme.spacing8),
@@ -792,27 +798,28 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
                           child: Icon(
                             metric['icon'] as IconData,
                             color: metric['color'] as Color,
-                            size: 20,
+                            size: 18,
                           ),
                         ),
 
-                        const SizedBox(width: GlobalTheme.spacing16),
+                        const SizedBox(height: GlobalTheme.spacing12),
 
-                        Expanded(
-                          child: Text(
-                            metric['label'] as String,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: GlobalTheme.textSecondary,
-                              fontWeight: FontWeight.w500,
-                            ),
+                        Text(
+                          metric['label'] as String,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: GlobalTheme.textTertiary,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
+
+                        const SizedBox(height: 4),
 
                         Text(
                           metric['value'] as String,
                           style: theme.textTheme.titleMedium?.copyWith(
                             color: GlobalTheme.textPrimary,
                             fontWeight: FontWeight.w700,
+                            fontSize: 16,
                           ),
                         ),
                       ],
@@ -823,8 +830,10 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
                     delay: Duration(milliseconds: 1400 + (index * 100)),
                     duration: 400.ms,
                   )
-                  .slideX(begin: 0.3, end: 0);
-            }),
+                  .slideY(begin: 0.2, end: 0),
+                );
+              }).toList(),
+            ),
           ],
         );
       },

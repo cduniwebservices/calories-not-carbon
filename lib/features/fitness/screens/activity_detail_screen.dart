@@ -67,12 +67,14 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
       final waypoint = widget.session.waypoints[i];
       final timeDiff = waypoint.timestamp.difference(startTime).inSeconds.toDouble() / 60; // Minutes
       
+      // Use explicit altitude if available, otherwise fallback to elevation gain
+      final altitude = waypoint.altitude ?? (waypoint.statsAtTime?.elevationGain ?? 0);
+      _elevationSpots.add(FlSpot(timeDiff, altitude));
+
       if (waypoint.statsAtTime != null) {
-        _elevationSpots.add(FlSpot(timeDiff, waypoint.statsAtTime!.elevationGain));
         _speedSpots.add(FlSpot(timeDiff, waypoint.statsAtTime!.currentSpeedMps * 3.6)); // km/h
       } else {
         // Fallback or estimation if statsAtTime is missing
-        _elevationSpots.add(FlSpot(timeDiff, 0));
         _speedSpots.add(FlSpot(timeDiff, 0));
       }
     }
@@ -201,8 +203,8 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                                   children: [
                                     _buildChartSection(
                                       theme, 
-                                      'Elevation vs Time', 
-                                      'Elevation (m)', 
+                                      'Altitude vs Time', 
+                                      'Altitude (m)', 
                                       _elevationSpots,
                                       GlobalTheme.primaryNeon,
                                       currentX,
@@ -292,9 +294,9 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
+        initialChildSize: 0.66,
+        minChildSize: 0.4,
+        maxChildSize: 0.66,
         builder: (context, scrollController) => Container(
           decoration: BoxDecoration(
             color: GlobalTheme.backgroundPrimary,
@@ -307,7 +309,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
             children: [
               // Handle bar
               Container(
-                margin: const EdgeInsets.only(top: 12),
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
@@ -316,31 +318,6 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                 ),
               ),
               
-              const SizedBox(height: 16),
-              
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'FULL ACTIVITY STATS',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Colors.white),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-              ),
-              
-              const Divider(color: Colors.white10),
-              
               Expanded(
                 child: SingleChildScrollView(
                   controller: scrollController,
@@ -348,6 +325,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                   child: StatsDisplay(
                     stats: widget.session.stats,
                     state: ActivityState.completed,
+                    activityType: widget.session.activityType,
                     accentColor: GlobalTheme.primaryNeon,
                   ),
                 ),
@@ -755,7 +733,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
             children: [
               const Icon(Icons.terrain, size: 14, color: GlobalTheme.primaryNeon),
               Text(
-                '${stats.elevationGain.toStringAsFixed(1)} m',
+                '${(displayStats.elevationGain).toStringAsFixed(1)} m',
                 style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold),
               ),
             ],

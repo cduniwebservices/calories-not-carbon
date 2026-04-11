@@ -631,6 +631,10 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
     int totalDistance = 0;
     double lat = startLat;
     double lng = startLng;
+    
+    // Altitude generation: Start at some base altitude and vary it realistically
+    double currentAltitude = 50.0 + random.nextDouble() * 100.0;
+    double totalElevationGain = 0.0;
 
     // Speed in m/s for different activity types
     final speedMap = {'walking': 1.4, 'running': 3.0, 'cycling': 6.0};
@@ -638,8 +642,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
     while (totalDistance < distanceMeters) {
       points.add(LatLng(lat, lng));
-      EnterpriseLogger().logInfo('Debug', '📍 Point: ${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}');
-
+      
       // Random direction change (realistic path)
       final angle = random.nextDouble() * 2 * pi;
       final step = random.nextDouble() * 10 + 5; // 5-15m steps
@@ -657,16 +660,24 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
     
     // Generate mock waypoints (one every 100m or so)
     final waypoints = <ActivityWaypoint>[];
+    double waypointAltitude = currentAltitude;
+    
     for (var i = 0; i < points.length; i += (points.length / 10).floor().clamp(1, points.length)) {
       final point = points[i];
       final progress = i / points.length;
       final waypointDuration = Duration(seconds: (duration.inSeconds * progress).toInt());
       final waypointTimestamp = startTime.add(waypointDuration);
       
+      // Random altitude change between waypoints (-2m to +3m)
+      final altChange = (random.nextDouble() * 5.0) - 2.0;
+      waypointAltitude += altChange;
+      if (altChange > 0) totalElevationGain += altChange;
+      
       waypoints.add(ActivityWaypoint(
         location: point,
         timestamp: waypointTimestamp,
         type: i == 0 ? 'start' : (i >= points.length - 1 ? 'finish' : 'milestone'),
+        altitude: waypointAltitude,
         statsAtTime: FitnessStats(
           totalDistanceMeters: distanceMeters * progress,
           totalDuration: waypointDuration,
@@ -674,10 +685,58 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
           averageSpeedMps: speed,
           currentSpeedMps: speed + (random.nextDouble() - 0.5),
           startTime: startTime,
-          elevationGain: 50 * progress,
+          elevationGain: totalElevationGain,
         ),
       ));
     }
+
+    // Generate mock weather
+    final mockWeather = WeatherData(
+      location: const WeatherLocation(
+        name: 'Sydney',
+        region: 'New South Wales',
+        country: 'Australia',
+        tzId: 'Australia/Sydney',
+        localtimeEpoch: 1775881598,
+        localtime: '2026-04-11 13:56',
+        utcOffset: '+10:00',
+      ),
+      lastUpdated: '2026-04-11 13:45',
+      lastUpdatedEpoch: 1775880900,
+      tempC: 24.5,
+      isDay: 1,
+      conditionText: 'Partly Cloudy',
+      conditionIcon: '//cdn.weatherapi.com/weather/64x64/day/116.png',
+      conditionCode: 1003,
+      windKph: 12.5,
+      windDegree: 180,
+      windDir: 'S',
+      pressureMb: 1012.0,
+      precipMm: 0.0,
+      humidity: 65,
+      cloud: 40,
+      feelsLikeC: 25.2,
+      windChillC: 24.5,
+      heatIndexC: 25.2,
+      dewPointC: 17.5,
+      visKm: 10.0,
+      uv: 6.0,
+      gustKph: 18.5,
+    );
+
+    // Generate mock IP lookup
+    const mockIpLookup = IpLookupData(
+      ip: '1.1.1.1',
+      type: 'ipv4',
+      continentCode: 'OC',
+      continentName: 'Oceania',
+      countryCode: 'AU',
+      countryName: 'Australia',
+      isEu: false,
+      geonameId: 2147714,
+      city: 'Sydney',
+      region: 'New South Wales',
+    );
 
     final session = ActivitySession(
       id: const Uuid().v4(),
@@ -700,11 +759,15 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
         totalSteps: type == 'walking' || type == 'running'
             ? (distanceMeters / 0.762).toInt()
             : 0,
-        elevationGain: random.nextDouble() * 50,
+        elevationGain: totalElevationGain,
       ),
       routePoints: points,
       waypoints: waypoints,
       metadata: {'device_id': LocalStorageService.getDeviceId(), 'source': 'mock'},
+      isValid: true,
+      activityReplaced: 'petrol_diesel_car',
+      startWeather: mockWeather,
+      startIpLookup: mockIpLookup,
     );
 
     // Save locally
@@ -718,6 +781,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
     // Send to Supabase
     EnterpriseLogger().logInfo('Debug', '☁️ Uploading to Supabase...');
     try {
+      final sessionJson = session.toJson();
       final supabase = Supabase.instance.client;
       await supabase.from('activities').insert({
         'id': session.id,
@@ -732,9 +796,13 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
         'estimated_calories': session.stats.estimatedCalories,
         'total_steps': session.stats.totalSteps,
         'elevation_gain': session.stats.elevationGain,
+        'is_valid': session.isValid,
+        'activity_replaced': session.activityReplaced,
+        'start_weather': session.startWeather?.toJson(),
+        'start_ip_lookup': session.startIpLookup?.toJson(),
         'start_time': session.stats.startTime.toIso8601String(),
         'end_time': session.stats.endTime?.toIso8601String(),
-        'route_points': session.routePoints.map((p) => {'lat': p.latitude, 'lng': p.longitude}).toList(),
+        'route_points': sessionJson['routePoints'],
         'metadata': session.metadata,
         'created_at': DateTime.now().toIso8601String(),
       });
