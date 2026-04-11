@@ -55,6 +55,7 @@ dependencies:
 
   # Hardware Access
   sensors_plus: ^4.0.2
+  pedometer: ^4.0.1
 
   # Sharing & File Access
   share_plus: ^10.1.0

@@ -67,14 +67,6 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
       icon: Icons.notifications_active,
       color: GlobalTheme.primaryAction,
     ),
-    OnboardingPage(
-      title: 'Motion Sensors',
-      subtitle: 'Count your steps',
-      description:
-          'Motion sensors enable step counting and pace measurement, adding detail to your activity records.',
-      icon: Icons.sensors,
-      color: Colors.deepOrange,
-    ),
   ];
 
   @override

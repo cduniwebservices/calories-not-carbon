@@ -169,9 +169,13 @@ class PermissionService {
     try {
       final locationStatus = await Permission.location.status;
       final activityStatus = await Permission.activityRecognition.status;
-      final sensorsStatus = await Permission.sensors.status;
+      final notificationStatus = await Permission.notification.status;
 
-      final permissions = [locationStatus, activityStatus, sensorsStatus];
+      final permissions = [
+        locationStatus,
+        activityStatus,
+        notificationStatus,
+      ];
       final granted = permissions.where((s) => s == PermissionStatus.granted);
       final permanentlyDenied = permissions.where(
         (s) => s == PermissionStatus.permanentlyDenied,

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart' hide ActivityType;
 import 'package:latlong2/latlong.dart';
 import 'package:uuid/uuid.dart';
+import 'package:pedometer/pedometer.dart';
 import '../models/fitness_models.dart';
 import '../services/location_service.dart';
 import '../services/local_storage_service.dart';
@@ -22,6 +23,7 @@ class ActivityController extends ChangeNotifier {
   ActivityState _state = ActivityState.idle;
   ActivityType _activityType = ActivityType.running;
   FitnessStats _stats = FitnessStats(startTime: DateTime.now());
+  bool _isValid = true;
 
   // Tracking data
   final List<LatLng> _routePoints = [];
@@ -34,19 +36,30 @@ class ActivityController extends ChangeNotifier {
   // Real-time calculations
   Timer? _statsUpdateTimer;
   StreamSubscription? _locationSubscription;
+  StreamSubscription? _stepSubscription;
   double _totalDistance = 0.0;
   double _currentSpeed = 0.0;
   double _maxSpeed = 0.0;
   List<double> _speedHistory = [];
-  int _stepCount = 0;
+  int _initialStepCount = 0;
+  int _currentStepCount = 0;
   double _totalElevationGain = 0.0;
   double? _lastAltitude;
+
+  // Validation metrics
+  int _invalidDataPoints = 0;
+  int _totalDataPoints = 0;
 
   // Performance tracking
   static const Duration _statsUpdateInterval = Duration(seconds: 1);
   static const double _minimumDistanceThreshold = 2.0; // meters
   static const double _minimumSpeedThreshold = 0.5; // m/s (walking pace)
   static const int _speedHistoryLimit = 60; // 1 minute of history
+  
+  // Validation Thresholds
+  static const double _maxRunningSpeedMps = 12.0; // ~43 km/h (Bolt speed)
+  static const double _maxWalkingSpeedMps = 5.0;  // ~18 km/h
+  static const double _minCadenceForRunning = 0.5; // steps per second
 
   // Getters
   ActivitySession? get currentSession => _currentSession;
@@ -134,6 +147,7 @@ class ActivityController extends ChangeNotifier {
         activityType: type,
         state: _state,
         stats: FitnessStats(startTime: _startTime!),
+        isValid: true,
       );
 
       // Set initial location
@@ -160,6 +174,9 @@ class ActivityController extends ChangeNotifier {
 
       // Start listening to location updates
       _startLocationTracking();
+      
+      // Start listening to pedometer
+      _startStepTracking();
 
       // Start stats update timer
       _startStatsTimer();
@@ -205,6 +222,7 @@ class ActivityController extends ChangeNotifier {
 
       // Stop timers but keep GPS tracking for resume
       _statsUpdateTimer?.cancel();
+      _stepSubscription?.pause();
 
       debugPrint('✅ ActivityController: Activity paused');
       notifyListeners();
@@ -247,8 +265,9 @@ class ActivityController extends ChangeNotifier {
         );
       }
 
-      // Restart stats timer
+      // Restart stats timer and pedometer
       _startStatsTimer();
+      _stepSubscription?.resume();
 
       debugPrint('✅ ActivityController: Activity resumed');
       notifyListeners();
@@ -272,6 +291,9 @@ class ActivityController extends ChangeNotifier {
       final endTime = DateTime.now();
       _state = ActivityState.completed;
 
+      // Perform final validation check
+      _performFinalValidation();
+
       // Add final waypoint
       if (_lastKnownLocation != null) {
         _waypoints.add(
@@ -290,6 +312,7 @@ class ActivityController extends ChangeNotifier {
 
       // Stop all tracking
       await _stopLocationTracking();
+      _stopStepTracking();
       _statsUpdateTimer?.cancel();
 
       // Update session with final data
@@ -299,11 +322,12 @@ class ActivityController extends ChangeNotifier {
           stats: _stats,
           routePoints: _routePoints,
           waypoints: _waypoints,
+          isValid: _isValid,
         );
 
         // Save activity locally for offline-first sync
         await LocalStorageService.saveActivity(_currentSession!);
-        debugPrint('💾 ActivityController: Activity saved locally');
+        debugPrint('💾 ActivityController: Activity saved locally - Valid: $_isValid');
       }
 
       debugPrint(
@@ -322,6 +346,7 @@ class ActivityController extends ChangeNotifier {
     debugPrint('🔄 ActivityController: Resetting activity...');
 
     _stopLocationTracking();
+    _stopStepTracking();
     _statsUpdateTimer?.cancel();
     _resetTrackingData();
     _state = ActivityState.idle;
@@ -343,10 +368,14 @@ class ActivityController extends ChangeNotifier {
     _currentSpeed = 0.0;
     _maxSpeed = 0.0;
     _speedHistory.clear();
-    _stepCount = 0;
+    _initialStepCount = 0;
+    _currentStepCount = 0;
     _totalElevationGain = 0.0;
     _lastAltitude = null;
     _stats = FitnessStats(startTime: DateTime.now());
+    _isValid = true;
+    _invalidDataPoints = 0;
+    _totalDataPoints = 0;
   }
 
   void _startLocationTracking() {
@@ -363,6 +392,24 @@ class ActivityController extends ChangeNotifier {
     _locationSubscription = null;
     await _locationService.stopTracking();
   }
+  
+  void _startStepTracking() {
+    try {
+      _stepSubscription = Pedometer.stepCountStream.listen(
+        _onStepCountUpdate,
+        onError: (error) {
+          debugPrint('❌ ActivityController: Pedometer error: $error');
+        },
+      );
+    } catch (e) {
+      debugPrint('⚠️ ActivityController: Could not start pedometer: $e');
+    }
+  }
+  
+  void _stopStepTracking() {
+    _stepSubscription?.cancel();
+    _stepSubscription = null;
+  }
 
   void _startStatsTimer() {
     _statsUpdateTimer?.cancel();
@@ -372,6 +419,16 @@ class ActivityController extends ChangeNotifier {
       }
     });
   }
+
+  void _onStepCountUpdate(StepCount event) {
+    if (_initialStepCount == 0) {
+      _initialStepCount = event.steps;
+    }
+    
+    _currentStepCount = event.steps - _initialStepCount;
+    debugPrint('👣 ActivityController: Hardware steps: $_currentStepCount');
+  }
+
 void _onLocationUpdate(dynamic locationData) {
   if (_state != ActivityState.running) {
     debugPrint('🏃 ActivityController: Ignoring update - not in running state (Current: $_state)');
@@ -414,6 +471,9 @@ void _onLocationUpdate(dynamic locationData) {
           }
         }
 
+        // VALIDATION: Cadence and Speed check
+        _validateDataPoint(distance, _currentSpeed);
+
         // Update max speed
         if (_currentSpeed > _maxSpeed) {
           _maxSpeed = _currentSpeed;
@@ -435,9 +495,6 @@ void _onLocationUpdate(dynamic locationData) {
           }
           _lastAltitude = locationData.altitude;
         }
-
-        // Estimate step count (very basic estimation)
-        _stepCount += _estimateSteps(distance, _activityType);
 
         _lastKnownLocation = newLocation;
 
@@ -480,6 +537,49 @@ void _onLocationUpdate(dynamic locationData) {
     }
   }
 
+  void _validateDataPoint(double distanceMeters, double speedMps) {
+    _totalDataPoints++;
+    
+    bool isPointValid = true;
+    
+    // Check for impossible speeds
+    if (_activityType == ActivityType.running && speedMps > _maxRunningSpeedMps) {
+      isPointValid = false;
+      debugPrint('🚩 Validation: Impossible running speed: ${speedMps.toStringAsFixed(1)} m/s');
+    } else if (_activityType == ActivityType.walking && speedMps > _maxWalkingSpeedMps) {
+      isPointValid = false;
+      debugPrint('🚩 Validation: Impossible walking speed: ${speedMps.toStringAsFixed(1)} m/s');
+    }
+    
+    // Check for cadence (steps relative to movement)
+    // Only check if we've been moving for a while
+    if (_totalDistance > 50 && _currentStepCount < 10 && speedMps > 3.0) {
+      isPointValid = false;
+      debugPrint('🚩 Validation: Movement detected but no steps recorded (Potential vehicle)');
+    }
+    
+    if (!isPointValid) {
+      _invalidDataPoints++;
+    }
+  }
+
+  void _performFinalValidation() {
+    // If more than 20% of data points are suspicious, mark whole activity invalid
+    if (_totalDataPoints > 0) {
+      final invalidRatio = _invalidDataPoints / _totalDataPoints;
+      if (invalidRatio > 0.20) {
+        _isValid = false;
+        debugPrint('🚫 Final Validation: Activity marked INVALID (${(invalidRatio * 100).toStringAsFixed(1)}% suspicious data)');
+      }
+    }
+    
+    // Check total duration vs distance (Global sanity check)
+    if (_totalDistance > 500 && _stats.activeDuration.inMinutes < 2) {
+      _isValid = false;
+      debugPrint('🚫 Final Validation: Activity too short for distance');
+    }
+  }
+
   void _updateStats() {
     if (_startTime == null) return;
 
@@ -504,6 +604,11 @@ void _onLocationUpdate(dynamic locationData) {
       _totalDistance,
       _activityType,
     );
+    
+    // Use hardware steps if available, otherwise fall back to estimation for legacy support
+    final displaySteps = _currentStepCount > 0 
+        ? _currentStepCount 
+        : _estimateSteps(_totalDistance, _activityType);
 
     _stats = FitnessStats(
       totalDistanceMeters: _totalDistance,
@@ -517,7 +622,7 @@ void _onLocationUpdate(dynamic locationData) {
       estimatedCalories: calories,
       startTime: _startTime!,
       endTime: _state == ActivityState.completed ? now : null,
-      totalSteps: _stepCount,
+      totalSteps: displaySteps,
       elevationGain: _totalElevationGain,
     );
 
@@ -539,6 +644,10 @@ void _onLocationUpdate(dynamic locationData) {
       _totalDistance,
       _activityType,
     );
+    
+    final displaySteps = _currentStepCount > 0 
+        ? _currentStepCount 
+        : _estimateSteps(_totalDistance, _activityType);
 
     _stats = _stats.copyWith(
       totalDistanceMeters: _totalDistance,
@@ -549,7 +658,7 @@ void _onLocationUpdate(dynamic locationData) {
       averagePaceSecondsPerKm: averagePace,
       estimatedCalories: calories,
       endTime: endTime,
-      totalSteps: _stepCount,
+      totalSteps: displaySteps,
       elevationGain: _totalElevationGain,
     );
   }
@@ -593,6 +702,7 @@ void _onLocationUpdate(dynamic locationData) {
   @override
   void dispose() {
     _stopLocationTracking();
+    _stopStepTracking();
     _statsUpdateTimer?.cancel();
     super.dispose();
   }

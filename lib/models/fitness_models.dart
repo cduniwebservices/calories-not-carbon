@@ -221,6 +221,7 @@ class ActivitySession {
   final List<LatLng> routePoints;
   final List<ActivityWaypoint> waypoints;
   final Map<String, dynamic> metadata;
+  final bool isValid;
 
   const ActivitySession({
     required this.id,
@@ -230,6 +231,7 @@ class ActivitySession {
     this.routePoints = const [],
     this.waypoints = const [],
     this.metadata = const {},
+    this.isValid = true,
   });
 
   bool get isSynced => metadata['synced'] == true;
@@ -242,6 +244,7 @@ class ActivitySession {
     List<LatLng>? routePoints,
     List<ActivityWaypoint>? waypoints,
     Map<String, dynamic>? metadata,
+    bool? isValid,
   }) {
     return ActivitySession(
       id: id ?? this.id,
@@ -251,6 +254,7 @@ class ActivitySession {
       routePoints: routePoints ?? this.routePoints,
       waypoints: waypoints ?? this.waypoints,
       metadata: metadata ?? this.metadata,
+      isValid: isValid ?? this.isValid,
     );
   }
 
@@ -270,6 +274,7 @@ class ActivitySession {
       'endTime': stats.endTime?.toIso8601String(),
       'totalSteps': stats.totalSteps,
       'elevationGain': stats.elevationGain,
+      'isValid': isValid,
       // Store rich waypoints data in the routePoints field for high fidelity
       'routePoints': waypoints.map((wp) => wp.toJson()).toList(),
       'metadata': metadata,
@@ -324,6 +329,7 @@ class ActivitySession {
       routePoints: parsedCoords,
       waypoints: parsedWaypoints,
       metadata: json['metadata'] ?? {},
+      isValid: json['isValid'] ?? true,
     );
   }
 }
