@@ -8,9 +8,9 @@ extension ActivityStateExtension on ActivityState {
   String get displayName {
     switch (this) {
       case ActivityState.idle:
-        return 'Ready';
+        return 'Idle';
       case ActivityState.running:
-        return 'Active';
+        return 'In Progress';
       case ActivityState.paused:
         return 'Paused';
       case ActivityState.completed:
@@ -18,25 +18,30 @@ extension ActivityStateExtension on ActivityState {
     }
   }
 
-  bool get isActive => this == ActivityState.running;
-  bool get isPaused => this == ActivityState.paused;
-  bool get canStart => this == ActivityState.idle;
-  bool get canPause => this == ActivityState.running;
-  bool get canResume => this == ActivityState.paused;
-  bool get canStop =>
-      this == ActivityState.running || this == ActivityState.paused;
+  Color get color {
+    switch (this) {
+      case ActivityState.idle:
+        return Colors.grey;
+      case ActivityState.running:
+        return Colors.green;
+      case ActivityState.paused:
+        return Colors.orange;
+      case ActivityState.completed:
+        return Colors.blue;
+    }
+  }
 }
 
-/// Activity type for different workout modes
-enum ActivityType { running, walking, cycling, hiking }
+/// Activity types available for tracking
+enum ActivityType { walking, running, cycling, hiking }
 
 extension ActivityTypeExtension on ActivityType {
   String get displayName {
     switch (this) {
-      case ActivityType.running:
-        return 'Running';
       case ActivityType.walking:
         return 'Walking';
+      case ActivityType.running:
+        return 'Running';
       case ActivityType.cycling:
         return 'Cycling';
       case ActivityType.hiking:
@@ -44,40 +49,40 @@ extension ActivityTypeExtension on ActivityType {
     }
   }
 
-  String get iconName {
+  IconData get icon {
     switch (this) {
-      case ActivityType.running:
-        return 'directions_run';
       case ActivityType.walking:
-        return 'directions_walk';
+        return Icons.directions_walk;
+      case ActivityType.running:
+        return Icons.directions_run;
       case ActivityType.cycling:
-        return 'directions_bike';
+        return Icons.directions_bike;
       case ActivityType.hiking:
-        return 'terrain';
+        return Icons.terrain;
     }
   }
 
-  /// Average METs (Metabolic Equivalent of Task) for calorie calculation
+  /// Average Metabolic Equivalent of Task (MET) for each activity
   double get averageMets {
     switch (this) {
-      case ActivityType.running:
-        return 8.0; // ~8 METs for moderate running
       case ActivityType.walking:
-        return 3.5; // ~3.5 METs for brisk walking
+        return 3.5;
+      case ActivityType.running:
+        return 8.0;
       case ActivityType.cycling:
-        return 6.0; // ~6 METs for leisure cycling
+        return 6.0;
       case ActivityType.hiking:
-        return 5.0; // ~5 METs for hiking
+        return 5.0;
     }
   }
 }
 
-/// Comprehensive fitness statistics model
+/// Core fitness statistics for a session
 class FitnessStats {
   final double totalDistanceMeters;
   final Duration totalDuration;
   final Duration activeDuration;
-  final double averageSpeedMps; // meters per second
+  final double averageSpeedMps;
   final double currentSpeedMps;
   final double maxSpeedMps;
   final double averagePaceSecondsPerKm;
@@ -104,7 +109,6 @@ class FitnessStats {
     this.elevationGain = 0.0,
   });
 
-  /// Create updated stats with new values
   FitnessStats copyWith({
     double? totalDistanceMeters,
     Duration? totalDuration,
@@ -139,72 +143,33 @@ class FitnessStats {
     );
   }
 
-  // Formatted getters for UI display
   String get formattedDistance {
-    final km = totalDistanceMeters / 1000;
-    return '${km.toStringAsFixed(2)} km';
+    if (totalDistanceMeters >= 1000) {
+      return '${(totalDistanceMeters / 1000).toStringAsFixed(2)} km';
+    }
+    return '${totalDistanceMeters.toStringAsFixed(0)} m';
   }
 
   String get formattedDuration {
-    final hours = totalDuration.inHours;
-    final minutes = totalDuration.inMinutes % 60;
-    final seconds = totalDuration.inSeconds % 60;
-
-    if (hours > 0) {
-      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    }
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  String get formattedActiveDuration {
-    final hours = activeDuration.inHours;
-    final minutes = activeDuration.inMinutes % 60;
+    final minutes = activeDuration.inMinutes;
     final seconds = activeDuration.inSeconds % 60;
-
-    if (hours > 0) {
-      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    }
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  String get formattedAverageSpeed {
-    final kmh = averageSpeedMps * 3.6; // Convert m/s to km/h
-    return '${kmh.toStringAsFixed(1)} km/h';
-  }
-
-  String get formattedCurrentSpeed {
-    final kmh = currentSpeedMps * 3.6; // Convert m/s to km/h
-    return '${kmh.toStringAsFixed(1)} km/h';
   }
 
   String get formattedAveragePace {
-    double paceSeconds = averagePaceSecondsPerKm;
-    
-    // If pace is missing but we have distance and time, calculate it
-    if (paceSeconds <= 0 && totalDistanceMeters > 0 && activeDuration.inSeconds > 0) {
-      paceSeconds = activeDuration.inSeconds / (totalDistanceMeters / 1000);
+    if (averagePaceSecondsPerKm == 0 || averagePaceSecondsPerKm.isInfinite) {
+      return '--:-- /km';
     }
-
-    if (paceSeconds <= 0) return '--:--';
-
-    final minutes = (paceSeconds / 60).floor();
-    final seconds = (paceSeconds % 60).round();
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    final mins = averagePaceSecondsPerKm ~/ 60;
+    final secs = (averagePaceSecondsPerKm % 60).toInt();
+    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')} /km';
   }
-
-  String get formattedCurrentPace {
-    if (currentPaceSecondsPerKm <= 0) return '--:--';
-
-    final minutes = (currentPaceSecondsPerKm / 60).floor();
-    final seconds = (currentPaceSecondsPerKm % 60).round();
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  String get formattedCalories => '$estimatedCalories cal';
 
   String get formattedSteps => totalSteps.toString();
 
-  String get formattedElevation => '${elevationGain.toStringAsFixed(0)} m';
+  String get formattedElevation => '${elevationGain.toStringAsFixed(1)} m';
+
+  String get formattedCalories => estimatedCalories.toString();
 
   @override
   String toString() {
@@ -262,7 +227,23 @@ class WeatherData {
   final WeatherLocation? location;
   final String lastUpdated;
   final int lastUpdatedEpoch;
-...
+  final double tempC;
+  final int isDay;
+  final String conditionText;
+  final String conditionIcon;
+  final int conditionCode;
+  final double windKph;
+  final int windDegree;
+  final String windDir;
+  final double pressureMb;
+  final double precipMm;
+  final int humidity;
+  final int cloud;
+  final double feelsLikeC;
+  final double windChillC;
+  final double heatIndexC;
+  final double dewPointC;
+  final double visKm;
   final double uv;
   final double gustKph;
 
@@ -271,7 +252,22 @@ class WeatherData {
     required this.lastUpdated,
     required this.lastUpdatedEpoch,
     required this.tempC,
-...
+    required this.isDay,
+    required this.conditionText,
+    required this.conditionIcon,
+    required this.conditionCode,
+    required this.windKph,
+    required this.windDegree,
+    required this.windDir,
+    required this.pressureMb,
+    required this.precipMm,
+    required this.humidity,
+    required this.cloud,
+    required this.feelsLikeC,
+    required this.windChillC,
+    required this.heatIndexC,
+    required this.dewPointC,
+    required this.visKm,
     required this.uv,
     required this.gustKph,
   });
@@ -282,7 +278,22 @@ class WeatherData {
       'last_updated': lastUpdated,
       'last_updated_epoch': lastUpdatedEpoch,
       'temp_c': tempC,
-...
+      'is_day': isDay,
+      'condition_text': conditionText,
+      'condition_icon': conditionIcon,
+      'condition_code': conditionCode,
+      'wind_kph': windKph,
+      'wind_degree': windDegree,
+      'wind_dir': windDir,
+      'pressure_mb': pressureMb,
+      'precip_mm': precipMm,
+      'humidity': humidity,
+      'cloud': cloud,
+      'feelslike_c': feelsLikeC,
+      'windchill_c': windChillC,
+      'heatindex_c': heatIndexC,
+      'dewpoint_c': dewPointC,
+      'vis_km': visKm,
       'uv': uv,
       'gust_kph': gustKph,
     };
@@ -294,7 +305,22 @@ class WeatherData {
       lastUpdated: json['last_updated'] as String? ?? '',
       lastUpdatedEpoch: json['last_updated_epoch'] as int? ?? 0,
       tempC: (json['temp_c'] as num? ?? 0).toDouble(),
-...
+      isDay: json['is_day'] as int? ?? 0,
+      conditionText: json['condition_text'] as String? ?? '',
+      conditionIcon: json['condition_icon'] as String? ?? '',
+      conditionCode: json['condition_code'] as int? ?? 0,
+      windKph: (json['wind_kph'] as num? ?? 0).toDouble(),
+      windDegree: json['wind_degree'] as int? ?? 0,
+      windDir: json['wind_dir'] as String? ?? '',
+      pressureMb: (json['pressure_mb'] as num? ?? 0).toDouble(),
+      precipMm: (json['precip_mm'] as num? ?? 0).toDouble(),
+      humidity: json['humidity'] as int? ?? 0,
+      cloud: json['cloud'] as int? ?? 0,
+      feelsLikeC: (json['feelslike_c'] as num? ?? 0).toDouble(),
+      windChillC: (json['windchill_c'] as num? ?? 0).toDouble(),
+      heatIndexC: (json['heatindex_c'] as num? ?? 0).toDouble(),
+      dewPointC: (json['dewpoint_c'] as num? ?? 0).toDouble(),
+      visKm: (json['vis_km'] as num? ?? 0).toDouble(),
       uv: (json['uv'] as num? ?? 0).toDouble(),
       gustKph: (json['gust_kph'] as num? ?? 0).toDouble(),
     );
@@ -556,13 +582,13 @@ class ActivityWaypoint {
   }
 }
 
-/// Goal types for fitness goals
+/// Goal types available in the application
 enum GoalType { petrolDieselCar, electricVehicle, motorcycle, train, boat }
 
-/// Goal difficulty levels
+/// Goal level difficulty
 enum GoalLevel { easy, hard, extreme }
 
-/// Fitness goal model
+/// Model for travel mode/carbon offset goals
 class Goal {
   final String id;
   final GoalType type;
@@ -570,8 +596,8 @@ class Goal {
   final String description;
   final GoalLevel level;
   final Duration duration;
-  final String carbonOffsetPotential; // "Low", "Medium", "High"
-  final double co2PerKm;
+  final String carbonOffsetPotential;
+  final double co2PerKm; // kg CO2 per km
   final IconData icon;
   final String? image;
   final bool isSelected;
@@ -704,5 +730,3 @@ final List<Goal> defaultGoals = [
     icon: Icons.directions_boat,
   ),
 ];
-
-
