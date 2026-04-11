@@ -469,7 +469,10 @@ class ActivitySession {
       'totalDuration': stats.totalDuration.inMilliseconds,
       'activeDuration': stats.activeDuration.inMilliseconds,
       'averageSpeedMps': stats.averageSpeedMps,
+      'currentSpeedMps': stats.currentSpeedMps,
       'maxSpeedMps': stats.maxSpeedMps,
+      'averagePaceSecondsPerKm': stats.averagePaceSecondsPerKm,
+      'currentPaceSecondsPerKm': stats.currentPaceSecondsPerKm,
       'estimatedCalories': stats.estimatedCalories,
       'startTime': stats.startTime.toIso8601String(),
       'endTime': stats.endTime?.toIso8601String(),
@@ -521,7 +524,10 @@ class ActivitySession {
         totalDuration: Duration(milliseconds: json['totalDuration'] ?? 0),
         activeDuration: Duration(milliseconds: json['activeDuration'] ?? 0),
         averageSpeedMps: json['averageSpeedMps']?.toDouble() ?? 0.0,
+        currentSpeedMps: json['currentSpeedMps']?.toDouble() ?? 0.0,
         maxSpeedMps: json['maxSpeedMps']?.toDouble() ?? 0.0,
+        averagePaceSecondsPerKm: json['averagePaceSecondsPerKm']?.toDouble() ?? 0.0,
+        currentPaceSecondsPerKm: json['currentPaceSecondsPerKm']?.toDouble() ?? 0.0,
         estimatedCalories: json['estimatedCalories'] ?? 0,
         startTime: DateTime.parse(json['startTime']),
         endTime: json['endTime'] != null
@@ -571,6 +577,8 @@ class ActivityWaypoint {
               'totalDistanceMeters': statsAtTime!.totalDistanceMeters,
               'totalDuration': statsAtTime!.totalDuration.inMilliseconds,
               'averageSpeedMps': statsAtTime!.averageSpeedMps,
+              'currentSpeedMps': statsAtTime!.currentSpeedMps,
+              'elevationGain': statsAtTime!.elevationGain,
             }
           : null,
     };
@@ -592,6 +600,10 @@ class ActivityWaypoint {
               ),
               averageSpeedMps:
                   json['statsAtTime']['averageSpeedMps']?.toDouble() ?? 0.0,
+              currentSpeedMps:
+                  json['statsAtTime']['currentSpeedMps']?.toDouble() ?? 0.0,
+              elevationGain:
+                  json['statsAtTime']['elevationGain']?.toDouble() ?? 0.0,
               startTime: DateTime.parse(json['timestamp']),
             )
           : null,

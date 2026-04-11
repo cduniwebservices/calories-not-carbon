@@ -400,9 +400,17 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
                 child: ElevatedButton.icon(
                   onPressed: () async {
                     EnterpriseLogger().logInfo('Debug', '🔄 Manual sync triggered...');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Syncing activities...'), duration: Duration(seconds: 1)),
+                    );
                     await SyncService().manualSync();
                     EnterpriseLogger().logInfo('Debug', '✅ Manual sync complete');
-                    if (mounted) setState(() {});
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Manual sync complete')),
+                      );
+                      setState(() {});
+                    }
                   },
                   icon: const Icon(Icons.cloud_upload, color: Colors.purple),
                   label: const Text('Sync to Remote', style: TextStyle(color: Colors.purple)),
@@ -415,14 +423,20 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    LocalStorageService.clearAllActivities();
+                  onPressed: () async {
+                    await LocalStorageService.clearAllActivities();
+                    ref.read(activityActionsProvider).resetActivity();
+                    ref.invalidate(activityHistoryProvider);
                     EnterpriseLogger().logInfo('Debug', '🗑️ All local activities cleared');
-                    setState(() {});
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Local data cleared')),
+                      );
+                      setState(() {});
+                    }
                   },
                   icon: const Icon(Icons.delete_forever, color: Colors.red),
-                  label: const Text('Clear All Local Data', style: TextStyle(color: Colors.red)),
-                  style: ElevatedButton.styleFrom(
+                  label: const Text('Clear All Local Data', style: TextStyle(color: Colors.red)),                  style: ElevatedButton.styleFrom(
                     backgroundColor: GlobalTheme.surfaceCard,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -545,59 +559,40 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
     const SizedBox(height: 48),
 
-    // Access hidden app screens section
-    Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: GlobalTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: GlobalTheme.primaryNeon.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.visibility, color: GlobalTheme.primaryNeon, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Access Hidden App Screens',
-                style: TextStyle(
-                  color: GlobalTheme.primaryNeon,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Navigate to permission and onboarding screens for testing',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
-          ),
-          const SizedBox(height: 16),
-          _buildMockRouteButton(
-            icon: Icons.touch_app,
-            label: 'Test Permission Onboarding',
-            color: Colors.cyan,
-            onTap: () {
-              Navigator.of(context).pop();
-              context.push('/permission-onboarding');
-            },
-          ),
-          const SizedBox(height: 12),
-          _buildMockRouteButton(
-            icon: Icons.location_off,
-            label: 'Test Permission Denied Screen',
-            color: Colors.redAccent,
-            onTap: () {
-              Navigator.of(context).pop();
-              context.push('/permission-denied');
-            },
-          ),
-        ],
+    const Text(
+      'Access Hidden App Screens',
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
       ),
     ),
+    const SizedBox(height: 8),
+    const Text(
+      'Navigate to permission and onboarding screens for testing',
+      style: TextStyle(color: Colors.grey),
+    ),
+    const SizedBox(height: 24),
+    _buildMockRouteButton(
+      icon: Icons.touch_app,
+      label: 'Test Permission Onboarding',
+      color: Colors.cyan,
+      onTap: () {
+        Navigator.of(context).pop();
+        context.push('/permission-onboarding?debug=true');
+      },
+    ),
+    const SizedBox(height: 12),
+    _buildMockRouteButton(
+      icon: Icons.location_off,
+      label: 'Test Permission Denied Screen',
+      color: Colors.redAccent,
+      onTap: () {
+        Navigator.of(context).pop();
+        context.push('/permission-denied');
+      },
+    ),
+    const SizedBox(height: 32),
   ],
 ),
 );
@@ -915,30 +910,25 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
     required Color color,
     required VoidCallback onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: GlobalTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 4),
-          Text(description, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: onTap,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: color.withOpacity(0.2),
-              foregroundColor: color,
-            ),
-            child: Text(label),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ElevatedButton.icon(
+          onPressed: onTap,
+          icon: Icon(Icons.bug_report, color: color, size: 18),
+          label: Text(label, style: TextStyle(color: color)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: GlobalTheme.surfaceCard,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            alignment: Alignment.centerLeft,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 4),
+        Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: Text(description, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+        ),
+      ],
     );
   }
 }

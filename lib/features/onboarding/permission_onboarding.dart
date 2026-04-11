@@ -11,10 +11,12 @@ import '../../theme/global_theme.dart';
 /// Enterprise-level permission onboarding flow
 class PermissionOnboardingFlow extends StatefulWidget {
   final VoidCallback onComplete;
+  final bool debugMode;
 
   const PermissionOnboardingFlow({
     super.key,
     required this.onComplete,
+    this.debugMode = false,
   });
 
   @override
@@ -93,9 +95,9 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
       }
     });
 
-    // Check if permissions are already granted - skip onboarding if so
+    // Check if permissions are already granted - skip onboarding if so (unless in debug mode)
     final currentState = _permissionService.currentState;
-    if (currentState == PermissionState.allGranted) {
+    if (currentState == PermissionState.allGranted && !widget.debugMode) {
       debugPrint('✅ Permissions already granted, skipping onboarding');
       widget.onComplete();
     }

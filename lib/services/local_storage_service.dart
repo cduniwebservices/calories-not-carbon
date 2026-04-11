@@ -27,13 +27,17 @@ class ActivitySessionAdapter extends TypeAdapter<ActivitySession> {
       routePoints: (fields[4] as List).cast<LatLng>(),
       waypoints: (fields[5] as List).cast<ActivityWaypoint>(),
       metadata: Map<String, dynamic>.from(fields[6] as Map),
+      isValid: fields[7] as bool? ?? true,
+      activityReplaced: fields[8] as String?,
+      startWeather: fields[9] as WeatherData?,
+      startIpLookup: fields[10] as IpLookupData?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ActivitySession obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -47,7 +51,15 @@ class ActivitySessionAdapter extends TypeAdapter<ActivitySession> {
       ..writeByte(5)
       ..write(obj.waypoints)
       ..writeByte(6)
-      ..write(obj.metadata);
+      ..write(obj.metadata)
+      ..writeByte(7)
+      ..write(obj.isValid)
+      ..writeByte(8)
+      ..write(obj.activityReplaced)
+      ..writeByte(9)
+      ..write(obj.startWeather)
+      ..writeByte(10)
+      ..write(obj.startIpLookup);
   }
 
   @override
@@ -201,13 +213,14 @@ class ActivityWaypointAdapter extends TypeAdapter<ActivityWaypoint> {
       type: fields[2] as String,
       note: fields[3] as String?,
       statsAtTime: fields[4] as FitnessStats?,
+      altitude: fields[5] as double?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ActivityWaypoint obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.location)
       ..writeByte(1)
@@ -217,7 +230,9 @@ class ActivityWaypointAdapter extends TypeAdapter<ActivityWaypoint> {
       ..writeByte(3)
       ..write(obj.note)
       ..writeByte(4)
-      ..write(obj.statsAtTime);
+      ..write(obj.statsAtTime)
+      ..writeByte(5)
+      ..write(obj.altitude);
   }
 
   @override
@@ -229,6 +244,204 @@ class ActivityWaypointAdapter extends TypeAdapter<ActivityWaypoint> {
       other is ActivityWaypointAdapter &&
       runtimeType == other.runtimeType &&
       typeId == other.typeId;
+}
+
+class WeatherLocationAdapter extends TypeAdapter<WeatherLocation> {
+  @override
+  final int typeId = 4;
+
+  @override
+  String get typeName => 'WeatherLocation';
+
+  @override
+  WeatherLocation read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{};
+    for (int i = 0; i < numOfFields; i++) {
+      final index = reader.readByte();
+      final value = reader.read();
+      fields[index] = value;
+    }
+    return WeatherLocation(
+      name: fields[0] as String,
+      region: fields[1] as String,
+      country: fields[2] as String,
+      tzId: fields[3] as String,
+      localtimeEpoch: fields[4] as int,
+      localtime: fields[5] as String,
+      utcOffset: fields[6] as String,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, WeatherLocation obj) {
+    writer
+      ..writeByte(7)
+      ..writeByte(0)
+      ..write(obj.name)
+      ..writeByte(1)
+      ..write(obj.region)
+      ..writeByte(2)
+      ..write(obj.country)
+      ..writeByte(3)
+      ..write(obj.tzId)
+      ..writeByte(4)
+      ..write(obj.localtimeEpoch)
+      ..writeByte(5)
+      ..write(obj.localtime)
+      ..writeByte(6)
+      ..write(obj.utcOffset);
+  }
+}
+
+class WeatherDataAdapter extends TypeAdapter<WeatherData> {
+  @override
+  final int typeId = 5;
+
+  @override
+  String get typeName => 'WeatherData';
+
+  @override
+  WeatherData read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{};
+    for (int i = 0; i < numOfFields; i++) {
+      final index = reader.readByte();
+      final value = reader.read();
+      fields[index] = value;
+    }
+    return WeatherData(
+      location: fields[0] as WeatherLocation?,
+      lastUpdated: fields[1] as String,
+      lastUpdatedEpoch: fields[2] as int,
+      tempC: fields[3] as double,
+      isDay: fields[4] as int,
+      conditionText: fields[5] as String,
+      conditionIcon: fields[6] as String,
+      conditionCode: fields[7] as int,
+      windKph: fields[8] as double,
+      windDegree: fields[9] as int,
+      windDir: fields[10] as String,
+      pressureMb: fields[11] as double,
+      precipMm: fields[12] as double,
+      humidity: fields[13] as int,
+      cloud: fields[14] as int,
+      feelsLikeC: fields[15] as double,
+      windChillC: fields[16] as double,
+      heatIndexC: fields[17] as double,
+      dewPointC: fields[18] as double,
+      visKm: fields[19] as double,
+      uv: fields[20] as double,
+      gustKph: fields[21] as double,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, WeatherData obj) {
+    writer
+      ..writeByte(22)
+      ..writeByte(0)
+      ..write(obj.location)
+      ..writeByte(1)
+      ..write(obj.lastUpdated)
+      ..writeByte(2)
+      ..write(obj.lastUpdatedEpoch)
+      ..writeByte(3)
+      ..write(obj.tempC)
+      ..writeByte(4)
+      ..write(obj.isDay)
+      ..writeByte(5)
+      ..write(obj.conditionText)
+      ..writeByte(6)
+      ..write(obj.conditionIcon)
+      ..writeByte(7)
+      ..write(obj.conditionCode)
+      ..writeByte(8)
+      ..write(obj.windKph)
+      ..writeByte(9)
+      ..write(obj.windDegree)
+      ..writeByte(10)
+      ..write(obj.windDir)
+      ..writeByte(11)
+      ..write(obj.pressureMb)
+      ..writeByte(12)
+      ..write(obj.precipMm)
+      ..writeByte(13)
+      ..write(obj.humidity)
+      ..writeByte(14)
+      ..write(obj.cloud)
+      ..writeByte(15)
+      ..write(obj.feelsLikeC)
+      ..writeByte(16)
+      ..write(obj.windChillC)
+      ..writeByte(17)
+      ..write(obj.heatIndexC)
+      ..writeByte(18)
+      ..write(obj.dewPointC)
+      ..writeByte(19)
+      ..write(obj.visKm)
+      ..writeByte(20)
+      ..write(obj.uv)
+      ..writeByte(21)
+      ..write(obj.gustKph);
+  }
+}
+
+class IpLookupDataAdapter extends TypeAdapter<IpLookupData> {
+  @override
+  final int typeId = 6;
+
+  @override
+  String get typeName => 'IpLookupData';
+
+  @override
+  IpLookupData read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{};
+    for (int i = 0; i < numOfFields; i++) {
+      final index = reader.readByte();
+      final value = reader.read();
+      fields[index] = value;
+    }
+    return IpLookupData(
+      ip: fields[0] as String,
+      type: fields[1] as String,
+      continentCode: fields[2] as String,
+      continentName: fields[3] as String,
+      countryCode: fields[4] as String,
+      countryName: fields[5] as String,
+      isEu: fields[6] as bool,
+      geonameId: fields[7] as int,
+      city: fields[8] as String,
+      region: fields[9] as String,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, IpLookupData obj) {
+    writer
+      ..writeByte(10)
+      ..writeByte(0)
+      ..write(obj.ip)
+      ..writeByte(1)
+      ..write(obj.type)
+      ..writeByte(2)
+      ..write(obj.continentCode)
+      ..writeByte(3)
+      ..write(obj.continentName)
+      ..writeByte(4)
+      ..write(obj.countryCode)
+      ..writeByte(5)
+      ..write(obj.countryName)
+      ..writeByte(6)
+      ..write(obj.isEu)
+      ..writeByte(7)
+      ..write(obj.geonameId)
+      ..writeByte(8)
+      ..write(obj.city)
+      ..writeByte(9)
+      ..write(obj.region);
+  }
 }
 
 /// Local storage service for managing Hive boxes
@@ -245,6 +458,9 @@ class LocalStorageService {
     Hive.registerAdapter(FitnessStatsAdapter());
     Hive.registerAdapter(LatLngAdapter());
     Hive.registerAdapter(ActivityWaypointAdapter());
+    Hive.registerAdapter(WeatherLocationAdapter());
+    Hive.registerAdapter(WeatherDataAdapter());
+    Hive.registerAdapter(IpLookupDataAdapter());
 
     // Open boxes
     _activityBox = await Hive.openBox<ActivitySession>(_activityBoxName);

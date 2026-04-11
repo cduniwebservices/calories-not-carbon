@@ -202,10 +202,16 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/permission-onboarding',
       name: 'permission-onboarding',
-      pageBuilder: (context, state) => _buildPageWithTransition(
-        key: state.pageKey,
-        child: PermissionOnboardingFlow(onComplete: () => context.go('/goals')),
-      ),
+      pageBuilder: (context, state) {
+        final isDebug = state.uri.queryParameters['debug'] == 'true';
+        return _buildPageWithTransition(
+          key: state.pageKey,
+          child: PermissionOnboardingFlow(
+            debugMode: isDebug,
+            onComplete: () => context.go('/goals'),
+          ),
+        );
+      },
     ),
 
     GoRoute(

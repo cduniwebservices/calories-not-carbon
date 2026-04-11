@@ -916,13 +916,19 @@ class StatsDisplay extends ConsumerWidget {
         // 6. Weather Info (Two Column)
         if (session?.startWeather != null)
           _buildFixedTwoColumnGrid(context, [
-            _buildWeatherItem(theme, 'WEATHER', '${session!.startWeather!.tempC.toStringAsFixed(1)}°C, ${session.startWeather!.conditionText}', Icons.wb_cloudy_outlined),
+            _buildWeatherItem(
+              theme, 
+              'WEATHER', 
+              '${session!.startWeather!.tempC.toStringAsFixed(1)}°C, ${session.startWeather!.conditionText}', 
+              Icons.wb_cloudy_outlined,
+              networkIcon: session.startWeather!.conditionIcon,
+            ),
             _buildWeatherItem(theme, 'HUMIDITY', '${session.startWeather!.humidity}%', Icons.opacity),
           ])
         else
           _buildFixedTwoColumnGrid(context, [
-            _buildWeatherItem(theme, 'WEATHER', '28°C, Partly Cloudy', Icons.wb_cloudy_outlined),
-            _buildWeatherItem(theme, 'HUMIDITY', '65%', Icons.opacity),
+            _buildWeatherItem(theme, 'WEATHER', 'WAITING...', Icons.wb_cloudy_outlined),
+            _buildWeatherItem(theme, 'HUMIDITY', '--%', Icons.opacity),
           ]),
 
         const SizedBox(height: 20),
@@ -1192,7 +1198,7 @@ class StatsDisplay extends ConsumerWidget {
     );
   }
 
-  Widget _buildWeatherItem(ThemeData theme, String label, String value, IconData icon) {
+  Widget _buildWeatherItem(ThemeData theme, String label, String value, IconData icon, {String? networkIcon}) {
     return Column(
       children: [
         Text(
@@ -1208,7 +1214,15 @@ class StatsDisplay extends ConsumerWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: GlobalTheme.primaryNeon, size: 28),
+              if (networkIcon != null && networkIcon.isNotEmpty)
+                Image.network(
+                  'https:$networkIcon',
+                  width: 28,
+                  height: 28,
+                  errorBuilder: (_, __, ___) => Icon(icon, color: GlobalTheme.primaryNeon, size: 28),
+                )
+              else
+                Icon(icon, color: GlobalTheme.primaryNeon, size: 28),
               const SizedBox(width: 8),
               Text(
                 value.split(',')[0],
@@ -1224,7 +1238,7 @@ class StatsDisplay extends ConsumerWidget {
           Icon(icon, color: GlobalTheme.primaryNeon, size: 28),
         const SizedBox(height: 8),
         Text(
-          label.contains('WEATHER') ? value.split(',')[1].trim() : value,
+          label.contains('WEATHER') ? value.split(',').last.trim() : value,
           style: theme.textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.w900,
             color: GlobalTheme.primaryNeon,
