@@ -212,6 +212,152 @@ class FitnessStats {
   }
 }
 
+/// Location details from the weather service
+class WeatherLocation {
+  final String name;
+  final String region;
+  final String country;
+  final String tzId;
+  final int localtimeEpoch;
+  final String localtime;
+  final String utcOffset;
+
+  const WeatherLocation({
+    required this.name,
+    required this.region,
+    required this.country,
+    required this.tzId,
+    required this.localtimeEpoch,
+    required this.localtime,
+    required this.utcOffset,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'region': region,
+      'country': country,
+      'tz_id': tzId,
+      'localtime_epoch': localtimeEpoch,
+      'localtime': localtime,
+      'utc_offset': utcOffset,
+    };
+  }
+
+  factory WeatherLocation.fromJson(Map<String, dynamic> json) {
+    return WeatherLocation(
+      name: json['name'] as String? ?? '',
+      region: json['region'] as String? ?? '',
+      country: json['country'] as String? ?? '',
+      tzId: json['tz_id'] as String? ?? '',
+      localtimeEpoch: json['localtime_epoch'] as int? ?? 0,
+      localtime: json['localtime'] as String? ?? '',
+      utcOffset: json['utc_offset'] as String? ?? '',
+    );
+  }
+}
+
+/// Weather data at a specific point in time
+class WeatherData {
+  final WeatherLocation? location;
+  final String lastUpdated;
+  final int lastUpdatedEpoch;
+...
+  final double uv;
+  final double gustKph;
+
+  const WeatherData({
+    this.location,
+    required this.lastUpdated,
+    required this.lastUpdatedEpoch,
+    required this.tempC,
+...
+    required this.uv,
+    required this.gustKph,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'location': location?.toJson(),
+      'last_updated': lastUpdated,
+      'last_updated_epoch': lastUpdatedEpoch,
+      'temp_c': tempC,
+...
+      'uv': uv,
+      'gust_kph': gustKph,
+    };
+  }
+
+  factory WeatherData.fromJson(Map<String, dynamic> json) {
+    return WeatherData(
+      location: json['location'] != null ? WeatherLocation.fromJson(json['location']) : null,
+      lastUpdated: json['last_updated'] as String? ?? '',
+      lastUpdatedEpoch: json['last_updated_epoch'] as int? ?? 0,
+      tempC: (json['temp_c'] as num? ?? 0).toDouble(),
+...
+      uv: (json['uv'] as num? ?? 0).toDouble(),
+      gustKph: (json['gust_kph'] as num? ?? 0).toDouble(),
+    );
+  }
+}
+
+/// IP lookup data for security verification
+class IpLookupData {
+  final String ip;
+  final String type;
+  final String continentCode;
+  final String continentName;
+  final String countryCode;
+  final String countryName;
+  final bool isEu;
+  final int geonameId;
+  final String city;
+  final String region;
+
+  const IpLookupData({
+    required this.ip,
+    required this.type,
+    required this.continentCode,
+    required this.continentName,
+    required this.countryCode,
+    required this.countryName,
+    required this.isEu,
+    required this.geonameId,
+    required this.city,
+    required this.region,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'ip': ip,
+      'type': type,
+      'continent_code': continentCode,
+      'continent_name': continentName,
+      'country_code': countryCode,
+      'country_name': countryName,
+      'is_eu': isEu,
+      'geoname_id': geonameId,
+      'city': city,
+      'region': region,
+    };
+  }
+
+  factory IpLookupData.fromJson(Map<String, dynamic> json) {
+    return IpLookupData(
+      ip: json['ip'] as String? ?? '',
+      type: json['type'] as String? ?? '',
+      continentCode: json['continent_code'] as String? ?? '',
+      continentName: json['continent_name'] as String? ?? '',
+      countryCode: json['country_code'] as String? ?? '',
+      countryName: json['country_name'] as String? ?? '',
+      isEu: json['is_eu'] as bool? ?? false,
+      geonameId: json['geoname_id'] as int? ?? 0,
+      city: json['city'] as String? ?? '',
+      region: json['region'] as String? ?? '',
+    );
+  }
+}
+
 /// Activity session model for data persistence
 class ActivitySession {
   final String id;
@@ -223,6 +369,8 @@ class ActivitySession {
   final Map<String, dynamic> metadata;
   final bool isValid;
   final String? activityReplaced;
+  final WeatherData? startWeather;
+  final IpLookupData? startIpLookup;
 
   const ActivitySession({
     required this.id,
@@ -234,6 +382,8 @@ class ActivitySession {
     this.metadata = const {},
     this.isValid = true,
     this.activityReplaced,
+    this.startWeather,
+    this.startIpLookup,
   });
 
   bool get isSynced => metadata['synced'] == true;
@@ -248,6 +398,8 @@ class ActivitySession {
     Map<String, dynamic>? metadata,
     bool? isValid,
     String? activityReplaced,
+    WeatherData? startWeather,
+    IpLookupData? startIpLookup,
   }) {
     return ActivitySession(
       id: id ?? this.id,
@@ -259,6 +411,8 @@ class ActivitySession {
       metadata: metadata ?? this.metadata,
       isValid: isValid ?? this.isValid,
       activityReplaced: activityReplaced ?? this.activityReplaced,
+      startWeather: startWeather ?? this.startWeather,
+      startIpLookup: startIpLookup ?? this.startIpLookup,
     );
   }
 
@@ -280,6 +434,8 @@ class ActivitySession {
       'elevationGain': stats.elevationGain,
       'isValid': isValid,
       'activityReplaced': activityReplaced,
+      'startWeather': startWeather?.toJson(),
+      'startIpLookup': startIpLookup?.toJson(),
       // Store rich waypoints data in the routePoints field for high fidelity
       'routePoints': waypoints.map((wp) => wp.toJson()).toList(),
       'metadata': metadata,
@@ -336,6 +492,8 @@ class ActivitySession {
       metadata: json['metadata'] ?? {},
       isValid: json['isValid'] ?? true,
       activityReplaced: json['activityReplaced'],
+      startWeather: json['startWeather'] != null ? WeatherData.fromJson(json['startWeather']) : null,
+      startIpLookup: json['startIpLookup'] != null ? IpLookupData.fromJson(json['startIpLookup']) : null,
     );
   }
 }

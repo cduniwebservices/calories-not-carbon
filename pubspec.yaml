@@ -22,6 +22,7 @@ dependencies:
   # UI & Fonts
   cupertino_icons: ^1.0.6
   google_fonts: ^6.3.0
+  http: ^1.2.1
   
   # Maps & Location
   flutter_map: ^6.1.0

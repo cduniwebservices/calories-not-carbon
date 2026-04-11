@@ -111,6 +111,8 @@ class SyncService {
         'elevation_gain': activity.stats.elevationGain,
         'is_valid': activity.isValid,
         'activity_replaced': activity.activityReplaced,
+        'start_weather': activity.startWeather?.toJson(),
+        'start_ip_lookup': activity.startIpLookup?.toJson(),
         'start_time': activity.stats.startTime.toIso8601String(),
         'end_time': activity.stats.endTime?.toIso8601String(),
         'route_points': sessionJson['routePoints'], // Use rich data from model

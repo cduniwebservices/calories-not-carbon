@@ -92,6 +92,13 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
 
                       const SizedBox(height: GlobalTheme.spacing32),
 
+                      // Weather Info (if available)
+                      if (widget.session.startWeather != null)
+                        _buildWeatherCard(theme, widget.session.startWeather!),
+
+                      if (widget.session.startWeather != null)
+                        const SizedBox(height: GlobalTheme.spacing32),
+
                       // Detailed metrics
                       _buildDetailedMetrics(theme, stats),
 
@@ -522,6 +529,177 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
         ),
       ),
     ).animate().fadeIn(delay: 1200.ms).slideY(begin: 0.2, end: 0);
+  }
+
+  Widget _buildWeatherCard(ThemeData theme, WeatherData weather) {
+    return Container(
+      padding: const EdgeInsets.all(GlobalTheme.spacing20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF1E293B).withOpacity(0.8),
+            const Color(0xFF0F172A).withOpacity(0.9),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(GlobalTheme.radiusLarge),
+        border: Border.all(
+          color: GlobalTheme.primaryAccent.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: GlobalTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.wb_sunny_rounded,
+                color: GlobalTheme.primaryAccent,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'START WEATHER',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: GlobalTheme.primaryAccent,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const Spacer(),
+              if (weather.location != null)
+                Text(
+                  '${weather.location!.name}, ${weather.location!.region}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: GlobalTheme.textTertiary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: GlobalTheme.spacing16),
+          Row(
+            children: [
+              // Weather Icon and Temp
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${weather.tempC.toStringAsFixed(1)}°',
+                        style: theme.textTheme.displaySmall?.copyWith(
+                          color: GlobalTheme.textPrimary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            weather.conditionText,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: GlobalTheme.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'Feels like ${weather.feelsLikeC.toStringAsFixed(1)}°',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: GlobalTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const Spacer(),
+              // Weather Condition Icon
+              if (weather.conditionIcon.isNotEmpty)
+                Image.network(
+                  'https:${weather.conditionIcon}',
+                  width: 48,
+                  height: 48,
+                  errorBuilder: (context, error, stackTrace) => const Icon(
+                    Icons.cloud_queue_rounded,
+                    color: GlobalTheme.textTertiary,
+                    size: 40,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: GlobalTheme.spacing16),
+          const Divider(color: GlobalTheme.surfaceBorder, height: 1),
+          const SizedBox(height: GlobalTheme.spacing16),
+          // Additional Weather Stats
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildSmallWeatherStat(
+                theme,
+                'Wind',
+                '${weather.windKph.toStringAsFixed(1)} km/h',
+                Icons.air_rounded,
+              ),
+              _buildSmallWeatherStat(
+                theme,
+                'Humidity',
+                '${weather.humidity}%',
+                Icons.water_drop_rounded,
+              ),
+              _buildSmallWeatherStat(
+                theme,
+                'Precip',
+                '${weather.precipMm.toStringAsFixed(1)} mm',
+                Icons.umbrella_rounded,
+              ),
+              _buildSmallWeatherStat(
+                theme,
+                'UV Index',
+                weather.uv.toStringAsFixed(1),
+                Icons.wb_sunny_outlined,
+              ),
+            ],
+          ),
+        ],
+      ),
+    ).animate().fadeIn(delay: 1300.ms).slideY(begin: 0.2, end: 0);
+  }
+
+  Widget _buildSmallWeatherStat(
+    ThemeData theme,
+    String label,
+    String value,
+    IconData icon,
+  ) {
+    return Column(
+      children: [
+        Icon(icon, color: GlobalTheme.textTertiary, size: 16),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: GlobalTheme.textPrimary,
+            fontWeight: FontWeight.w700,
+            fontSize: 10,
+          ),
+        ),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: GlobalTheme.textTertiary,
+            fontSize: 9,
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildDetailedMetrics(ThemeData theme, FitnessStats stats) {

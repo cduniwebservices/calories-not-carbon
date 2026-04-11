@@ -7,6 +7,7 @@ import 'package:pedometer/pedometer.dart';
 import '../models/fitness_models.dart';
 import '../services/location_service.dart';
 import '../services/local_storage_service.dart';
+import '../services/weather_service.dart';
 
 /// Million-dollar level activity controller for real-time fitness tracking
 class ActivityController extends ChangeNotifier {
@@ -16,6 +17,7 @@ class ActivityController extends ChangeNotifier {
 
   // Services
   final LocationService _locationService = LocationService();
+  final WeatherService _weatherService = WeatherService();
   final _uuid = const Uuid();
 
   // State management
@@ -135,6 +137,10 @@ class ActivityController extends ChangeNotifier {
 
       // Reset all tracking data
       _resetTrackingData();
+
+      // Fetch weather and IP lookup asynchronously
+      _fetchStartWeather(location.latitude, location.longitude);
+      _fetchStartIpLookup();
 
       // Set activity type and start time
       _activityType = type;
@@ -361,6 +367,30 @@ class ActivityController extends ChangeNotifier {
   }
 
   /// Private methods
+
+  Future<void> _fetchStartIpLookup() async {
+    try {
+      final ipData = await _weatherService.getIpLookup();
+      if (ipData != null && _currentSession != null) {
+        _currentSession = _currentSession!.copyWith(startIpLookup: ipData);
+        debugPrint('🌐 ActivityController: IP lookup recorded: ${ipData.ip} (${ipData.city})');
+      }
+    } catch (e) {
+      debugPrint('⚠️ ActivityController: Error during IP lookup: $e');
+    }
+  }
+
+  Future<void> _fetchStartWeather(double lat, double lon) async {
+    try {
+      final weather = await _weatherService.getCurrentWeather(lat, lon);
+      if (weather != null && _currentSession != null) {
+        _currentSession = _currentSession!.copyWith(startWeather: weather);
+        debugPrint('🌍 ActivityController: Start weather recorded: ${weather.tempC}°C');
+      }
+    } catch (e) {
+      debugPrint('⚠️ ActivityController: Error fetching start weather: $e');
+    }
+  }
 
   void _resetTrackingData() {
     _routePoints.clear();

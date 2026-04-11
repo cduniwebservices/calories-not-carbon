@@ -169,6 +169,13 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                         _buildSummaryCard(theme, displayStats),
                         
                         const SizedBox(height: 24),
+
+                        // Weather Info (if available)
+                        if (widget.session.startWeather != null)
+                          _buildWeatherSection(theme, widget.session.startWeather!),
+
+                        if (widget.session.startWeather != null)
+                          const SizedBox(height: 24),
                         
                         // 2. Map Preview with Replay
                         _buildMapReplay(theme, visiblePoints),
@@ -850,5 +857,125 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
   String _formatDurationShort(Duration d) {
     final m = d.inMinutes;
     return '${m}m';
+  }
+
+  Widget _buildWeatherSection(ThemeData theme, WeatherData weather) {
+    return Container(
+      padding: const EdgeInsets.all(GlobalTheme.spacing20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.wb_cloudy_rounded,
+                color: GlobalTheme.primaryNeon,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'WEATHER AT START',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: GlobalTheme.primaryNeon,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const Spacer(),
+              if (weather.location != null)
+                Text(
+                  '${weather.location!.name}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white.withOpacity(0.4),
+                    fontSize: 10,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text(
+                '${weather.tempC.toStringAsFixed(1)}°C',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    weather.conditionText,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Feels like ${weather.feelsLikeC.toStringAsFixed(1)}°',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.4),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              if (weather.conditionIcon.isNotEmpty)
+                Image.network(
+                  'https:${weather.conditionIcon}',
+                  width: 44,
+                  height: 44,
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(color: Colors.white10, height: 1),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildSmallWeatherStat('Wind', '${weather.windKph.toStringAsFixed(1)} km/h', Icons.air_rounded),
+              _buildSmallWeatherStat('Humidity', '${weather.humidity}%', Icons.water_drop_rounded),
+              _buildSmallWeatherStat('Precip', '${weather.precipMm.toStringAsFixed(1)} mm', Icons.umbrella_rounded),
+              _buildSmallWeatherStat('UV', weather.uv.toStringAsFixed(1), Icons.wb_sunny_outlined),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSmallWeatherStat(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.white.withOpacity(0.3), size: 14),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 11,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.3),
+            fontSize: 9,
+          ),
+        ),
+      ],
+    );
   }
 }
