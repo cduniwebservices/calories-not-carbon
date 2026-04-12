@@ -87,6 +87,7 @@ class FitnessApp extends StatelessWidget {
 // Clean, focused router with single app flow
 final GoRouter _router = GoRouter(
   initialLocation: '/',
+  observers: [AppNavigatorObserver()],
   errorBuilder: (context, state) => Scaffold(
     body: Container(
       decoration: const BoxDecoration(gradient: GlobalTheme.backgroundGradient),
@@ -273,4 +274,35 @@ CustomTransitionPage _buildPageWithTransition({
     transitionDuration: const Duration(milliseconds: 300),
     reverseTransitionDuration: const Duration(milliseconds: 250),
   );
+}
+
+/// Navigation observer for enterprise logging
+class AppNavigatorObserver extends NavigatorObserver {
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    _logNavigation(route, 'PUSH');
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    _logNavigation(route, 'POP');
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    if (newRoute != null) {
+      _logNavigation(newRoute, 'REPLACE');
+    }
+  }
+
+  void _logNavigation(Route<dynamic> route, String type) {
+    final name = route.settings.name ?? route.settings.arguments?.toString() ?? 'unknown';
+    EnterpriseLogger().logNavigation(
+      'Navigator',
+      '[$type] Route: $name',
+    );
+  }
 }

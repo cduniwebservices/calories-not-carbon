@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/global_theme.dart';
+import '../services/enterprise_logger.dart';
 
 enum AppButtonType { primary, secondary, ghost }
 
@@ -92,6 +93,7 @@ class _AppButtonState extends State<AppButton>
 
   void _onTapUp(TapUpDetails details) {
     _controller.reverse();
+    EnterpriseLogger().logUserInteraction('Button Press', widget.text, metadata: {'type': widget.type.name});
     widget.onPressed?.call();
   }
 

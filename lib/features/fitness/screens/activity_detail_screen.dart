@@ -417,8 +417,8 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
             children: [
               _buildSummaryItem(
                 (stats.totalDistanceMeters / 1000).toStringAsFixed(2), 
-                'km', 
-                'Distance', 
+                '', 
+                'Distance (km)', 
                 Icons.route, 
                 GlobalTheme.primaryAccent,
               ),
@@ -430,9 +430,9 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                 GlobalTheme.primaryAction,
               ),
               _buildSummaryItem(
-                stats.formattedAveragePace.split('/')[0], 
+                stats.formattedAveragePace, 
                 '', 
-                'Pace', 
+                'Pace (/km)', 
                 Icons.speed, 
                 const Color(0xFFD4AF37),
               ),
@@ -518,8 +518,13 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                 polylines: [
                   Polyline(
                     points: visiblePoints,
-                    strokeWidth: 4.0,
-                    color: const Color(0xFF00BCD4),
+                    strokeWidth: 5.0,
+                    color: theme.primaryColor,
+                  ),
+                  Polyline(
+                    points: visiblePoints,
+                    strokeWidth: 8.0,
+                    color: Colors.black.withOpacity(0.3),
                   ),
                 ],
               ),
@@ -827,14 +832,21 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
   }
 
   String _formatDuration(Duration d) {
-    final m = d.inMinutes;
-    final s = d.inSeconds % 60;
-    return '$m:${s.toString().padLeft(2, '0')}';
+    final hours = d.inHours;
+    final minutes = d.inMinutes % 60;
+    final seconds = d.inSeconds % 60;
+    
+    final minutesStr = minutes.toString().padLeft(2, '0');
+    final secondsStr = seconds.toString().padLeft(2, '0');
+    
+    if (hours > 0) {
+      return '$hours:$minutesStr:$secondsStr';
+    }
+    return '$minutesStr:$secondsStr';
   }
   
   String _formatDurationShort(Duration d) {
-    final m = d.inMinutes;
-    return '${m}m';
+    return _formatDuration(d);
   }
 
   Widget _buildWeatherSection(ThemeData theme, WeatherData weather) {

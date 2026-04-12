@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'local_storage_service.dart';
+import 'enterprise_logger.dart';
 import '../models/fitness_models.dart';
 
 /// Offline-first sync service: saves locally, syncs to Supabase on WiFi
@@ -59,26 +60,37 @@ class SyncService {
         return;
       }
 
+      EnterpriseLogger().logInfo('Sync', 'Starting sync of $total pending activities...');
       onSyncProgress?.call(total, 0, 0);
 
       for (int i = 0; i < pending.length; i++) {
         final activity = pending[i];
+        EnterpriseLogger().logInfo('Sync', 'Attempting to upload activity: ${activity.id}');
         final success = await _uploadToSupabase(activity);
 
         if (success) {
           await LocalStorageService.markAsSynced(activity.id);
           _syncedCount++;
+          EnterpriseLogger().logInfo('Sync', 'Successfully synced activity: ${activity.id}');
         } else {
           _failedCount++;
+          EnterpriseLogger().logWarning('Sync', 'Failed to sync activity: ${activity.id}');
         }
 
         onSyncProgress?.call(total, _syncedCount, _failedCount);
       }
 
+      EnterpriseLogger().logInfo('Sync', 'Sync session complete', metadata: {
+        'total': total,
+        'synced': _syncedCount,
+        'failed': _failedCount,
+      });
+
       onSyncComplete?.call(
         'Sync complete: $_syncedCount synced, $_failedCount failed',
       );
     } catch (e) {
+      EnterpriseLogger().logError('Sync', 'Sync process encountered an error: $e', StackTrace.current);
       onSyncError?.call('Sync failed: $e');
     } finally {
       _isSyncing = false;
@@ -87,6 +99,7 @@ class SyncService {
 
   /// Manual sync trigger (works on any connection)
   Future<void> manualSync() async {
+    EnterpriseLogger().logInfo('Sync', 'Manual sync triggered');
     await syncPendingActivities();
   }
 
@@ -119,10 +132,12 @@ class SyncService {
         'metadata': activity.metadata,
         'created_at': DateTime.now().toIso8601String(),
         'synced_at': DateTime.now().toIso8601String(),
-      });
+      }).select();
 
+      EnterpriseLogger().logInfo('Sync', 'Supabase upload successful for: ${activity.id}');
       return true;
-    } catch (e) {
+    } catch (e, stack) {
+      EnterpriseLogger().logError('Sync', 'Supabase upload FAILED for ${activity.id}: $e', stack);
       return false;
     }
   }

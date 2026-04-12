@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/fitness_models.dart';
+import 'enterprise_logger.dart';
 
 /// Service to fetch weather and IP data from WeatherAPI.com
 class WeatherService {
@@ -17,14 +18,14 @@ class WeatherService {
   /// Fetch current weather for the given coordinates
   Future<WeatherData?> getCurrentWeather(double lat, double lon) async {
     if (_apiKey.isEmpty) {
-      debugPrint('⚠️ WeatherService: API Key is missing. Weather data will not be fetched.');
+      EnterpriseLogger().logWarning('Weather', 'API Key is missing. Weather data will not be fetched.');
       return null;
     }
 
+    final url = Uri.parse('$_baseUrl/current.json?key=$_apiKey&q=$lat,$lon&aqi=no');
+    EnterpriseLogger().logInfo('Weather', 'Fetching weather for $lat, $lon', metadata: {'url': url.toString().replaceFirst(_apiKey, '***')});
+
     try {
-      final url = Uri.parse('$_baseUrl/current.json?key=$_apiKey&q=$lat,$lon&aqi=no');
-      
-      debugPrint('🌍 WeatherService: Fetching weather for $lat, $lon...');
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
@@ -60,7 +61,7 @@ class WeatherService {
           final int mins = offsetMinutes % 60;
           calculatedOffset = "${hours >= 0 ? '+' : '-'}${hours.abs().toString().padLeft(2, '0')}:${mins.abs().toString().padLeft(2, '0')}";
         } catch (e) {
-          debugPrint('⚠️ WeatherService: Offset calculation error: $e');
+          EnterpriseLogger().logWarning('Weather', 'Offset calculation error: $e');
         }
 
         final weatherLocation = WeatherLocation(
@@ -98,14 +99,19 @@ class WeatherService {
           gustKph: (current['gust_kph'] as num? ?? 0).toDouble(),
         );
 
-        debugPrint('✅ WeatherService: Successfully fetched weather: ${weather.tempC}°C, ${weather.conditionText}');
+        EnterpriseLogger().logInfo('Weather', 'Successfully fetched weather', metadata: {
+          'temp': weather.tempC,
+          'condition': weather.conditionText,
+          'city': weatherLocation.name
+        });
         return weather;
       } else {
-        debugPrint('❌ WeatherService: Failed to fetch weather. Status: ${response.statusCode}');
+        EnterpriseLogger().logError('Weather', 'Failed to fetch weather. Status: ${response.statusCode}', null);
+        EnterpriseLogger().logInfo('Weather', 'Response body: ${response.body}');
         return null;
       }
     } catch (e) {
-      debugPrint('❌ WeatherService: Error fetching weather: $e');
+      EnterpriseLogger().logError('Weather', 'Error fetching weather: $e', StackTrace.current);
       return null;
     }
   }
@@ -113,14 +119,14 @@ class WeatherService {
   /// Fetch IP lookup data for the current user
   Future<IpLookupData?> getIpLookup() async {
     if (_apiKey.isEmpty) {
-      debugPrint('⚠️ WeatherService: API Key is missing. IP lookup will not be performed.');
+      EnterpriseLogger().logWarning('Weather', 'API Key is missing. IP lookup will not be performed.');
       return null;
     }
 
+    final url = Uri.parse('$_baseUrl/ip.json?key=$_apiKey');
+    EnterpriseLogger().logInfo('Weather', 'Performing IP lookup...', metadata: {'url': url.toString().replaceFirst(_apiKey, '***')});
+
     try {
-      final url = Uri.parse('$_baseUrl/ip.json?key=$_apiKey');
-      
-      debugPrint('🌍 WeatherService: Performing IP lookup...');
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
@@ -139,14 +145,19 @@ class WeatherService {
           region: data['region'] as String? ?? '',
         );
 
-        debugPrint('✅ WeatherService: IP lookup successful: ${ipLookup.ip} (${ipLookup.city})');
+        EnterpriseLogger().logInfo('Weather', 'IP lookup successful', metadata: {
+          'ip': ipLookup.ip,
+          'city': ipLookup.city,
+          'country': ipLookup.countryName
+        });
         return ipLookup;
       } else {
-        debugPrint('❌ WeatherService: IP lookup failed. Status: ${response.statusCode}');
+        EnterpriseLogger().logError('Weather', 'IP lookup failed. Status: ${response.statusCode}', null);
+        EnterpriseLogger().logInfo('Weather', 'Response body: ${response.body}');
         return null;
       }
     } catch (e) {
-      debugPrint('❌ WeatherService: Error during IP lookup: $e');
+      EnterpriseLogger().logError('Weather', 'Error during IP lookup: $e', StackTrace.current);
       return null;
     }
   }

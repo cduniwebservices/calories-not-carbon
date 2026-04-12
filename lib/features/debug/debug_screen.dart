@@ -14,6 +14,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../models/fitness_models.dart';
 import '../../services/local_storage_service.dart';
 import '../../services/sync_service.dart';
+import '../../services/weather_service.dart';
 import '../../services/activity_controller.dart';
 import '../../services/enterprise_logger.dart';
 import '../../providers/activity_providers.dart';
@@ -63,6 +64,10 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
   final ScrollController _logScrollController = ScrollController();
   String _queryText = '';
   String _queryResult = '';
+  String _weatherResult = '';
+  String _ipResult = '';
+  bool _weatherLoading = false;
+  bool _ipLoading = false;
   ActivityState? _lastKnownState;
   List<LatLng> _lastRoutePoints = [];
   FitnessStats? _lastStats;
@@ -278,7 +283,10 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
               ),
               const SizedBox(width: 8),
               TextButton(
-                onPressed: () => setState(() => EnterpriseLogger().clearOldLogs()),
+                onPressed: () {
+                  EnterpriseLogger().clearAll();
+                  setState(() {});
+                },
                 child: const Text('Clear', style: TextStyle(color: Colors.grey)),
               ),
             ],
@@ -403,13 +411,55 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Syncing activities...'), duration: Duration(seconds: 1)),
                     );
+
+                    // Listen for sync result
+                    String? syncResult;
+                    String? syncError;
+                    SyncService().onSyncComplete = (message) {
+                      syncResult = message;
+                      EnterpriseLogger().logInfo('Debug', '📋 Sync result: $message');
+                    };
+                    SyncService().onSyncError = (error) {
+                      syncError = error;
+                      EnterpriseLogger().logError('Debug', '❌ Sync error: $error', StackTrace.current);
+                    };
+
                     await SyncService().manualSync();
-                    EnterpriseLogger().logInfo('Debug', '✅ Manual sync complete');
+
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Manual sync complete')),
-                      );
                       setState(() {});
+
+                      // Show appropriate message based on result
+                      if (syncError != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Sync failed: $syncError'),
+                            backgroundColor: Colors.red,
+                            duration: const Duration(seconds: 5),
+                          ),
+                        );
+                      } else if (syncResult != null) {
+                        final failedMatch = RegExp(r'(\d+) failed').firstMatch(syncResult!);
+                        final failedCount = failedMatch != null ? int.parse(failedMatch.group(1)!) : 0;
+
+                        if (failedCount > 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('⚠️ $syncResult — check Logs tab for error details'),
+                              backgroundColor: Colors.orange,
+                              duration: const Duration(seconds: 5),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('✅ $syncResult'),
+                              backgroundColor: Colors.green,
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        }
+                      }
                     }
                   },
                   icon: const Icon(Icons.cloud_upload, color: Colors.purple),
@@ -517,6 +567,169 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
     );
   }
 
+  Future<void> _fetchTestWeather() async {
+    setState(() {
+      _weatherLoading = true;
+      _weatherResult = '';
+    });
+
+    try {
+      final weather = await WeatherService().getCurrentWeather(-33.8688, 151.2093);
+      if (weather != null) {
+        setState(() {
+          _weatherResult = 
+              'Location: ${weather.location?.name ?? "N/A"}, ${weather.location?.country ?? "N/A"}\n'
+              'Temperature: ${weather.tempC}°C (feels like ${weather.feelsLikeC}°C)\n'
+              'Condition: ${weather.conditionText}\n'
+              'Wind: ${weather.windKph} kph ${weather.windDir}\n'
+              'Humidity: ${weather.humidity}%\n'
+              'Pressure: ${weather.pressureMb} mb\n'
+              'Visibility: ${weather.visKm} km\n'
+              'UV Index: ${weather.uv}\n'
+              'Cloud Cover: ${weather.cloud}%\n'
+              'Local Time: ${weather.location?.localtime ?? "N/A"}';
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Weather fetched successfully'),
+              backgroundColor: Color(0xFFF57F17),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        setState(() {
+          _weatherResult = 'Error: Weather API returned null (check API key or logs)';
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ Weather fetch returned null — check API key'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _weatherResult = 'Error: $e';
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Weather fetch failed: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _weatherLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchTestIpLookup() async {
+    setState(() {
+      _ipLoading = true;
+      _ipResult = '';
+    });
+
+    try {
+      final ipData = await WeatherService().getIpLookup();
+      if (ipData != null) {
+        setState(() {
+          _ipResult = 
+              'IP: ${ipData.ip}\n'
+              'Type: ${ipData.type}\n'
+              'City: ${ipData.city}\n'
+              'Region: ${ipData.region}\n'
+              'Country: ${ipData.countryName} (${ipData.countryCode})\n'
+              'Continent: ${ipData.continentName} (${ipData.continentCode})\n'
+              'EU Member: ${ipData.isEu ? "Yes" : "No"}\n'
+              'Geoname ID: ${ipData.geonameId}';
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ IP lookup successful'),
+              backgroundColor: Color(0xFF00796B),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        setState(() {
+          _ipResult = 'Error: IP lookup returned null (check API key or logs)';
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ IP lookup returned null — check API key'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _ipResult = 'Error: $e';
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ IP lookup failed: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _ipLoading = false;
+        });
+      }
+    }
+  }
+
+  List<InlineSpan> _formatWeatherLine(String line) {
+    final colonIndex = line.indexOf(':');
+    if (colonIndex > 0) {
+      return [
+        TextSpan(
+          text: '${line.substring(0, colonIndex + 1)} ',
+          style: const TextStyle(
+            color: Colors.amber,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+            fontFamily: 'monospace',
+          ),
+        ),
+        TextSpan(
+          text: line.substring(colonIndex + 1).trim(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontFamily: 'monospace',
+          ),
+        ),
+      ];
+    }
+    return [
+      TextSpan(
+        text: line,
+        style: const TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'monospace'),
+      ),
+    ];
+  }
+
   Widget _buildMockRouteTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -540,7 +753,13 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
             color: Colors.blue,
             onTap: () => _generateMockRoute('walking', 2000),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 4),
+          const Text(
+            'CO₂ footprint: 0.027 kg/km',
+            style: TextStyle(color: Colors.grey, fontSize: 11),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
 
           _buildMockRouteButton(
             icon: Icons.directions_run,
@@ -548,7 +767,13 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
             color: Colors.green,
             onTap: () => _generateMockRoute('running', 5000),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 4),
+          const Text(
+            'CO₂ footprint: 0.033 kg/km',
+            style: TextStyle(color: Colors.grey, fontSize: 11),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
 
           _buildMockRouteButton(
             icon: Icons.directions_bike,
@@ -556,6 +781,100 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
             color: Colors.orange,
             onTap: () => _generateMockRoute('cycling', 15000),
           ),
+          const SizedBox(height: 4),
+          const Text(
+            'CO₂ footprint: 0.022 kg/km',
+            style: TextStyle(color: Colors.grey, fontSize: 11),
+            textAlign: TextAlign.center,
+          ),
+
+    const SizedBox(height: 48),
+
+    const Text(
+      'Test Weather API',
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+    const SizedBox(height: 8),
+    const Text(
+      'Fetch live weather and IP location data from WeatherAPI.com',
+      style: TextStyle(color: Colors.grey),
+    ),
+    const SizedBox(height: 24),
+
+    _buildMockRouteButton(
+      icon: Icons.wb_sunny,
+      label: _weatherLoading ? 'Fetching...' : 'Fetch Current Weather',
+      color: Colors.amber,
+      onTap: _weatherLoading ? null : () => _fetchTestWeather(),
+    ),
+    const SizedBox(height: 12),
+
+    if (_weatherResult.isNotEmpty)
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black38,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.amber.withOpacity(0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: _weatherResult.split('\n').map((line) {
+            final isLabel = line.contains(':');
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: isLabel
+                  ? RichText(
+                      text: TextSpan(
+                        children: _formatWeatherLine(line),
+                      ),
+                    )
+                  : Text(
+                      line,
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'monospace'),
+                    ),
+            );
+          }).toList(),
+        ),
+      ),
+
+    const SizedBox(height: 16),
+
+    _buildMockRouteButton(
+      icon: Icons.location_searching,
+      label: _ipLoading ? 'Fetching...' : 'Fetch IP Location',
+      color: Colors.teal,
+      onTap: _ipLoading ? null : () => _fetchTestIpLookup(),
+    ),
+    const SizedBox(height: 12),
+
+    if (_ipResult.isNotEmpty)
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black38,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.teal.withOpacity(0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: _ipResult.split('\n').map((line) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                line,
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'monospace'),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
 
     const SizedBox(height: 48),
 
@@ -602,7 +921,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
     required IconData icon,
     required String label,
     required Color color,
-    required VoidCallback onTap,
+    VoidCallback? onTap,
   }) {
     return ElevatedButton.icon(
       onPressed: onTap,
@@ -775,6 +1094,8 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
     // Send to Supabase
     EnterpriseLogger().logInfo('Debug', '☁️ Uploading to Supabase...');
+    bool uploadSuccess = false;
+    String? uploadError;
     try {
       final sessionJson = session.toJson();
       final supabase = Supabase.instance.client;
@@ -804,8 +1125,30 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
       await LocalStorageService.markAsSynced(session.id);
       EnterpriseLogger().logInfo('Debug', '✅ Successfully uploaded to Supabase');
+      uploadSuccess = true;
     } catch (e) {
+      uploadError = e.toString();
       EnterpriseLogger().logInfo('Debug', '❌ Supabase upload failed: $e');
+    }
+
+    if (mounted) {
+      if (uploadSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ ${session.activityType.displayName} route generated & synced (${session.stats.formattedDistance})'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ Route saved locally but sync failed: $uploadError'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     }
 
     setState(() {});
@@ -846,6 +1189,15 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
             onTap: () async {
               await Sentry.captureMessage('Debug console test message');
               EnterpriseLogger().logInfo('Debug', '📨 Sentry message sent');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('✅ Sentry message sent'),
+                    backgroundColor: Color(0xFF2E7D32),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
             },
           ),
           const SizedBox(height: 12),
@@ -860,6 +1212,15 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
               } catch (e, stack) {
                 await Sentry.captureException(e, stackTrace: stack);
                 EnterpriseLogger().logInfo('Debug', '⚠️ Exception captured to Sentry (no crash)');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('✅ Exception captured by Sentry'),
+                      backgroundColor: Color(0xFFF57F17),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
               }
             },
           ),
@@ -879,6 +1240,15 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
               );
               await Sentry.captureMessage('Breadcrumb test with context', level: SentryLevel.warning);
               EnterpriseLogger().logInfo('Debug', '🍞 Breadcrumb added and message sent');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('✅ Breadcrumb & message sent to Sentry'),
+                    backgroundColor: Color(0xFF1565C0),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
             },
           ),
           const SizedBox(height: 12),
@@ -897,6 +1267,15 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
               transaction.status = SpanStatus.ok();
               await transaction.finish();
               EnterpriseLogger().logInfo('Debug', '📊 Performance transaction completed');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('✅ Performance transaction completed'),
+                    backgroundColor: Color(0xFF6A1B9A),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
             },
           ),
         ],
@@ -915,12 +1294,11 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       children: [
         ElevatedButton.icon(
           onPressed: onTap,
-          icon: Icon(Icons.bug_report, color: color, size: 18),
+          icon: Icon(Icons.bug_report, color: color),
           label: Text(label, style: TextStyle(color: color)),
           style: ElevatedButton.styleFrom(
             backgroundColor: GlobalTheme.surfaceCard,
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            alignment: Alignment.centerLeft,
+            minimumSize: const Size(double.infinity, 50),
           ),
         ),
         const SizedBox(height: 4),

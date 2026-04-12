@@ -225,6 +225,11 @@ class EnterpriseLogger {
     }
   }
 
+  /// Clear all logs
+  void clearAll() {
+    _logs.clear();
+  }
+
   /// Private helper methods
   void _addLog(LogEntry entry) {
     _logs.addLast(entry);

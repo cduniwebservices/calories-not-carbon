@@ -42,7 +42,7 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
       subtitle: 'Your climate impact companion',
       description:
           'Record your physical activities and see the carbon emissions you\'ve helped prevent. Every movement counts for the planet.',
-      icon: Icons.fitness_center,
+      icon: Icons.eco,
       color: GlobalTheme.primaryAccent,
     ),
     OnboardingPage(

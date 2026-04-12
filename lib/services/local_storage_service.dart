@@ -1,6 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/fitness_models.dart';
+import 'enterprise_logger.dart';
 
 /// Hive adapters for GPS activity models
 class ActivitySessionAdapter extends TypeAdapter<ActivitySession> {
@@ -477,7 +478,17 @@ class LocalStorageService {
 
   // Activity Box Operations
   static Future<void> saveActivity(ActivitySession session) async {
-    await _activityBox.put(session.id, session);
+    try {
+      await _activityBox.put(session.id, session);
+      EnterpriseLogger().logInfo('Local DB', 'Activity saved: ${session.id}', metadata: {
+        'type': session.activityType.name,
+        'state': session.state.name,
+        'distance': session.stats.totalDistanceMeters,
+      });
+    } catch (e) {
+      EnterpriseLogger().logError('Local DB', 'Failed to save activity: $e', StackTrace.current);
+      rethrow;
+    }
   }
 
   static ActivitySession? getActivity(String id) {
@@ -495,19 +506,31 @@ class LocalStorageService {
   static Future<void> markAsSynced(String id) async {
     final activity = getActivity(id);
     if (activity != null) {
-      final updated = activity.copyWith(
-        metadata: {...activity.metadata, 'synced': true, 'synced_at': DateTime.now().toIso8601String()},
-      );
-      await saveActivity(updated);
+      try {
+        final updated = activity.copyWith(
+          metadata: {...activity.metadata, 'synced': true, 'synced_at': DateTime.now().toIso8601String()},
+        );
+        await saveActivity(updated);
+        EnterpriseLogger().logInfo('Local DB', 'Activity marked as synced: $id');
+      } catch (e) {
+        EnterpriseLogger().logError('Local DB', 'Failed to mark as synced: $id ($e)', StackTrace.current);
+      }
     }
   }
 
   static Future<void> deleteActivity(String id) async {
     await _activityBox.delete(id);
+    EnterpriseLogger().logInfo('Local DB', 'Activity deleted: $id');
   }
 
   static Future<void> clearAllActivities() async {
-    await _activityBox.clear();
+    try {
+      final count = _activityBox.length;
+      await _activityBox.clear();
+      EnterpriseLogger().logInfo('Local DB', 'Cleared all local activities', metadata: {'count': count});
+    } catch (e) {
+      EnterpriseLogger().logError('Local DB', 'Failed to clear activities: $e', StackTrace.current);
+    }
   }
 
   // Settings Operations

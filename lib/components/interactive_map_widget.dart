@@ -8,6 +8,10 @@ import '../theme/global_theme.dart';
 import '../providers/activity_providers.dart';
 import '../models/fitness_models.dart';
 
+// Tracks whether the map reveal animation has already played
+// Reset via InteractiveMapWidget.resetRevealFlag() when parent screen disposes
+bool _mapHasRevealed = false;
+
 /// Simple interactive map widget for fitness tracking
 class InteractiveMapWidget extends ConsumerStatefulWidget {
   final bool showCurrentLocation;
@@ -26,6 +30,11 @@ class InteractiveMapWidget extends ConsumerStatefulWidget {
     this.routeColor,
     this.accentColor,
   });
+
+  /// Reset the reveal flag - call when the parent screen is disposed
+  static void resetRevealFlag() {
+    _mapHasRevealed = false;
+  }
 
   @override
   ConsumerState<InteractiveMapWidget> createState() => _InteractiveMapWidgetState();
@@ -141,10 +150,16 @@ class _InteractiveMapWidgetState extends ConsumerState<InteractiveMapWidget>
         _isMapReady = true;
       });
 
-      // Start reveal animation with slight delay for smoother transition
+      // Only run reveal animation on first load, not on tab switches
       if (mounted) {
         await Future.delayed(const Duration(milliseconds: 200));
-        _mapRevealController.forward();
+        if (!_mapHasRevealed) {
+          _mapRevealController.forward();
+          _mapHasRevealed = true;
+        } else {
+          // Skip reveal but still start the pulse animation
+          _mapRevealController.value = 1.0;
+        }
         _pulseController.repeat(reverse: true);
         _loadingController.stop();
       }

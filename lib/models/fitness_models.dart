@@ -154,29 +154,37 @@ class FitnessStats {
   }
 
   String get formattedDuration {
-    final minutes = activeDuration.inMinutes;
+    final hours = activeDuration.inHours;
+    final minutes = activeDuration.inMinutes % 60;
     final seconds = activeDuration.inSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    
+    final minutesStr = minutes.toString().padLeft(2, '0');
+    final secondsStr = seconds.toString().padLeft(2, '0');
+    
+    if (hours > 0) {
+      return '$hours:$minutesStr:$secondsStr';
+    }
+    return '$minutesStr:$secondsStr';
   }
 
   String get formattedActiveDuration => formattedDuration;
 
   String get formattedAveragePace {
     if (averagePaceSecondsPerKm == 0 || averagePaceSecondsPerKm.isInfinite) {
-      return '--:-- /km';
+      return "--'--\"";
     }
     final mins = averagePaceSecondsPerKm ~/ 60;
     final secs = (averagePaceSecondsPerKm % 60).toInt();
-    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')} /km';
+    return "${mins.toString()}'${secs.toString().padLeft(2, '0')}\"";
   }
 
   String get formattedCurrentPace {
     if (currentPaceSecondsPerKm == 0 || currentPaceSecondsPerKm.isInfinite) {
-      return '--:-- /km';
+      return "--'--\"";
     }
     final mins = currentPaceSecondsPerKm ~/ 60;
     final secs = (currentPaceSecondsPerKm % 60).toInt();
-    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')} /km';
+    return "${mins.toString()}'${secs.toString().padLeft(2, '0')}\"";
   }
 
   String get formattedCurrentSpeed =>

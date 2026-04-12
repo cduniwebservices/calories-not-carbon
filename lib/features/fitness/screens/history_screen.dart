@@ -358,21 +358,21 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
                           children: [
                             _buildStatItem(
                               theme,
-                              'Distance',
-                              activity.stats.formattedDistance,
+                              'Distance (km)',
+                              (activity.stats.totalDistanceMeters / 1000).toStringAsFixed(2),
                               Icons.route_rounded,
                             ),
                             const SizedBox(width: GlobalTheme.spacing24),
                             _buildStatItem(
                               theme,
-                              'Pace',
-                              '${activity.stats.formattedAveragePace}/km',
+                              'Pace (/km)',
+                              activity.stats.formattedAveragePace,
                               Icons.speed_rounded,
                             ),
                             const SizedBox(width: GlobalTheme.spacing24),
                             _buildStatItem(
                               theme,
-                              'Calories',
+                              'Calories (kcal)',
                               activity.stats.formattedCalories,
                               Icons.local_fire_department_rounded,
                             ),
@@ -708,18 +708,21 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
   String _formatDuration(Duration duration) {
     final hours = duration.inHours;
     final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
+
+    final minutesStr = minutes.toString().padLeft(2, '0');
+    final secondsStr = seconds.toString().padLeft(2, '0');
 
     if (hours > 0) {
-      return '${hours}h ${minutes}m';
-    } else {
-      return '${minutes}m';
+      return '$hours:$minutesStr:$secondsStr';
     }
+    return '$minutesStr:$secondsStr';
   }
 
   String _formatPace(double pace) {
     final minutes = pace.floor();
     final seconds = ((pace - minutes) * 60).round();
-    return '${minutes}:${seconds.toString().padLeft(2, '0')}/km';
+    return "$minutes'${seconds.toString().padLeft(2, '0')}\"";
   }
 
   void _showActivityDetails(ActivitySession activity) {
