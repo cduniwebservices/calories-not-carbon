@@ -860,7 +860,6 @@ class StatsDisplay extends ConsumerWidget {
     // Based on activity type and speed — accounts for food production calories burned
     // Sources: walking ~0.027 kg CO2/km, running ~0.033 kg CO2/km, cycling ~0.022 kg CO2/km
     double activityFootprintPerKm;
-    final speedKmh = stats.averageSpeedMps * 3.6;
 
     switch (activityType) {
       case ActivityType.walking:
@@ -1223,6 +1222,7 @@ class StatsDisplay extends ConsumerWidget {
     final parts = value.split(',');
     final firstPart = parts[0].trim();
     final secondPart = parts.length > 1 ? parts[1].trim() : '';
+    final isNA = firstPart == 'NA' && secondPart.isEmpty;
 
     return Column(
       children: [
@@ -1235,7 +1235,7 @@ class StatsDisplay extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 16),
-        if (label.contains('WEATHER'))
+        if (label.contains('WEATHER') && !isNA)
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1271,7 +1271,7 @@ class StatsDisplay extends ConsumerWidget {
               fontSize: 24,
             ),
           ),
-        ] else if (!label.contains('WEATHER')) ...[
+        ] else ...[
           const SizedBox(height: 8),
           Text(
             firstPart,

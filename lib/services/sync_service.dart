@@ -66,6 +66,13 @@ class SyncService {
       for (int i = 0; i < pending.length; i++) {
         final activity = pending[i];
         EnterpriseLogger().logInfo('Sync', 'Attempting to upload activity: ${activity.id}');
+
+        // Record the attempt timestamp
+        final attemptUpdated = activity.copyWith(
+          metadata: {...activity.metadata, 'last_sync_attempt': DateTime.now().toIso8601String()},
+        );
+        await LocalStorageService.saveActivity(attemptUpdated);
+
         final success = await _uploadToSupabase(activity);
 
         if (success) {

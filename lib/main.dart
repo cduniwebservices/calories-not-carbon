@@ -299,7 +299,14 @@ class AppNavigatorObserver extends NavigatorObserver {
   }
 
   void _logNavigation(Route<dynamic> route, String type) {
-    final name = route.settings.name ?? route.settings.arguments?.toString() ?? 'unknown';
+    // Get GoRouter context from the navigator to extract the current route
+    final ctx = navigator?.context;
+    if (ctx == null) return;
+
+    final goRouter = GoRouter.of(ctx);
+    final uri = goRouter.routerDelegate.currentConfiguration.uri.toString();
+    final name = route.settings.name ?? uri;
+
     EnterpriseLogger().logNavigation(
       'Navigator',
       '[$type] Route: $name',

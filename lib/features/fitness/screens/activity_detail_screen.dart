@@ -167,8 +167,8 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                       children: [
                         const SizedBox(height: 16),
                         
-                        // 1. Session Summary Card
-                        _buildSummaryCard(theme, displayStats),
+                        // 1. Session Summary Card (use full session stats, not interpolated replay data)
+                        _buildSummaryCard(theme, widget.session.stats),
                         
                         const SizedBox(height: 24),
 
@@ -294,9 +294,9 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.66,
+        initialChildSize: 0.75,
         minChildSize: 0.4,
-        maxChildSize: 0.66,
+        maxChildSize: 0.75,
         builder: (context, scrollController) => Container(
           decoration: BoxDecoration(
             color: GlobalTheme.backgroundPrimary,

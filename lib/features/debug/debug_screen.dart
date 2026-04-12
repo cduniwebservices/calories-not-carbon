@@ -535,7 +535,29 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
   }
 
   Widget _buildActivityTile(ActivitySession session) {
+    final isSynced = session.metadata['synced'] == true;
+    final syncedAt = session.metadata['synced_at'] as String?;
+    final lastAttemptedAt = session.metadata['last_sync_attempt'] as String?;
+
+    String syncedTime = '';
+    String attemptedTime = '';
+
+    if (syncedAt != null) {
+      try {
+        final dt = DateTime.parse(syncedAt).toLocal();
+        syncedTime = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
+      } catch (_) {}
+    }
+
+    if (lastAttemptedAt != null) {
+      try {
+        final dt = DateTime.parse(lastAttemptedAt).toLocal();
+        attemptedTime = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
+      } catch (_) {}
+    }
+
     return Container(
+      width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -558,9 +580,32 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
             'Duration: ${session.stats.formattedDuration} | Route points: ${session.routePoints.length}',
             style: const TextStyle(color: Colors.grey, fontSize: 11),
           ),
-          Text(
-            'Synced: ${session.metadata['synced'] == true ? '✅' : '❌'}',
-            style: const TextStyle(color: Colors.grey, fontSize: 11),
+          Row(
+            children: [
+              Text(
+                'Synced:',
+                style: const TextStyle(color: Colors.grey, fontSize: 11),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                isSynced ? '✅' : '❌',
+                style: const TextStyle(fontSize: 11),
+              ),
+              if (isSynced && syncedTime.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Text(
+                  '@ $syncedTime',
+                  style: const TextStyle(color: Colors.green, fontSize: 11, fontFamily: 'monospace'),
+                ),
+              ],
+              if (!isSynced && attemptedTime.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Text(
+                  'attempted @ $attemptedTime',
+                  style: const TextStyle(color: Colors.orange, fontSize: 11, fontFamily: 'monospace'),
+                ),
+              ],
+            ],
           ),
         ],
       ),
@@ -730,6 +775,37 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
     ];
   }
 
+  List<InlineSpan> _formatIpLine(String line) {
+    final colonIndex = line.indexOf(':');
+    if (colonIndex > 0) {
+      return [
+        TextSpan(
+          text: '${line.substring(0, colonIndex + 1)} ',
+          style: const TextStyle(
+            color: Colors.teal,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+            fontFamily: 'monospace',
+          ),
+        ),
+        TextSpan(
+          text: line.substring(colonIndex + 1).trim(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontFamily: 'monospace',
+          ),
+        ),
+      ];
+    }
+    return [
+      TextSpan(
+        text: line,
+        style: const TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'monospace'),
+      ),
+    ];
+  }
+
   Widget _buildMockRouteTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -867,9 +943,10 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
           children: _ipResult.split('\n').map((line) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                line,
-                style: const TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'monospace'),
+              child: RichText(
+                text: TextSpan(
+                  children: _formatIpLine(line),
+                ),
               ),
             );
           }).toList(),
