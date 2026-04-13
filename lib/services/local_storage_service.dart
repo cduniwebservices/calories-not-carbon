@@ -27,18 +27,21 @@ class ActivitySessionAdapter extends TypeAdapter<ActivitySession> {
       stats: fields[3] as FitnessStats,
       routePoints: (fields[4] as List).cast<LatLng>(),
       waypoints: (fields[5] as List).cast<ActivityWaypoint>(),
-      metadata: Map<String, dynamic>.from(fields[6] as Map),
       isValid: fields[7] as bool? ?? true,
       activityReplaced: fields[8] as String?,
       startWeather: fields[9] as WeatherData?,
       startIpLookup: fields[10] as IpLookupData?,
+      isSynced: fields[11] as bool? ?? false,
+      syncedAt: fields[12] != null ? DateTime.fromMillisecondsSinceEpoch(fields[12] as int) : null,
+      lastSyncAttempt: fields[13] != null ? DateTime.fromMillisecondsSinceEpoch(fields[13] as int) : null,
+      createdAt: fields[14] != null ? DateTime.fromMillisecondsSinceEpoch(fields[14] as int) : null,
     );
   }
 
   @override
   void write(BinaryWriter writer, ActivitySession obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -52,7 +55,7 @@ class ActivitySessionAdapter extends TypeAdapter<ActivitySession> {
       ..writeByte(5)
       ..write(obj.waypoints)
       ..writeByte(6)
-      ..write(obj.metadata)
+      ..write(null) // Was metadata, keeping index for compatibility if needed or just skipping
       ..writeByte(7)
       ..write(obj.isValid)
       ..writeByte(8)
@@ -60,7 +63,15 @@ class ActivitySessionAdapter extends TypeAdapter<ActivitySession> {
       ..writeByte(9)
       ..write(obj.startWeather)
       ..writeByte(10)
-      ..write(obj.startIpLookup);
+      ..write(obj.startIpLookup)
+      ..writeByte(11)
+      ..write(obj.isSynced)
+      ..writeByte(12)
+      ..write(obj.syncedAt?.millisecondsSinceEpoch)
+      ..writeByte(13)
+      ..write(obj.lastSyncAttempt?.millisecondsSinceEpoch)
+      ..writeByte(14)
+      ..write(obj.createdAt?.millisecondsSinceEpoch);
   }
 
   @override
@@ -502,24 +513,25 @@ class LocalStorageService {
   static List<ActivitySession> getPendingSync() {
     return _activityBox.values.where((a) => !_isSynced(a)).toList();
   }
-
-  static Future<void> markAsSynced(String id) async {
-    final activity = getActivity(id);
-    if (activity != null) {
-      try {
-        final updated = activity.copyWith(
-          metadata: {...activity.metadata, 'synced': true, 'synced_at': DateTime.now().toIso8601String()},
-        );
-        await saveActivity(updated);
-        EnterpriseLogger().logInfo('Local DB', 'Activity marked as synced: $id');
-      } catch (e) {
-        EnterpriseLogger().logError('Local DB', 'Failed to mark as synced: $id ($e)', StackTrace.current);
-      }
+static Future<void> markAsSynced(String id) async {
+  final activity = getActivity(id);
+  if (activity != null) {
+    try {
+      final updated = activity.copyWith(
+        isSynced: true,
+        syncedAt: DateTime.now(),
+      );
+      await saveActivity(updated);
+      EnterpriseLogger().logInfo('Local DB', 'Activity marked as synced: $id');
+    } catch (e) {
+      EnterpriseLogger().logError('Local DB', 'Failed to mark as synced: $id ($e)', StackTrace.current);
     }
   }
+}
 
-  static Future<void> deleteActivity(String id) async {
-    await _activityBox.delete(id);
+static bool _isSynced(ActivitySession session) {
+  return session.isSynced;
+}
     EnterpriseLogger().logInfo('Local DB', 'Activity deleted: $id');
   }
 
@@ -547,7 +559,7 @@ class LocalStorageService {
   }
 
   static bool _isSynced(ActivitySession session) {
-    return session.metadata['synced'] == true;
+    return session.isSynced;
   }
 
   // Box access for external use

@@ -506,7 +506,6 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       final q = query.toLowerCase();
       return a.activityType.name.contains(q) ||
              a.state.name.contains(q) ||
-             a.metadata['device_id']?.toLowerCase().contains(q) == true ||
              a.id.contains(q);
     }).toList();
 
@@ -535,25 +534,21 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
   }
 
   Widget _buildActivityTile(ActivitySession session) {
-    final isSynced = session.metadata['synced'] == true;
-    final syncedAt = session.metadata['synced_at'] as String?;
-    final lastAttemptedAt = session.metadata['last_sync_attempt'] as String?;
+    final isSynced = session.isSynced;
+    final syncedAt = session.syncedAt;
+    final lastAttemptedAt = session.lastSyncAttempt;
 
     String syncedTime = '';
     String attemptedTime = '';
 
     if (syncedAt != null) {
-      try {
-        final dt = DateTime.parse(syncedAt).toLocal();
-        syncedTime = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
-      } catch (_) {}
+      final dt = syncedAt.toLocal();
+      syncedTime = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
     }
 
     if (lastAttemptedAt != null) {
-      try {
-        final dt = DateTime.parse(lastAttemptedAt).toLocal();
-        attemptedTime = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
-      } catch (_) {}
+      final dt = lastAttemptedAt.toLocal();
+      attemptedTime = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
     }
 
     return Container(
@@ -1154,7 +1149,6 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       ),
       routePoints: points,
       waypoints: waypoints,
-      metadata: {'device_id': LocalStorageService.getDeviceId(), 'source': 'mock'},
       isValid: true,
       activityReplaced: 'petrol_diesel_car',
       startWeather: mockWeather,
@@ -1196,7 +1190,6 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
         'start_time': session.stats.startTime.toIso8601String(),
         'end_time': session.stats.endTime?.toIso8601String(),
         'route_points': sessionJson['routePoints'],
-        'metadata': session.metadata,
         'created_at': DateTime.now().toIso8601String(),
       });
 

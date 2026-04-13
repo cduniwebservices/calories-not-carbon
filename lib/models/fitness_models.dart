@@ -417,11 +417,14 @@ class ActivitySession {
   final FitnessStats stats;
   final List<LatLng> routePoints;
   final List<ActivityWaypoint> waypoints;
-  final Map<String, dynamic> metadata;
   final bool isValid;
   final String? activityReplaced;
   final WeatherData? startWeather;
   final IpLookupData? startIpLookup;
+  final bool isSynced;
+  final DateTime? createdAt;
+  final DateTime? syncedAt;
+  final DateTime? lastSyncAttempt;
 
   const ActivitySession({
     required this.id,
@@ -430,14 +433,15 @@ class ActivitySession {
     required this.stats,
     this.routePoints = const [],
     this.waypoints = const [],
-    this.metadata = const {},
     this.isValid = true,
     this.activityReplaced,
     this.startWeather,
     this.startIpLookup,
+    this.isSynced = false,
+    this.createdAt,
+    this.syncedAt,
+    this.lastSyncAttempt,
   });
-
-  bool get isSynced => metadata['synced'] == true;
 
   ActivitySession copyWith({
     String? id,
@@ -446,11 +450,14 @@ class ActivitySession {
     FitnessStats? stats,
     List<LatLng>? routePoints,
     List<ActivityWaypoint>? waypoints,
-    Map<String, dynamic>? metadata,
     bool? isValid,
     String? activityReplaced,
     WeatherData? startWeather,
     IpLookupData? startIpLookup,
+    bool? isSynced,
+    DateTime? createdAt,
+    DateTime? syncedAt,
+    DateTime? lastSyncAttempt,
   }) {
     return ActivitySession(
       id: id ?? this.id,
@@ -459,11 +466,14 @@ class ActivitySession {
       stats: stats ?? this.stats,
       routePoints: routePoints ?? this.routePoints,
       waypoints: waypoints ?? this.waypoints,
-      metadata: metadata ?? this.metadata,
       isValid: isValid ?? this.isValid,
       activityReplaced: activityReplaced ?? this.activityReplaced,
       startWeather: startWeather ?? this.startWeather,
       startIpLookup: startIpLookup ?? this.startIpLookup,
+      isSynced: isSynced ?? this.isSynced,
+      createdAt: createdAt ?? this.createdAt,
+      syncedAt: syncedAt ?? this.syncedAt,
+      lastSyncAttempt: lastSyncAttempt ?? this.lastSyncAttempt,
     );
   }
 
@@ -472,7 +482,9 @@ class ActivitySession {
     return {
       'id': id,
       'activityType': activityType.name,
+      'activityReplaced': activityReplaced,
       'state': state.name,
+      'isValid': isValid,
       'totalDistanceMeters': stats.totalDistanceMeters,
       'totalDuration': stats.totalDuration.inMilliseconds,
       'activeDuration': stats.activeDuration.inMilliseconds,
@@ -484,43 +496,46 @@ class ActivitySession {
       'estimatedCalories': stats.estimatedCalories,
       'startTime': stats.startTime.toIso8601String(),
       'endTime': stats.endTime?.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'syncedAt': syncedAt?.toIso8601String(),
       'totalSteps': stats.totalSteps,
       'elevationGain': stats.elevationGain,
-      'isValid': isValid,
-      'activityReplaced': activityReplaced,
-      'startWeather': startWeather?.toJson(),
       'startIpLookup': startIpLookup?.toJson(),
+      'startWeather': startWeather?.toJson(),
       // Store rich waypoints data in the routePoints field for high fidelity
       'routePoints': waypoints.map((wp) => wp.toJson()).toList(),
-      'metadata': metadata,
+      'isSynced': isSynced,
+      'lastSyncAttempt': lastSyncAttempt?.toIso8601String(),
     };
   }
 
   /// Create from JSON
   factory ActivitySession.fromJson(Map<String, dynamic> json) {
-    final rawRoute = json['routePoints'] as List? ?? [];
+    final rawRoute = (json['routePoints'] ?? json['route_points']) as List? ?? [];
     
     // Determine if we have rich waypoint data or just simple coordinates
     List<ActivityWaypoint> parsedWaypoints = [];
     List<LatLng> parsedCoords = [];
 
     if (rawRoute.isNotEmpty) {
-      if (rawRoute.first is Map && rawRoute.first.containsKey('location')) {
+      if (rawRoute.first is Map && (rawRoute.first as Map).containsKey('location')) {
         // High fidelity format (waypoints)
-        parsedWaypoints = rawRoute.map((wp) => ActivityWaypoint.fromJson(wp)).toList();
+        parsedWaypoints = rawRoute.map((wp) => ActivityWaypoint.fromJson(wp as Map<String, dynamic>)).toList();
         parsedCoords = parsedWaypoints.map((wp) => wp.location).toList();
       } else {
         // Legacy/simple format (LatLng only)
         parsedCoords = rawRoute
-            .map((point) => LatLng(point['lat'], point['lng']))
+            .map((point) => LatLng(
+                (point['lat'] ?? point['latitude']) as double,
+                (point['lng'] ?? point['longitude']) as double))
             .toList();
       }
     }
 
     return ActivitySession(
-      id: json['id'],
+      id: json['id'] as String,
       activityType: ActivityType.values.firstWhere(
-        (type) => type.name == json['activityType'],
+        (type) => type.name == (json['activityType'] ?? json['activity_type']),
         orElse: () => ActivityType.running,
       ),
       state: ActivityState.values.firstWhere(
@@ -528,31 +543,45 @@ class ActivitySession {
         orElse: () => ActivityState.completed,
       ),
       stats: FitnessStats(
-        totalDistanceMeters: json['totalDistanceMeters']?.toDouble() ?? 0.0,
-        totalDuration: Duration(milliseconds: json['totalDuration'] ?? 0),
-        activeDuration: Duration(milliseconds: json['activeDuration'] ?? 0),
-        averageSpeedMps: json['averageSpeedMps']?.toDouble() ?? 0.0,
-        currentSpeedMps: json['currentSpeedMps']?.toDouble() ?? 0.0,
-        maxSpeedMps: json['maxSpeedMps']?.toDouble() ?? 0.0,
-        averagePaceSecondsPerKm: json['averagePaceSecondsPerKm']?.toDouble() ?? 0.0,
-        currentPaceSecondsPerKm: json['currentPaceSecondsPerKm']?.toDouble() ?? 0.0,
-        estimatedCalories: json['estimatedCalories'] ?? 0,
-        startTime: DateTime.parse(json['startTime']),
-        endTime: json['endTime'] != null
-            ? DateTime.parse(json['endTime'])
+        totalDistanceMeters: (json['totalDistanceMeters'] ?? json['total_distance_meters'])?.toDouble() ?? 0.0,
+        totalDuration: Duration(milliseconds: json['totalDuration'] ?? json['total_duration_ms'] ?? 0),
+        activeDuration: Duration(milliseconds: json['activeDuration'] ?? json['active_duration_ms'] ?? 0),
+        averageSpeedMps: (json['averageSpeedMps'] ?? json['average_speed_mps'])?.toDouble() ?? 0.0,
+        currentSpeedMps: (json['currentSpeedMps'] ?? json['current_speed_mps'])?.toDouble() ?? 0.0,
+        maxSpeedMps: (json['maxSpeedMps'] ?? json['max_speed_mps'])?.toDouble() ?? 0.0,
+        averagePaceSecondsPerKm: (json['averagePaceSecondsPerKm'] ?? json['average_pace_seconds_per_km'])?.toDouble() ?? 0.0,
+        currentPaceSecondsPerKm: (json['currentPaceSecondsPerKm'] ?? json['current_pace_seconds_per_km'])?.toDouble() ?? 0.0,
+        estimatedCalories: json['estimatedCalories'] ?? json['estimated_calories'] ?? 0,
+        startTime: DateTime.parse((json['startTime'] ?? json['start_time']) as String),
+        endTime: (json['endTime'] ?? json['end_time']) != null
+            ? DateTime.parse((json['endTime'] ?? json['end_time']) as String)
             : null,
-        totalSteps: json['totalSteps'] ?? 0,
-        elevationGain: json['elevationGain']?.toDouble() ?? 0.0,
+        totalSteps: json['totalSteps'] ?? json['total_steps'] ?? 0,
+        elevationGain: (json['elevationGain'] ?? json['elevation_gain'])?.toDouble() ?? 0.0,
       ),
       routePoints: parsedCoords,
       waypoints: parsedWaypoints,
-      metadata: json['metadata'] ?? {},
-      isValid: json['isValid'] ?? true,
-      activityReplaced: json['activityReplaced'],
-      startWeather: json['startWeather'] != null ? WeatherData.fromJson(json['startWeather']) : null,
-      startIpLookup: json['startIpLookup'] != null ? IpLookupData.fromJson(json['startIpLookup']) : null,
+      isValid: json['isValid'] ?? json['is_valid'] ?? true,
+      activityReplaced: json['activityReplaced'] ?? json['activity_replaced'] as String?,
+      startWeather: (json['startWeather'] ?? json['start_weather']) != null 
+          ? WeatherData.fromJson((json['startWeather'] ?? json['start_weather']) as Map<String, dynamic>) 
+          : null,
+      startIpLookup: (json['startIpLookup'] ?? json['start_ip_lookup']) != null 
+          ? IpLookupData.fromJson((json['startIpLookup'] ?? json['start_ip_lookup']) as Map<String, dynamic>) 
+          : null,
+      isSynced: json['isSynced'] ?? json['is_synced'] ?? (json['metadata']?['synced'] == true),
+      createdAt: (json['createdAt'] ?? json['created_at']) != null
+          ? DateTime.parse((json['createdAt'] ?? json['created_at']) as String)
+          : null,
+      syncedAt: (json['syncedAt'] ?? json['synced_at'] ?? json['metadata']?['synced_at']) != null
+          ? DateTime.parse((json['syncedAt'] ?? json['synced_at'] ?? json['metadata']?['synced_at']) as String)
+          : null,
+      lastSyncAttempt: (json['lastSyncAttempt'] ?? json['last_sync_attempt'] ?? json['metadata']?['last_sync_attempt']) != null
+          ? DateTime.parse((json['lastSyncAttempt'] ?? json['last_sync_attempt'] ?? json['metadata']?['last_sync_attempt']) as String)
+          : null,
     );
   }
+}
 }
 
 /// Waypoint model for marking special points during activity
@@ -593,26 +622,42 @@ class ActivityWaypoint {
   }
 
   factory ActivityWaypoint.fromJson(Map<String, dynamic> json) {
+    final locationMap = json['location'] as Map<String, dynamic>;
+    final statsJson = json['statsAtTime'] as Map<String, dynamic>?;
+
     return ActivityWaypoint(
-      location: LatLng(json['location']['lat'], json['location']['lng']),
-      timestamp: DateTime.parse(json['timestamp']),
-      type: json['type'],
-      note: json['note'],
+      location: LatLng(
+        (locationMap['lat'] ?? locationMap['latitude'])?.toDouble() ?? 0.0,
+        (locationMap['lng'] ?? locationMap['longitude'])?.toDouble() ?? 0.0,
+      ),
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      type: json['type'] as String,
+      note: json['note'] as String?,
       altitude: json['altitude']?.toDouble(),
-      statsAtTime: json['statsAtTime'] != null
+      statsAtTime: statsJson != null
           ? FitnessStats(
-              totalDistanceMeters:
-                  json['statsAtTime']['totalDistanceMeters']?.toDouble() ?? 0.0,
+              totalDistanceMeters: (statsJson['totalDistanceMeters'] ??
+                      statsJson['total_distance_meters'])
+                  ?.toDouble() ??
+                  0.0,
               totalDuration: Duration(
-                milliseconds: json['statsAtTime']['totalDuration'] ?? 0,
+                milliseconds: statsJson['totalDuration'] ??
+                    statsJson['total_duration_ms'] ??
+                    0,
               ),
-              averageSpeedMps:
-                  json['statsAtTime']['averageSpeedMps']?.toDouble() ?? 0.0,
-              currentSpeedMps:
-                  json['statsAtTime']['currentSpeedMps']?.toDouble() ?? 0.0,
-              elevationGain:
-                  json['statsAtTime']['elevationGain']?.toDouble() ?? 0.0,
-              startTime: DateTime.parse(json['timestamp']),
+              averageSpeedMps: (statsJson['averageSpeedMps'] ??
+                      statsJson['average_speed_mps'])
+                  ?.toDouble() ??
+                  0.0,
+              currentSpeedMps: (statsJson['currentSpeedMps'] ??
+                      statsJson['current_speed_mps'])
+                  ?.toDouble() ??
+                  0.0,
+              elevationGain: (statsJson['elevationGain'] ??
+                      statsJson['elevation_gain'])
+                  ?.toDouble() ??
+                  0.0,
+              startTime: DateTime.parse(json['timestamp'] as String),
             )
           : null,
     );

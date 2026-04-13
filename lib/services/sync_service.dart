@@ -69,7 +69,7 @@ class SyncService {
 
         // Record the attempt timestamp
         final attemptUpdated = activity.copyWith(
-          metadata: {...activity.metadata, 'last_sync_attempt': DateTime.now().toIso8601String()},
+          lastSyncAttempt: DateTime.now(),
         );
         await LocalStorageService.saveActivity(attemptUpdated);
 
@@ -135,10 +135,9 @@ class SyncService {
         'start_ip_lookup': activity.startIpLookup?.toJson(),
         'start_time': activity.stats.startTime.toIso8601String(),
         'end_time': activity.stats.endTime?.toIso8601String(),
-        'route_points': sessionJson['routePoints'], // Use rich data from model
-        'metadata': activity.metadata,
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': activity.createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
         'synced_at': DateTime.now().toIso8601String(),
+        'route_points': sessionJson['routePoints'], // Use rich data from model
       }).select();
 
       EnterpriseLogger().logInfo('Sync', 'Supabase upload successful for: ${activity.id}');

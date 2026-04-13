@@ -155,6 +155,7 @@ class ActivityController extends ChangeNotifier {
         stats: FitnessStats(startTime: _startTime!),
         isValid: true,
         activityReplaced: activityReplaced,
+        createdAt: DateTime.now(),
       );
 
       // Set initial location
@@ -331,8 +332,8 @@ class ActivityController extends ChangeNotifier {
         _currentSession = _currentSession!.copyWith(
           state: ActivityState.completed,
           stats: _stats,
-          routePoints: _routePoints,
-          waypoints: _waypoints,
+          routePoints: List.from(_routePoints),
+          waypoints: List.from(_waypoints),
           isValid: _isValid,
         );
 

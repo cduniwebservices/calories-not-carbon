@@ -6,25 +6,24 @@ CREATE TABLE IF NOT EXISTS activities (
   id TEXT PRIMARY KEY,
   device_id TEXT NOT NULL,
   activity_type TEXT NOT NULL DEFAULT 'running',
+  activity_replaced TEXT,
   state TEXT NOT NULL DEFAULT 'completed',
+  is_valid BOOLEAN DEFAULT true,
   total_distance_meters DOUBLE PRECISION DEFAULT 0,
   total_duration_ms BIGINT DEFAULT 0,
   active_duration_ms BIGINT DEFAULT 0,
   average_speed_mps DOUBLE PRECISION DEFAULT 0,
   max_speed_mps DOUBLE PRECISION DEFAULT 0,
   estimated_calories INTEGER DEFAULT 0,
-  total_steps INTEGER DEFAULT 0,
-  elevation_gain DOUBLE PRECISION DEFAULT 0,
-  is_valid BOOLEAN DEFAULT true,
-  activity_replaced TEXT,
-  start_weather JSONB,
-  start_ip_lookup JSONB,
   start_time TIMESTAMPTZ NOT NULL,
   end_time TIMESTAMPTZ,
-  route_points JSONB DEFAULT '[]',
-  metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  synced_at TIMESTAMPTZ DEFAULT NOW()
+  synced_at TIMESTAMPTZ DEFAULT NOW(),
+  total_steps INTEGER DEFAULT 0,
+  elevation_gain DOUBLE PRECISION DEFAULT 0,
+  start_ip_lookup JSONB,
+  start_weather JSONB,
+  route_points JSONB DEFAULT '[]'
 );
 
 -- Indexes for common queries
