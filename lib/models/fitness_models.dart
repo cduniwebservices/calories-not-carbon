@@ -582,7 +582,6 @@ class ActivitySession {
     );
   }
 }
-}
 
 /// Waypoint model for marking special points during activity
 class ActivityWaypoint {

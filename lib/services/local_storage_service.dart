@@ -513,25 +513,25 @@ class LocalStorageService {
   static List<ActivitySession> getPendingSync() {
     return _activityBox.values.where((a) => !_isSynced(a)).toList();
   }
-static Future<void> markAsSynced(String id) async {
-  final activity = getActivity(id);
-  if (activity != null) {
-    try {
-      final updated = activity.copyWith(
-        isSynced: true,
-        syncedAt: DateTime.now(),
-      );
-      await saveActivity(updated);
-      EnterpriseLogger().logInfo('Local DB', 'Activity marked as synced: $id');
-    } catch (e) {
-      EnterpriseLogger().logError('Local DB', 'Failed to mark as synced: $id ($e)', StackTrace.current);
+
+  static Future<void> markAsSynced(String id) async {
+    final activity = getActivity(id);
+    if (activity != null) {
+      try {
+        final updated = activity.copyWith(
+          isSynced: true,
+          syncedAt: DateTime.now(),
+        );
+        await saveActivity(updated);
+        EnterpriseLogger().logInfo('Local DB', 'Activity marked as synced: $id');
+      } catch (e) {
+        EnterpriseLogger().logError('Local DB', 'Failed to mark as synced: $id ($e)', StackTrace.current);
+      }
     }
   }
-}
 
-static bool _isSynced(ActivitySession session) {
-  return session.isSynced;
-}
+  static Future<void> deleteActivity(String id) async {
+    await _activityBox.delete(id);
     EnterpriseLogger().logInfo('Local DB', 'Activity deleted: $id');
   }
 
