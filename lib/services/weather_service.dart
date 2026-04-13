@@ -13,7 +13,7 @@ class WeatherService {
   static const String _baseUrl = 'https://api.weatherapi.com/v1';
   
   // Use environment variable for API key
-  final String _apiKey = const String.fromEnvironment('WEATHER_API_KEY');
+  static const String _apiKey = String.fromEnvironment('WEATHER_API_KEY');
 
   /// Fetch current weather for the given coordinates
   Future<WeatherData?> getCurrentWeather(double lat, double lon) async {
@@ -123,7 +123,7 @@ class WeatherService {
       return null;
     }
 
-    final url = Uri.parse('$_baseUrl/ip.json?key=$_apiKey');
+    final url = Uri.parse('$_baseUrl/ip.json?key=$_apiKey&q=auto');
     EnterpriseLogger().logInfo('Weather', 'Performing IP lookup...', metadata: {'url': url.toString().replaceFirst(_apiKey, '***')});
 
     try {
