@@ -546,6 +546,32 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     );
   }
 
+  List<FlSpot> _calculateWMA(List<FlSpot> spots, {int windowSize = 5}) {
+    if (spots.length < windowSize) return List.from(spots);
+    
+    List<FlSpot> smoothed = [];
+    
+    // Weighted moving average: (P1*1 + P2*2 + ... + Pn*n) / (1 + 2 + ... + n)
+    int divisor = 0;
+    for (int i = 1; i <= windowSize; i++) divisor += i;
+    
+    for (int i = 0; i < spots.length; i++) {
+      if (i < windowSize - 1) {
+        smoothed.add(spots[i]);
+        continue;
+      }
+      
+      double sum = 0;
+      for (int j = 0; j < windowSize; j++) {
+        sum += spots[i - (windowSize - 1) + j].y * (j + 1);
+      }
+      
+      smoothed.add(FlSpot(spots[i].x, sum / divisor));
+    }
+    
+    return smoothed;
+  }
+
   Widget _buildChartSection(
     ThemeData theme, 
     String title, 
@@ -557,6 +583,11 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     if (spots.isEmpty) {
       return const SizedBox.shrink();
     }
+
+    final smoothedSpots = _calculateWMA(spots);
+    final secondaryColor = title.toLowerCase().contains('speed') 
+        ? GlobalTheme.statusWarning 
+        : GlobalTheme.primaryAction;
 
     // Calculate interpolated Y for the given currentX
     double currentY = 0;
@@ -571,10 +602,22 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     if (currentX <= spots.first.x) currentY = spots.first.y;
     if (currentX >= spots.last.x) currentY = spots.last.y;
     
-    final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
-    final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
-    final rangeY = (maxY - minY).abs() < 0.001 ? 1.0 : (maxY - minY);
-    final relativeY = (currentY - minY) / rangeY;
+    final dataMinY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
+    final dataMaxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+    final dataRange = (dataMaxY - dataMinY).abs() < 0.001 ? 1.0 : (dataMaxY - dataMinY);
+    
+    // To place data in the middle third, we add one full dataRange worth of padding above and below
+    double minY = dataMinY - dataRange;
+    double maxY = dataMaxY + dataRange;
+
+    // Safety: Speed and Altitude (usually) shouldn't show negative axes in this context unless necessary
+    // For speed specifically, we definitely don't want to go below 0
+    if (title.toLowerCase().contains('speed') && minY < 0) {
+      minY = 0;
+    }
+    
+    final displayRange = (maxY - minY).abs() < 0.001 ? 1.0 : (maxY - minY);
+    final relativeY = (currentY - minY) / displayRange;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -586,13 +629,26 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              // Legend
+              Row(
+                children: [
+                  _buildLegendItem('Raw', color),
+                  const SizedBox(width: 12),
+                  _buildLegendItem('Smoothed', secondaryColor),
+                ],
+              ),
+            ],
           ),
           const SizedBox(height: 20),
           LayoutBuilder(
@@ -637,10 +693,20 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                         maxY: maxY,
                         borderData: FlBorderData(show: false),
                         lineBarsData: [
+                          // Raw Data Line
                           LineChartBarData(
                             spots: spots,
                             isCurved: true,
-                            color: color,
+                            color: color.withOpacity(0.4),
+                            barWidth: 2,
+                            isStrokeCapRound: true,
+                            dotData: const FlDotData(show: false),
+                          ),
+                          // Smoothed WMA Line
+                          LineChartBarData(
+                            spots: smoothedSpots,
+                            isCurved: true,
+                            color: secondaryColor,
                             barWidth: 3,
                             isStrokeCapRound: true,
                             dotData: const FlDotData(show: false),
@@ -650,8 +716,8 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                                 colors: [
-                                  color.withOpacity(0.3),
-                                  color.withOpacity(0.0),
+                                  secondaryColor.withOpacity(0.3),
+                                  secondaryColor.withOpacity(0.0),
                                 ],
                               ),
                             ),
@@ -668,11 +734,11 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                     bottom: 0,
                     child: Container(
                       width: 2,
-                      color: color.withOpacity(0.5),
+                      color: Colors.white.withOpacity(0.5),
                     ),
                   ),
                   
-                  // Dot on the scrubber line - smoothly follows the curve
+                  // Dot on the scrubber line
                   Positioned(
                     left: dotLeft - 6,
                     top: dotTop - 6,
@@ -698,6 +764,30 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildLegendItem(String label, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.5),
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 
@@ -733,7 +823,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
             children: [
               const Icon(Icons.terrain, size: 14, color: GlobalTheme.primaryNeon),
               Text(
-                '${stats.elevationGain.toStringAsFixed(1)} m',
+                '${stats.altitude.toStringAsFixed(1)} m',
                 style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold),
               ),
             ],

@@ -95,6 +95,7 @@ class FitnessStats {
   final DateTime? endTime;
   final int totalSteps;
   final double elevationGain;
+  final double altitude;
 
   const FitnessStats({
     this.totalDistanceMeters = 0.0,
@@ -110,6 +111,7 @@ class FitnessStats {
     this.endTime,
     this.totalSteps = 0,
     this.elevationGain = 0.0,
+    this.altitude = 0.0,
   });
 
   FitnessStats copyWith({
@@ -126,6 +128,7 @@ class FitnessStats {
     DateTime? endTime,
     int? totalSteps,
     double? elevationGain,
+    double? altitude,
   }) {
     return FitnessStats(
       totalDistanceMeters: totalDistanceMeters ?? this.totalDistanceMeters,
@@ -143,6 +146,7 @@ class FitnessStats {
       endTime: endTime ?? this.endTime,
       totalSteps: totalSteps ?? this.totalSteps,
       elevationGain: elevationGain ?? this.elevationGain,
+      altitude: altitude ?? this.altitude,
     );
   }
 

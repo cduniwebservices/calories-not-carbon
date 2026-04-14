@@ -117,13 +117,14 @@ class FitnessStatsAdapter extends TypeAdapter<FitnessStats> {
           : null,
       totalSteps: fields[11] as int,
       elevationGain: fields[12] as double,
+      altitude: fields[13] as double? ?? 0.0,
     );
   }
 
   @override
   void write(BinaryWriter writer, FitnessStats obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.totalDistanceMeters)
       ..writeByte(1)
@@ -149,7 +150,9 @@ class FitnessStatsAdapter extends TypeAdapter<FitnessStats> {
       ..writeByte(11)
       ..write(obj.totalSteps)
       ..writeByte(12)
-      ..write(obj.elevationGain);
+      ..write(obj.elevationGain)
+      ..writeByte(13)
+      ..write(obj.altitude);
   }
 
   @override

@@ -658,6 +658,7 @@ void _onLocationUpdate(dynamic locationData) {
       endTime: _state == ActivityState.completed ? now : null,
       totalSteps: displaySteps,
       elevationGain: _totalElevationGain,
+      altitude: _lastAltitude ?? 0.0,
     );
 
     notifyListeners();
@@ -694,6 +695,7 @@ void _onLocationUpdate(dynamic locationData) {
       endTime: endTime,
       totalSteps: displaySteps,
       elevationGain: _totalElevationGain,
+      altitude: _lastAltitude ?? 0.0,
     );
   }
 
