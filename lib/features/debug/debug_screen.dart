@@ -820,13 +820,13 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
           _buildMockRouteButton(
             icon: Icons.directions_walk,
-            label: 'Generate Walk Route (2km)',
+            label: 'Generate 2km Walk (<6 km/h)',
             color: Colors.blue,
             onTap: () => _generateMockRoute('walking', 2000),
           ),
           const SizedBox(height: 4),
           const Text(
-            'CO₂ footprint: 0.027 kg/km',
+            'CO₂ footprint: 0.027 kg/km • Speed: 1.4 m/s (5.0 km/h) • Step: ~0.8m',
             style: TextStyle(color: Colors.grey, fontSize: 11),
             textAlign: TextAlign.center,
           ),
@@ -834,13 +834,13 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
           _buildMockRouteButton(
             icon: Icons.directions_run,
-            label: 'Generate Activity Route (5km)',
+            label: 'Generate 5km Run (>6 km/h and <18 km/h)',
             color: Colors.green,
             onTap: () => _generateMockRoute('running', 5000),
           ),
           const SizedBox(height: 4),
           const Text(
-            'CO₂ footprint: 0.033 kg/km',
+            'CO₂ footprint: 0.033 kg/km • Speed: 3.0 m/s (10.8 km/h) • Step: ~1.2m',
             style: TextStyle(color: Colors.grey, fontSize: 11),
             textAlign: TextAlign.center,
           ),
@@ -848,13 +848,13 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
 
           _buildMockRouteButton(
             icon: Icons.directions_bike,
-            label: 'Generate Cycle Route (15km)',
+            label: 'Generate 15km Bike Ride (>18 km/h)',
             color: Colors.orange,
             onTap: () => _generateMockRoute('cycling', 15000),
           ),
           const SizedBox(height: 4),
           const Text(
-            'CO₂ footprint: 0.022 kg/km',
+            'CO₂ footprint: 0.022 kg/km • Speed: 6.0 m/s (21.6 km/h) • Step: 0',
             style: TextStyle(color: Colors.grey, fontSize: 11),
             textAlign: TextAlign.center,
           ),

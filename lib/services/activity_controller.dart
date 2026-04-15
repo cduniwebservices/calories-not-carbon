@@ -34,6 +34,7 @@ class ActivityController extends ChangeNotifier {
   DateTime? _startTime;
   DateTime? _pauseTime;
   Duration _pausedDuration = Duration.zero;
+  Duration _movingDuration = Duration.zero;
 
   // Real-time calculations
   Timer? _statsUpdateTimer;
@@ -47,7 +48,6 @@ class ActivityController extends ChangeNotifier {
   int _currentStepCount = 0;
   double _totalElevationGain = 0.0;
   double? _lastAltitude;
-  Duration _stationaryDuration = Duration.zero;
 
   // Validation metrics
   int _invalidDataPoints = 0;
@@ -56,13 +56,14 @@ class ActivityController extends ChangeNotifier {
   // Performance tracking
   static const Duration _statsUpdateInterval = Duration(seconds: 1);
   static const double _minimumDistanceThreshold = 2.0; // meters
-  static const double _minimumSpeedThreshold = 0.5; // m/s (walking pace)
+  static const double _minimumSpeedThreshold = 0.5; // m/s (discard speeds below this)
   static const int _speedHistoryLimit = 60; // 1 minute of history
   
   // Validation Thresholds
-  static const double _maxRunningSpeedMps = 12.0; // ~43 km/h (Bolt speed)
-  static const double _maxWalkingSpeedMps = 5.0;  // ~18 km/h
-  static const double _minCadenceForRunning = 0.5; // steps per second
+  static const double _maxRunningSpeedMps = 5.0;  // 18 km/h
+  static const double _maxWalkingSpeedMps = 1.66; // 6 km/h
+  static const int _speedAutoDetectThresholdKmhWalking = 6;
+  static const int _speedAutoDetectThresholdKmhRunning = 18;
 
   // Getters
   ActivitySession? get currentSession => _currentSession;
@@ -107,7 +108,7 @@ class ActivityController extends ChangeNotifier {
 
     try {
       debugPrint(
-        '🚀 ActivityController: Starting ${type.displayName} activity (Replaced: $activityReplaced)...',
+        '🚀 ActivityController: Starting activity (Alternative Transport: $activityReplaced)...',
       );
 
       // Ensure GPS is ready with timeout and retries
@@ -143,7 +144,7 @@ class ActivityController extends ChangeNotifier {
       _fetchStartWeather(location.latitude, location.longitude);
       _fetchStartIpLookup();
 
-      // Set activity type and start time
+      // Set initial activity type and start time
       _activityType = type;
       _startTime = DateTime.now();
       _state = ActivityState.running;
@@ -328,6 +329,7 @@ class ActivityController extends ChangeNotifier {
       // Update session with final data
       if (_currentSession != null) {
         _currentSession = _currentSession!.copyWith(
+          activityType: _activityType,
           state: ActivityState.completed,
           stats: _stats,
           routePoints: List.from(_routePoints),
@@ -398,6 +400,7 @@ class ActivityController extends ChangeNotifier {
     _startTime = null;
     _pauseTime = null;
     _pausedDuration = Duration.zero;
+    _movingDuration = Duration.zero;
     _totalDistance = 0.0;
     _currentSpeed = 0.0;
     _maxSpeed = 0.0;
@@ -406,7 +409,6 @@ class ActivityController extends ChangeNotifier {
     _currentStepCount = 0;
     _totalElevationGain = 0.0;
     _lastAltitude = null;
-    _stationaryDuration = Duration.zero;
     _stats = FitnessStats(startTime: DateTime.now());
     _isValid = true;
     _invalidDataPoints = 0;
@@ -450,9 +452,6 @@ class ActivityController extends ChangeNotifier {
     _statsUpdateTimer?.cancel();
     _statsUpdateTimer = Timer.periodic(_statsUpdateInterval, (_) {
       if (_state == ActivityState.running) {
-        if (_currentSpeed < _minimumSpeedThreshold) {
-          _stationaryDuration += _statsUpdateInterval;
-        }
         _updateStats();
       }
     });
@@ -467,134 +466,116 @@ class ActivityController extends ChangeNotifier {
     debugPrint('👣 ActivityController: Hardware steps: $_currentStepCount');
   }
 
-void _onLocationUpdate(dynamic locationData) {
-  if (_state != ActivityState.running) {
-    debugPrint('🏃 ActivityController: Ignoring update - not in running state (Current: $_state)');
-    return;
-  }
+  void _onLocationUpdate(dynamic locationData) {
+    if (_state != ActivityState.running) return;
 
-  try {
-    final newLocation = LatLng(locationData.latitude, locationData.longitude);
-    final timestamp = DateTime.now();
+    try {
+      final newLocation = LatLng(locationData.latitude, locationData.longitude);
+      final timestamp = DateTime.now();
+      final lastTime = _getLastLocationTime();
+      final timeDiff = timestamp.difference(lastTime);
 
-    debugPrint('📡 ActivityController: Processing update: ${newLocation.latitude}, ${newLocation.longitude}');
-
-    // Calculate distance increment
-    if (_lastKnownLocation != null) {
-      final distance = Geolocator.distanceBetween(
-        _lastKnownLocation!.latitude,
-        _lastKnownLocation!.longitude,
-        newLocation.latitude,
-        newLocation.longitude,
-      );
-
-      debugPrint('📏 ActivityController: Distance from last: ${distance.toStringAsFixed(2)}m (Threshold: $_minimumDistanceThreshold\m)');
-
-      // Only process if movement is significant
-      if (distance >= _minimumDistanceThreshold) {
-        debugPrint('✅ ActivityController: Movement significant, updating stats');
-        _totalDistance += distance;
-        _routePoints.add(newLocation);
-
-        // Update current speed from GPS if available
-        if (locationData.speed != null && locationData.speed > 0) {
-          _currentSpeed = locationData.speed;
-        } else {
-          // Calculate speed from distance and time
-          final timeDiff = timestamp
-              .difference(_getLastLocationTime())
-              .inMilliseconds;
-          if (timeDiff > 0) {
-            _currentSpeed = (distance / (timeDiff / 1000.0)); // m/s
-          }
-        }
-
-        // VALIDATION: Cadence and Speed check
-        _validateDataPoint(distance, _currentSpeed);
-
-        // Update max speed
-        if (_currentSpeed > _maxSpeed) {
-          _maxSpeed = _currentSpeed;
-        }
-
-        // Update speed history for averaging
-        _speedHistory.add(_currentSpeed);
-        if (_speedHistory.length > _speedHistoryLimit) {
-          _speedHistory.removeAt(0);
-        }
-
-        // Track elevation changes
-        final currentAlt = locationData.geoidHeight ?? locationData.altitude;
-        if (currentAlt != null) {
-          if (_lastAltitude != null) {
-            final elevationChange = currentAlt - _lastAltitude!;
-            if (elevationChange > 0) {
-              _totalElevationGain += elevationChange;
-            }
-          }
-          _lastAltitude = currentAlt;
-        }
-
-        _lastKnownLocation = newLocation;
-
-        // Update stats immediately for responsive UI
-        _updateStats();
-
-        // RECORD POINT-IN-TIME DATA for historical graphs
-        _waypoints.add(
-          ActivityWaypoint(
-            location: newLocation,
-            timestamp: timestamp,
-            type: 'track_point',
-            statsAtTime: _stats,
-            altitude: currentAlt,
-          ),
+      if (_lastKnownLocation != null) {
+        final distance = Geolocator.distanceBetween(
+          _lastKnownLocation!.latitude,
+          _lastKnownLocation!.longitude,
+          newLocation.latitude,
+          newLocation.longitude,
         );
-      } else {
-        // STATIONARY LOGIC
-        debugPrint('🛑 ActivityController: Movement below threshold, setting speed to 0');
-        _currentSpeed = 0.0;
 
-        // Still add a waypoint if the last one was a moving point or long ago
-        // Use currentAlt for altitude
-        final currentAlt = locationData.geoidHeight ?? locationData.altitude;
-        if (_waypoints.isEmpty || _waypoints.last.type != 'stationary' || 
-            timestamp.difference(_waypoints.last.timestamp).inSeconds > 30) {
+        // Calculate instantaneous speed
+        double instantSpeed = 0.0;
+        if (locationData.speed != null && locationData.speed > 0) {
+          instantSpeed = locationData.speed;
+        } else if (timeDiff.inMilliseconds > 0) {
+          instantSpeed = distance / (timeDiff.inMilliseconds / 1000.0);
+        }
+
+        // Only process if movement is significant AND above speed threshold (discarding 0/low speeds)
+        if (distance >= _minimumDistanceThreshold && instantSpeed >= _minimumSpeedThreshold) {
+          _totalDistance += distance;
+          _movingDuration += timeDiff;
+          _currentSpeed = instantSpeed;
+          _routePoints.add(newLocation);
+
+          // VALIDATION: Cadence and Speed check
+          _validateDataPoint(distance, _currentSpeed);
+
+          // Update max speed
+          if (_currentSpeed > _maxSpeed) {
+            _maxSpeed = _currentSpeed;
+          }
+
+          // Update speed history
+          _speedHistory.add(_currentSpeed);
+          if (_speedHistory.length > _speedHistoryLimit) {
+            _speedHistory.removeAt(0);
+          }
+
+          // Track elevation
+          final currentAlt = locationData.geoidHeight ?? locationData.altitude;
+          if (currentAlt != null) {
+            if (_lastAltitude != null) {
+              final elevationChange = currentAlt - _lastAltitude!;
+              if (elevationChange > 0) {
+                _totalElevationGain += elevationChange;
+              }
+            }
+            _lastAltitude = currentAlt;
+          }
+
+          _lastKnownLocation = newLocation;
+
+          // Update stats immediately for responsive UI
+          _updateStats();
+
+          // Record waypoint
           _waypoints.add(
             ActivityWaypoint(
               location: newLocation,
               timestamp: timestamp,
-              type: 'stationary',
+              type: 'track_point',
               statsAtTime: _stats,
               altitude: currentAlt,
             ),
           );
+        } else {
+          // STATIONARY
+          _currentSpeed = 0.0;
+
+          final currentAlt = locationData.geoidHeight ?? locationData.altitude;
+          if (_waypoints.isEmpty || _waypoints.last.type != 'stationary' || 
+              timestamp.difference(_waypoints.last.timestamp).inSeconds > 5) {
+            _waypoints.add(
+              ActivityWaypoint(
+                location: newLocation,
+                timestamp: timestamp,
+                type: 'stationary',
+                statsAtTime: _stats,
+                altitude: currentAlt,
+              ),
+            );
+          }
         }
-      }
-      }
- else {
-      // First location
-      _lastKnownLocation = newLocation;
-      _routePoints.add(newLocation);
-      final currentAlt = locationData.geoidHeight ?? locationData.altitude;
-      if (currentAlt != null) {
+      } else {
+        // First location
+        _lastKnownLocation = newLocation;
+        _routePoints.add(newLocation);
+        final currentAlt = locationData.geoidHeight ?? locationData.altitude;
         _lastAltitude = currentAlt;
+        
+        _updateStats();
+        
+        _waypoints.add(
+          ActivityWaypoint(
+            location: newLocation,
+            timestamp: timestamp,
+            type: 'start_point',
+            statsAtTime: _stats,
+            altitude: currentAlt,
+          ),
+        );
       }
-      
-      // Update stats for first point
-      _updateStats();
-      
-      // Record initial waypoint with stats
-      _waypoints.add(
-        ActivityWaypoint(
-          location: newLocation,
-          timestamp: timestamp,
-          type: 'start_point',
-          statsAtTime: _stats,
-          altitude: currentAlt,
-        ),
-      );
-    }
     } catch (e) {
       debugPrint('❌ ActivityController: Error processing location update: $e');
     }
@@ -602,44 +583,37 @@ void _onLocationUpdate(dynamic locationData) {
 
   void _validateDataPoint(double distanceMeters, double speedMps) {
     _totalDataPoints++;
-    
     bool isPointValid = true;
     
-    // Check for impossible speeds
     if (_activityType == ActivityType.running && speedMps > _maxRunningSpeedMps) {
       isPointValid = false;
-      debugPrint('🚩 Validation: Impossible running speed: ${speedMps.toStringAsFixed(1)} m/s');
     } else if (_activityType == ActivityType.walking && speedMps > _maxWalkingSpeedMps) {
       isPointValid = false;
-      debugPrint('🚩 Validation: Impossible walking speed: ${speedMps.toStringAsFixed(1)} m/s');
     }
     
-    // Check for cadence (steps relative to movement)
-    // Only check if we've been moving for a while
     if (_totalDistance > 50 && _currentStepCount < 10 && speedMps > 3.0) {
       isPointValid = false;
-      debugPrint('🚩 Validation: Movement detected but no steps recorded (Potential vehicle)');
     }
     
-    if (!isPointValid) {
-      _invalidDataPoints++;
-    }
+    if (!isPointValid) _invalidDataPoints++;
   }
 
   void _performFinalValidation() {
-    // If more than 20% of data points are suspicious, mark whole activity invalid
     if (_totalDataPoints > 0) {
       final invalidRatio = _invalidDataPoints / _totalDataPoints;
-      if (invalidRatio > 0.20) {
-        _isValid = false;
-        debugPrint('🚫 Final Validation: Activity marked INVALID (${(invalidRatio * 100).toStringAsFixed(1)}% suspicious data)');
-      }
+      if (invalidRatio > 0.20) _isValid = false;
     }
-    
-    // Check total duration vs distance (Global sanity check)
-    if (_totalDistance > 500 && _stats.activeDuration.inMinutes < 2) {
-      _isValid = false;
-      debugPrint('🚫 Final Validation: Activity too short for distance');
+    if (_totalDistance > 500 && _stats.activeDuration.inMinutes < 2) _isValid = false;
+  }
+
+  void _updateActivityTypeFromSpeed(double speedMps) {
+    double speedKmh = speedMps * 3.6;
+    if (speedKmh < _speedAutoDetectThresholdKmhWalking) {
+      _activityType = ActivityType.walking;
+    } else if (speedKmh < _speedAutoDetectThresholdKmhRunning) {
+      _activityType = ActivityType.running;
+    } else {
+      _activityType = ActivityType.cycling;
     }
   }
 
@@ -648,27 +622,28 @@ void _onLocationUpdate(dynamic locationData) {
 
     final now = DateTime.now();
     final totalDuration = now.difference(_startTime!);
-    final activeDuration = totalDuration - _pausedDuration - _stationaryDuration;
+    
+    // Discard stationary/pause time for average speed and activity detection
+    final activeDuration = _movingDuration;
 
-    // Calculate average speed (only when moving)
     final averageSpeed = activeDuration.inSeconds > 0
         ? _totalDistance / activeDuration.inSeconds
         : 0.0;
 
-    // Calculate paces (seconds per kilometer)
+    // Auto-detect activity type based on moving average speed
+    _updateActivityTypeFromSpeed(averageSpeed);
+
     final averagePace = averageSpeed > 0 ? 1000.0 / averageSpeed : 0.0;
     final currentPace = _currentSpeed > _minimumSpeedThreshold
         ? 1000.0 / _currentSpeed
         : 0.0;
 
-    // Estimate calories burned
     final calories = _calculateCalories(
       activeDuration,
       _totalDistance,
       _activityType,
     );
     
-    // Use hardware steps if available, otherwise fall back to estimation for legacy support
     final displaySteps = _currentStepCount > 0 
         ? _currentStepCount 
         : _estimateSteps(_totalDistance, _activityType);
@@ -695,23 +670,17 @@ void _onLocationUpdate(dynamic locationData) {
 
   void _updateFinalStats(DateTime endTime) {
     final totalDuration = endTime.difference(_startTime!);
-    final activeDuration = totalDuration - _pausedDuration - _stationaryDuration;
+    final activeDuration = _movingDuration;
 
     final averageSpeed = activeDuration.inSeconds > 0
         ? _totalDistance / activeDuration.inSeconds
         : 0.0;
 
-    final averagePace = averageSpeed > 0 ? 1000.0 / averageSpeed : 0.0;
+    _updateActivityTypeFromSpeed(averageSpeed);
 
-    final calories = _calculateCalories(
-      activeDuration,
-      _totalDistance,
-      _activityType,
-    );
-    
-    final displaySteps = _currentStepCount > 0 
-        ? _currentStepCount 
-        : _estimateSteps(_totalDistance, _activityType);
+    final averagePace = averageSpeed > 0 ? 1000.0 / averageSpeed : 0.0;
+    final calories = _calculateCalories(activeDuration, _totalDistance, _activityType);
+    final displaySteps = _currentStepCount;
 
     _stats = _stats.copyWith(
       totalDistanceMeters: _totalDistance,
@@ -734,33 +703,20 @@ void _onLocationUpdate(dynamic locationData) {
         : _startTime ?? DateTime.now();
   }
 
-  int _calculateCalories(
-    Duration activeDuration,
-    double distanceMeters,
-    ActivityType activityType,
-  ) {
+  int _calculateCalories(Duration activeDuration, double distanceMeters, ActivityType activityType) {
     if (activeDuration.inMinutes <= 0) return 0;
-
-    // Basic calorie calculation: METs × weight (kg) × time (hours)
-    // Using average weight of 70kg for estimation
     const averageWeightKg = 70.0;
     final timeHours = activeDuration.inMilliseconds / (1000 * 60 * 60);
     final mets = activityType.averageMets;
-
     return (mets * averageWeightKg * timeHours).round();
   }
 
   int _estimateSteps(double distanceMeters, ActivityType activityType) {
-    // Very basic step estimation based on activity type
     switch (activityType) {
-      case ActivityType.running:
-        return (distanceMeters / 1.2).round(); // ~1.2m per running step
-      case ActivityType.walking:
-        return (distanceMeters / 0.8).round(); // ~0.8m per walking step
-      case ActivityType.hiking:
-        return (distanceMeters / 0.7).round(); // ~0.7m per hiking step
-      case ActivityType.cycling:
-        return 0; // No steps for cycling
+      case ActivityType.running: return (distanceMeters / 1.2).round();
+      case ActivityType.walking: return (distanceMeters / 0.8).round();
+      case ActivityType.hiking: return (distanceMeters / 0.7).round();
+      default: return 0;
     }
   }
 

@@ -60,6 +60,11 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
   }
 
   Future<void> _initializeActivityController() async {
+        _selectedActivityType = ActivityType.running;
+      } else {
+        _selectedActivityType = ActivityType.walking;
+      }
+    }
     try {
       final actions = ref.read(activityActionsProvider);
       await actions.initialize();
@@ -455,7 +460,7 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
   IconData _getActivityIconFromSpeed(double speedKmh) {
     if (speedKmh < 6.0) {
       return Icons.directions_walk;
-    } else if (speedKmh < 20.0) {
+    } else if (speedKmh < 18.0) {
       return Icons.directions_run;
     } else {
       return Icons.directions_bike;
