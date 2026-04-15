@@ -47,6 +47,7 @@ class ActivityController extends ChangeNotifier {
   int _currentStepCount = 0;
   double _totalElevationGain = 0.0;
   double? _lastAltitude;
+  Duration _stationaryDuration = Duration.zero;
 
   // Validation metrics
   int _invalidDataPoints = 0;
@@ -161,6 +162,7 @@ class ActivityController extends ChangeNotifier {
       // Set initial location
       _lastKnownLocation = LatLng(location.latitude, location.longitude);
       _routePoints.add(_lastKnownLocation!);
+      _lastAltitude = location.geoidHeight ?? location.altitude;
 
       // Add start waypoint
       _waypoints.add(
@@ -168,7 +170,7 @@ class ActivityController extends ChangeNotifier {
           location: _lastKnownLocation!,
           timestamp: _startTime!,
           type: 'start',
-          altitude: location.altitude,
+          altitude: location.geoidHeight ?? location.altitude,
         ),
       );
 
@@ -404,6 +406,7 @@ class ActivityController extends ChangeNotifier {
     _currentStepCount = 0;
     _totalElevationGain = 0.0;
     _lastAltitude = null;
+    _stationaryDuration = Duration.zero;
     _stats = FitnessStats(startTime: DateTime.now());
     _isValid = true;
     _invalidDataPoints = 0;
@@ -447,6 +450,9 @@ class ActivityController extends ChangeNotifier {
     _statsUpdateTimer?.cancel();
     _statsUpdateTimer = Timer.periodic(_statsUpdateInterval, (_) {
       if (_state == ActivityState.running) {
+        if (_currentSpeed < _minimumSpeedThreshold) {
+          _stationaryDuration += _statsUpdateInterval;
+        }
         _updateStats();
       }
     });
@@ -518,14 +524,15 @@ void _onLocationUpdate(dynamic locationData) {
         }
 
         // Track elevation changes
-        if (locationData.altitude != null) {
+        final currentAlt = locationData.geoidHeight ?? locationData.altitude;
+        if (currentAlt != null) {
           if (_lastAltitude != null) {
-            final elevationChange = locationData.altitude - _lastAltitude!;
+            final elevationChange = currentAlt - _lastAltitude!;
             if (elevationChange > 0) {
               _totalElevationGain += elevationChange;
             }
           }
-          _lastAltitude = locationData.altitude;
+          _lastAltitude = currentAlt;
         }
 
         _lastKnownLocation = newLocation;
@@ -540,16 +547,38 @@ void _onLocationUpdate(dynamic locationData) {
             timestamp: timestamp,
             type: 'track_point',
             statsAtTime: _stats,
-            altitude: locationData.altitude,
+            altitude: currentAlt,
           ),
         );
+      } else {
+        // STATIONARY LOGIC
+        debugPrint('🛑 ActivityController: Movement below threshold, setting speed to 0');
+        _currentSpeed = 0.0;
+
+        // Still add a waypoint if the last one was a moving point or long ago
+        // Use currentAlt for altitude
+        final currentAlt = locationData.geoidHeight ?? locationData.altitude;
+        if (_waypoints.isEmpty || _waypoints.last.type != 'stationary' || 
+            timestamp.difference(_waypoints.last.timestamp).inSeconds > 30) {
+          _waypoints.add(
+            ActivityWaypoint(
+              location: newLocation,
+              timestamp: timestamp,
+              type: 'stationary',
+              statsAtTime: _stats,
+              altitude: currentAlt,
+            ),
+          );
+        }
       }
-    } else {
+      }
+ else {
       // First location
       _lastKnownLocation = newLocation;
       _routePoints.add(newLocation);
-      if (locationData.altitude != null) {
-        _lastAltitude = locationData.altitude;
+      final currentAlt = locationData.geoidHeight ?? locationData.altitude;
+      if (currentAlt != null) {
+        _lastAltitude = currentAlt;
       }
       
       // Update stats for first point
@@ -562,7 +591,7 @@ void _onLocationUpdate(dynamic locationData) {
           timestamp: timestamp,
           type: 'start_point',
           statsAtTime: _stats,
-          altitude: locationData.altitude,
+          altitude: currentAlt,
         ),
       );
     }
@@ -619,7 +648,7 @@ void _onLocationUpdate(dynamic locationData) {
 
     final now = DateTime.now();
     final totalDuration = now.difference(_startTime!);
-    final activeDuration = totalDuration - _pausedDuration;
+    final activeDuration = totalDuration - _pausedDuration - _stationaryDuration;
 
     // Calculate average speed (only when moving)
     final averageSpeed = activeDuration.inSeconds > 0
@@ -666,7 +695,7 @@ void _onLocationUpdate(dynamic locationData) {
 
   void _updateFinalStats(DateTime endTime) {
     final totalDuration = endTime.difference(_startTime!);
-    final activeDuration = totalDuration - _pausedDuration;
+    final activeDuration = totalDuration - _pausedDuration - _stationaryDuration;
 
     final averageSpeed = activeDuration.inSeconds > 0
         ? _totalDistance / activeDuration.inSeconds

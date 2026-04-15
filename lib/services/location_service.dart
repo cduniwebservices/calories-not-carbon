@@ -4,12 +4,16 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'background_location_service.dart';
+import 'geoid_service.dart';
 
 /// Enterprise-level location service for million-dollar app quality
 class LocationService {
   static final LocationService _instance = LocationService._internal();
   factory LocationService() => _instance;
   LocationService._internal();
+
+  // Geoid service for altitude conversion
+  final GeoidService _geoidService = GeoidService();
 
   // Stream controllers for real-time location updates
   final StreamController<LocationData> _locationController =
@@ -47,6 +51,9 @@ class LocationService {
       debugPrint(
         '🌍 LocationService: Initializing enterprise location service...',
       );
+
+      // Initialize geoid service
+      await _geoidService.initialize();
 
       // Initialize background service
       await _backgroundService.initialize();
@@ -297,11 +304,21 @@ class LocationService {
     if (message is Map<String, dynamic>) {
       if (message['type'] == 'location') {
         try {
+          final lat = message['latitude'] as double;
+          final lon = message['longitude'] as double;
+          final alt = message['altitude'] as double?;
+          
+          double? geoidHeight;
+          if (alt != null) {
+            geoidHeight = _geoidService.getOrthometricHeight(alt, lat, lon);
+          }
+
           final locationData = LocationData(
-            latitude: message['latitude'] as double,
-            longitude: message['longitude'] as double,
+            latitude: lat,
+            longitude: lon,
             accuracy: message['accuracy'] as double,
-            altitude: message['altitude'] as double?,
+            altitude: alt,
+            geoidHeight: geoidHeight,
             heading: message['heading'] as double?,
             speed: message['speed'] as double?,
             timestamp: DateTime.parse(message['timestamp'] as String),
@@ -401,7 +418,8 @@ class LocationData {
   final double latitude;
   final double longitude;
   final double accuracy;
-  final double? altitude;
+  final double? altitude; // Ellipsoidal height
+  final double? geoidHeight; // Orthometric height (MSL)
   final double? heading;
   final double? speed;
   final DateTime timestamp;
@@ -411,17 +429,29 @@ class LocationData {
     required this.longitude,
     required this.accuracy,
     this.altitude,
+    this.geoidHeight,
     this.heading,
     this.speed,
     required this.timestamp,
   });
 
   factory LocationData.fromPosition(Position position) {
+    final geoidService = GeoidService();
+    double? gHeight;
+    if (position.altitude != 0) {
+      gHeight = geoidService.getOrthometricHeight(
+        position.altitude,
+        position.latitude,
+        position.longitude,
+      );
+    }
+
     return LocationData(
       latitude: position.latitude,
       longitude: position.longitude,
       accuracy: position.accuracy,
       altitude: position.altitude,
+      geoidHeight: gHeight,
       heading: position.heading,
       speed: position.speed,
       timestamp: position.timestamp,
