@@ -794,6 +794,7 @@ class StatsDisplay extends ConsumerWidget {
   final ActivityState state;
   final ActivityType activityType;
   final Color accentColor;
+  final ActivitySession? session;
 
   const StatsDisplay({
     super.key,
@@ -801,13 +802,15 @@ class StatsDisplay extends ConsumerWidget {
     required this.state,
     required this.activityType,
     required this.accentColor,
+    this.session,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final goalState = ref.watch(goalProvider);
-    final session = ref.watch(currentActivitySessionProvider);
+    final currentSession = ref.watch(currentActivitySessionProvider);
+    final displaySession = session ?? currentSession;
     
     // Provide a fallback goal if none is selected
     final selectedGoal = goalState.selectedGoal ?? (goalState.goals.isNotEmpty ? goalState.goals.first : const Goal(
@@ -846,7 +849,6 @@ class StatsDisplay extends ConsumerWidget {
         activityFootprintPerKm = 0.022;
         break;
       case ActivityType.hiking:
-        // Hiking is similar to walking but with higher intensity
         activityFootprintPerKm = 0.030;
         break;
     }
@@ -894,31 +896,31 @@ class StatsDisplay extends ConsumerWidget {
         _buildFixedTwoColumnGrid(context, [
           _buildHalfWidthStat(theme, 'MAX SPEED (km/h)', (stats.maxSpeedMps * 3.6).toStringAsFixed(1), Icons.speed),
           _buildHalfWidthStat(theme, 'ELEVATION (m)', stats.elevationGain.toStringAsFixed(0), Icons.terrain_outlined),
-          _buildHalfWidthStat(theme, 'TIME MOVING', stats.formattedActiveDuration, Icons.directions_walk),
-          _buildHalfWidthStat(theme, 'TIME STATIONARY', _formatDuration(stats.totalDuration - stats.activeDuration), Icons.pause_circle_outline),
+          _buildHalfWidthStat(theme, 'TIME MOVING', _formatDuration(stats.movingDuration), Icons.directions_walk),
+          _buildHalfWidthStat(theme, 'TIME STATIONARY', _formatDuration(stats.activeDuration - stats.movingDuration), Icons.pause_circle_outline),
         ]),
 
         const SizedBox(height: 40),
 
         // 5. Start Times (Two Column)
         _buildFixedTwoColumnGrid(context, [
-          _buildTimeItem(theme, 'LOCAL START', _formatTime(stats.startTime), session?.startWeather?.location?.utcOffset ?? 'ACST'),
+          _buildTimeItem(theme, 'LOCAL START', _formatTime(stats.startTime), displaySession?.startWeather?.location?.utcOffset ?? 'ACST'),
           _buildTimeItem(theme, 'UTC START', _formatTime(stats.startTime.toUtc()), 'UTC'),
         ]),
 
         const SizedBox(height: 40),
 
         // 6. Weather Info (Two Column)
-        if (session?.startWeather != null)
+        if (displaySession?.startWeather != null)
           _buildFixedTwoColumnGrid(context, [
             _buildWeatherItem(
               theme, 
               'WEATHER', 
-              '${session!.startWeather!.tempC.toStringAsFixed(1)}°C, ${session.startWeather!.conditionText}', 
+              '${displaySession!.startWeather!.tempC.toStringAsFixed(1)}°C, ${displaySession.startWeather!.conditionText}', 
               Icons.wb_cloudy_outlined,
-              networkIcon: session.startWeather!.conditionIcon,
+              networkIcon: displaySession.startWeather!.conditionIcon,
             ),
-            _buildWeatherItem(theme, 'HUMIDITY', '${session.startWeather!.humidity}%', Icons.opacity),
+            _buildWeatherItem(theme, 'HUMIDITY', '${displaySession.startWeather!.humidity}%', Icons.opacity),
           ])
         else
           _buildFixedTwoColumnGrid(context, [

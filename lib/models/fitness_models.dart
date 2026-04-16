@@ -85,6 +85,7 @@ class FitnessStats {
   final double totalDistanceMeters;
   final Duration totalDuration;
   final Duration activeDuration;
+  final Duration movingDuration;
   final double averageSpeedMps;
   final double currentSpeedMps;
   final double maxSpeedMps;
@@ -101,6 +102,7 @@ class FitnessStats {
     this.totalDistanceMeters = 0.0,
     this.totalDuration = Duration.zero,
     this.activeDuration = Duration.zero,
+    this.movingDuration = Duration.zero,
     this.averageSpeedMps = 0.0,
     this.currentSpeedMps = 0.0,
     this.maxSpeedMps = 0.0,
@@ -118,6 +120,7 @@ class FitnessStats {
     double? totalDistanceMeters,
     Duration? totalDuration,
     Duration? activeDuration,
+    Duration? movingDuration,
     double? averageSpeedMps,
     double? currentSpeedMps,
     double? maxSpeedMps,
@@ -134,6 +137,7 @@ class FitnessStats {
       totalDistanceMeters: totalDistanceMeters ?? this.totalDistanceMeters,
       totalDuration: totalDuration ?? this.totalDuration,
       activeDuration: activeDuration ?? this.activeDuration,
+      movingDuration: movingDuration ?? this.movingDuration,
       averageSpeedMps: averageSpeedMps ?? this.averageSpeedMps,
       currentSpeedMps: currentSpeedMps ?? this.currentSpeedMps,
       maxSpeedMps: maxSpeedMps ?? this.maxSpeedMps,
@@ -489,6 +493,7 @@ class ActivitySession {
       'totalDistanceMeters': stats.totalDistanceMeters,
       'totalDuration': stats.totalDuration.inMilliseconds,
       'activeDuration': stats.activeDuration.inMilliseconds,
+      'movingDuration': stats.movingDuration.inMilliseconds,
       'averageSpeedMps': stats.averageSpeedMps,
       'currentSpeedMps': stats.currentSpeedMps,
       'maxSpeedMps': stats.maxSpeedMps,
@@ -547,6 +552,7 @@ class ActivitySession {
         totalDistanceMeters: (json['totalDistanceMeters'] ?? json['total_distance_meters'])?.toDouble() ?? 0.0,
         totalDuration: Duration(milliseconds: json['totalDuration'] ?? json['total_duration_ms'] ?? 0),
         activeDuration: Duration(milliseconds: json['activeDuration'] ?? json['active_duration_ms'] ?? 0),
+        movingDuration: Duration(milliseconds: json['movingDuration'] ?? json['moving_duration_ms'] ?? 0),
         averageSpeedMps: (json['averageSpeedMps'] ?? json['average_speed_mps'])?.toDouble() ?? 0.0,
         currentSpeedMps: (json['currentSpeedMps'] ?? json['current_speed_mps'])?.toDouble() ?? 0.0,
         maxSpeedMps: (json['maxSpeedMps'] ?? json['max_speed_mps'])?.toDouble() ?? 0.0,
@@ -610,8 +616,11 @@ class ActivityWaypoint {
           ? {
               'totalDistanceMeters': statsAtTime!.totalDistanceMeters,
               'totalDuration': statsAtTime!.totalDuration.inMilliseconds,
+              'activeDuration': statsAtTime!.activeDuration.inMilliseconds,
+              'movingDuration': statsAtTime!.movingDuration.inMilliseconds,
               'averageSpeedMps': statsAtTime!.averageSpeedMps,
               'currentSpeedMps': statsAtTime!.currentSpeedMps,
+              'totalSteps': statsAtTime!.totalSteps,
               'elevationGain': statsAtTime!.elevationGain,
             }
           : null,
@@ -641,6 +650,16 @@ class ActivityWaypoint {
                     statsJson['total_duration_ms'] ??
                     0,
               ),
+              activeDuration: Duration(
+                milliseconds: statsJson['activeDuration'] ??
+                    statsJson['active_duration_ms'] ??
+                    0,
+              ),
+              movingDuration: Duration(
+                milliseconds: statsJson['movingDuration'] ??
+                    statsJson['moving_duration_ms'] ??
+                    0,
+              ),
               averageSpeedMps: (statsJson['averageSpeedMps'] ??
                       statsJson['average_speed_mps'])
                   ?.toDouble() ??
@@ -649,6 +668,7 @@ class ActivityWaypoint {
                       statsJson['current_speed_mps'])
                   ?.toDouble() ??
                   0.0,
+              totalSteps: statsJson['totalSteps'] ?? statsJson['total_steps'] ?? 0,
               elevationGain: (statsJson['elevationGain'] ??
                       statsJson['elevation_gain'])
                   ?.toDouble() ??

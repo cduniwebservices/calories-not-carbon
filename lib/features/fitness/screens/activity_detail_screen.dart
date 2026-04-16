@@ -88,15 +88,21 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     _maxX = _elevationSpots.last.x;
   }
 
-  FitnessStats _interpolateStats(FitnessStats s1, FitnessStats s2, double t) {
+  FitnessStats _interpolateStats(FitnessStats s1, FitnessStats s2, double t, {double? alt1, double? alt2}) {
+    final a1 = alt1 ?? s1.altitude;
+    final a2 = alt2 ?? s2.altitude;
+
     return FitnessStats(
       totalDistanceMeters: s1.totalDistanceMeters + (s2.totalDistanceMeters - s1.totalDistanceMeters) * t,
       totalDuration: Duration(milliseconds: (s1.totalDuration.inMilliseconds + (s2.totalDuration.inMilliseconds - s1.totalDuration.inMilliseconds) * t).toInt()),
       activeDuration: Duration(milliseconds: (s1.activeDuration.inMilliseconds + (s2.activeDuration.inMilliseconds - s1.activeDuration.inMilliseconds) * t).toInt()),
+      movingDuration: Duration(milliseconds: (s1.movingDuration.inMilliseconds + (s2.movingDuration.inMilliseconds - s1.movingDuration.inMilliseconds) * t).toInt()),
       averageSpeedMps: s1.averageSpeedMps + (s2.averageSpeedMps - s1.averageSpeedMps) * t,
       currentSpeedMps: s1.currentSpeedMps + (s2.currentSpeedMps - s1.currentSpeedMps) * t,
       startTime: s1.startTime,
+      totalSteps: (s1.totalSteps + (s2.totalSteps - s1.totalSteps) * t).toInt(),
       elevationGain: s1.elevationGain + (s2.elevationGain - s1.elevationGain) * t,
+      altitude: a1 + (a2 - a1) * t,
     );
   }
 
@@ -139,9 +145,18 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
         currentX = x1 + (x2 - x1) * t;
 
         if (w1.statsAtTime != null && w2.statsAtTime != null) {
-          displayStats = _interpolateStats(w1.statsAtTime!, w2.statsAtTime!, t);
+          displayStats = _interpolateStats(
+            w1.statsAtTime!, 
+            w2.statsAtTime!, 
+            t,
+            alt1: w1.altitude,
+            alt2: w2.altitude,
+          );
         } else {
-          displayStats = w1.statsAtTime ?? stats;
+          final alt1 = w1.altitude ?? (w1.statsAtTime?.altitude ?? stats.altitude);
+          final alt2 = w2.altitude ?? (w2.statsAtTime?.altitude ?? stats.altitude);
+          final currentAlt = alt1 + (alt2 - alt1) * t;
+          displayStats = (w1.statsAtTime ?? stats).copyWith(altitude: currentAlt);
         }
       } else {
         currentX = _maxX * _replayProgress;
@@ -307,28 +322,47 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
           ),
           child: Column(
             children: [
-              // Handle bar
+              // Handle bar section
               Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                width: 40,
-                height: 4,
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(2),
+                  color: const Color(0xFF0F1A0F), // Dark green carbon theme
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+                  ),
+                ),
+                child: Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: GlobalTheme.primaryAccent, // Vivid green handle
+                      borderRadius: BorderRadius.circular(2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: GlobalTheme.primaryAccent.withOpacity(0.3),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              
-              Expanded(
-                child: SingleChildScrollView(
+
+              Expanded(                child: SingleChildScrollView(
                   controller: scrollController,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                   child: StatsDisplay(
-                    stats: widget.session.stats,
-                    state: ActivityState.completed,
-                    activityType: widget.session.activityType,
-                    accentColor: GlobalTheme.primaryNeon,
-                  ),
-                ),
+                   stats: widget.session.stats,
+                   state: ActivityState.completed,
+                   activityType: widget.session.activityType,
+                   accentColor: GlobalTheme.primaryNeon,
+                   session: widget.session,
+                  ),                ),
               ),
             ],
           ),
@@ -584,10 +618,14 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
       return const SizedBox.shrink();
     }
 
+    final isAltitude = title.toLowerCase().contains('altitude');
     final smoothedSpots = _calculateWMA(spots);
-    final secondaryColor = title.toLowerCase().contains('speed') 
+
+    // User request: Altitude Raw = Blue, Altitude Smoothed = Vivid Green (primaryAccent)
+    final rawLineColor = isAltitude ? Colors.blue : color;
+    final smoothedLineColor = isAltitude ? GlobalTheme.primaryAccent : (title.toLowerCase().contains('speed') 
         ? GlobalTheme.statusWarning 
-        : GlobalTheme.primaryAction;
+        : GlobalTheme.primaryAction);
 
     // Calculate interpolated Y for the given currentX
     double currentY = 0;
@@ -598,14 +636,15 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
         break;
       }
     }
+
     // Handle bounds
     if (currentX <= spots.first.x) currentY = spots.first.y;
     if (currentX >= spots.last.x) currentY = spots.last.y;
-    
+
     final dataMinY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
     final dataMaxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
     final dataRange = (dataMaxY - dataMinY).abs() < 0.001 ? 1.0 : (dataMaxY - dataMinY);
-    
+
     // To place data in the middle third, we add one full dataRange worth of padding above and below
     double minY = dataMinY - dataRange;
     double maxY = dataMaxY + dataRange;
@@ -615,7 +654,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     if (title.toLowerCase().contains('speed') && minY < 0) {
       minY = 0;
     }
-    
+
     final displayRange = (maxY - minY).abs() < 0.001 ? 1.0 : (maxY - minY);
     final relativeY = (currentY - minY) / displayRange;
 
@@ -643,9 +682,9 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
               // Legend
               Row(
                 children: [
-                  _buildLegendItem('Raw', color),
+                  _buildLegendItem('Raw', rawLineColor),
                   const SizedBox(width: 12),
-                  _buildLegendItem('Smoothed', secondaryColor),
+                  _buildLegendItem('Smoothed', smoothedLineColor),
                 ],
               ),
             ],
@@ -655,7 +694,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
             builder: (context, constraints) {
               final dataWidth = constraints.maxWidth;
               final dataHeight = 120.0;
-              
+
               final dotLeft = (dataWidth * (currentX / _maxX));
               final dotTop = dataHeight * (1.0 - relativeY);
 
@@ -697,7 +736,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                           LineChartBarData(
                             spots: spots,
                             isCurved: true,
-                            color: color.withOpacity(0.4),
+                            color: rawLineColor.withOpacity(0.4),
                             barWidth: 2,
                             isStrokeCapRound: true,
                             dotData: const FlDotData(show: false),
@@ -706,7 +745,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                           LineChartBarData(
                             spots: smoothedSpots,
                             isCurved: true,
-                            color: secondaryColor,
+                            color: smoothedLineColor,
                             barWidth: 3,
                             isStrokeCapRound: true,
                             dotData: const FlDotData(show: false),
@@ -716,8 +755,8 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                                 colors: [
-                                  secondaryColor.withOpacity(0.3),
-                                  secondaryColor.withOpacity(0.0),
+                                  smoothedLineColor.withOpacity(0.3),
+                                  smoothedLineColor.withOpacity(0.0),
                                 ],
                               ),
                             ),
@@ -726,7 +765,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                       ),
                     ),
                   ),
-                  
+
                   // Scrubber Vertical Line
                   Positioned(
                     left: dotLeft,
@@ -737,7 +776,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                       color: Colors.white.withOpacity(0.5),
                     ),
                   ),
-                  
+
                   // Dot on the scrubber line
                   Positioned(
                     left: dotLeft - 6,
@@ -746,12 +785,12 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
                       width: 12,
                       height: 12,
                       decoration: BoxDecoration(
-                        color: color,
+                        color: smoothedLineColor,
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: 2),
                         boxShadow: [
                           BoxShadow(
-                            color: color.withOpacity(0.5),
+                            color: smoothedLineColor.withOpacity(0.5),
                             blurRadius: 8,
                           ),
                         ],
@@ -821,7 +860,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Icon(Icons.terrain, size: 14, color: GlobalTheme.primaryNeon),
+              const Icon(Icons.terrain, size: 14, color: GlobalTheme.primaryAccent),
               Text(
                 '${stats.altitude.toStringAsFixed(1)} m',
                 style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold),
@@ -832,7 +871,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Icon(Icons.speed, size: 14, color: GlobalTheme.primaryAction),
+              const Icon(Icons.speed, size: 14, color: GlobalTheme.statusWarning),
               Text(
                 '${(stats.currentSpeedMps * 3.6).toStringAsFixed(1)} km/h',
                 style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold),

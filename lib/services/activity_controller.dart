@@ -48,6 +48,7 @@ class ActivityController extends ChangeNotifier {
   int _currentStepCount = 0;
   double _totalElevationGain = 0.0;
   double? _lastAltitude;
+  DateTime? _lastUpdateTimestamp;
 
   // Validation metrics
   int _invalidDataPoints = 0;
@@ -147,6 +148,7 @@ class ActivityController extends ChangeNotifier {
       // Set initial activity type and start time
       _activityType = type;
       _startTime = DateTime.now();
+      _lastUpdateTimestamp = _startTime;
       _state = ActivityState.running;
 
       // Create new session
@@ -263,6 +265,7 @@ class ActivityController extends ChangeNotifier {
       }
 
       _state = ActivityState.running;
+      _lastUpdateTimestamp = DateTime.now();
 
       // Add resume waypoint
       if (_lastKnownLocation != null) {
@@ -300,6 +303,13 @@ class ActivityController extends ChangeNotifier {
       debugPrint('🛑 ActivityController: Stopping activity...');
 
       final endTime = DateTime.now();
+      
+      // If currently paused, add the last pause interval to total paused duration
+      if (_state == ActivityState.paused && _pauseTime != null) {
+        _pausedDuration += endTime.difference(_pauseTime!);
+        _pauseTime = null;
+      }
+
       _state = ActivityState.completed;
 
       // Perform final validation check
@@ -472,7 +482,10 @@ class ActivityController extends ChangeNotifier {
     try {
       final newLocation = LatLng(locationData.latitude, locationData.longitude);
       final timestamp = DateTime.now();
-      final lastTime = _getLastLocationTime();
+      
+      // Calculate time difference from the absolute last location update
+      // This prevents "leaking" stationary time into moving duration
+      final lastTime = _lastUpdateTimestamp ?? _startTime ?? timestamp;
       final timeDiff = timestamp.difference(lastTime);
 
       if (_lastKnownLocation != null) {
@@ -542,6 +555,7 @@ class ActivityController extends ChangeNotifier {
         } else {
           // STATIONARY
           _currentSpeed = 0.0;
+          _updateStats();
 
           final currentAlt = locationData.geoidHeight ?? locationData.altitude;
           if (_waypoints.isEmpty || _waypoints.last.type != 'stationary' || 
@@ -576,6 +590,9 @@ class ActivityController extends ChangeNotifier {
           ),
         );
       }
+      
+      // Update the absolute last update timestamp regardless of movement
+      _lastUpdateTimestamp = timestamp;
     } catch (e) {
       debugPrint('❌ ActivityController: Error processing location update: $e');
     }
@@ -623,8 +640,9 @@ class ActivityController extends ChangeNotifier {
     final now = DateTime.now();
     final totalDuration = now.difference(_startTime!);
     
-    // Discard stationary/pause time for average speed and activity detection
-    final activeDuration = _movingDuration;
+    // Active duration is wall-clock time minus paused time
+    // This ensures the UI timer ticks every second while running
+    final activeDuration = totalDuration - _pausedDuration;
 
     final averageSpeed = activeDuration.inSeconds > 0
         ? _totalDistance / activeDuration.inSeconds
@@ -652,6 +670,7 @@ class ActivityController extends ChangeNotifier {
       totalDistanceMeters: _totalDistance,
       totalDuration: totalDuration,
       activeDuration: activeDuration,
+      movingDuration: _movingDuration,
       averageSpeedMps: averageSpeed,
       currentSpeedMps: _currentSpeed,
       maxSpeedMps: _maxSpeed,
@@ -670,7 +689,7 @@ class ActivityController extends ChangeNotifier {
 
   void _updateFinalStats(DateTime endTime) {
     final totalDuration = endTime.difference(_startTime!);
-    final activeDuration = _movingDuration;
+    final activeDuration = totalDuration - _pausedDuration;
 
     final averageSpeed = activeDuration.inSeconds > 0
         ? _totalDistance / activeDuration.inSeconds
@@ -680,12 +699,15 @@ class ActivityController extends ChangeNotifier {
 
     final averagePace = averageSpeed > 0 ? 1000.0 / averageSpeed : 0.0;
     final calories = _calculateCalories(activeDuration, _totalDistance, _activityType);
-    final displaySteps = _currentStepCount;
+    final displaySteps = _currentStepCount > 0 
+        ? _currentStepCount 
+        : _estimateSteps(_totalDistance, _activityType);
 
     _stats = _stats.copyWith(
       totalDistanceMeters: _totalDistance,
       totalDuration: totalDuration,
       activeDuration: activeDuration,
+      movingDuration: _movingDuration,
       averageSpeedMps: averageSpeed,
       maxSpeedMps: _maxSpeed,
       averagePaceSecondsPerKm: averagePace,
@@ -695,12 +717,6 @@ class ActivityController extends ChangeNotifier {
       elevationGain: _totalElevationGain,
       altitude: _lastAltitude ?? 0.0,
     );
-  }
-
-  DateTime _getLastLocationTime() {
-    return _waypoints.isNotEmpty
-        ? _waypoints.last.timestamp
-        : _startTime ?? DateTime.now();
   }
 
   int _calculateCalories(Duration activeDuration, double distanceMeters, ActivityType activityType) {
