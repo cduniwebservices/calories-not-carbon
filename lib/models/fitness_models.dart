@@ -86,6 +86,7 @@ class FitnessStats {
   final Duration totalDuration;
   final Duration activeDuration;
   final Duration movingDuration;
+  final Duration stationaryDuration;
   final double averageSpeedMps;
   final double currentSpeedMps;
   final double maxSpeedMps;
@@ -103,6 +104,7 @@ class FitnessStats {
     this.totalDuration = Duration.zero,
     this.activeDuration = Duration.zero,
     this.movingDuration = Duration.zero,
+    this.stationaryDuration = Duration.zero,
     this.averageSpeedMps = 0.0,
     this.currentSpeedMps = 0.0,
     this.maxSpeedMps = 0.0,
@@ -121,6 +123,7 @@ class FitnessStats {
     Duration? totalDuration,
     Duration? activeDuration,
     Duration? movingDuration,
+    Duration? stationaryDuration,
     double? averageSpeedMps,
     double? currentSpeedMps,
     double? maxSpeedMps,
@@ -138,6 +141,7 @@ class FitnessStats {
       totalDuration: totalDuration ?? this.totalDuration,
       activeDuration: activeDuration ?? this.activeDuration,
       movingDuration: movingDuration ?? this.movingDuration,
+      stationaryDuration: stationaryDuration ?? this.stationaryDuration,
       averageSpeedMps: averageSpeedMps ?? this.averageSpeedMps,
       currentSpeedMps: currentSpeedMps ?? this.currentSpeedMps,
       maxSpeedMps: maxSpeedMps ?? this.maxSpeedMps,
@@ -494,6 +498,7 @@ class ActivitySession {
       'totalDuration': stats.totalDuration.inMilliseconds,
       'activeDuration': stats.activeDuration.inMilliseconds,
       'movingDuration': stats.movingDuration.inMilliseconds,
+      'stationaryDuration': stats.stationaryDuration.inMilliseconds,
       'averageSpeedMps': stats.averageSpeedMps,
       'currentSpeedMps': stats.currentSpeedMps,
       'maxSpeedMps': stats.maxSpeedMps,
@@ -553,6 +558,7 @@ class ActivitySession {
         totalDuration: Duration(milliseconds: json['totalDuration'] ?? json['total_duration_ms'] ?? 0),
         activeDuration: Duration(milliseconds: json['activeDuration'] ?? json['active_duration_ms'] ?? 0),
         movingDuration: Duration(milliseconds: json['movingDuration'] ?? json['moving_duration_ms'] ?? 0),
+        stationaryDuration: Duration(milliseconds: json['stationaryDuration'] ?? json['stationary_duration_ms'] ?? 0),
         averageSpeedMps: (json['averageSpeedMps'] ?? json['average_speed_mps'])?.toDouble() ?? 0.0,
         currentSpeedMps: (json['currentSpeedMps'] ?? json['current_speed_mps'])?.toDouble() ?? 0.0,
         maxSpeedMps: (json['maxSpeedMps'] ?? json['max_speed_mps'])?.toDouble() ?? 0.0,
@@ -618,6 +624,7 @@ class ActivityWaypoint {
               'totalDuration': statsAtTime!.totalDuration.inMilliseconds,
               'activeDuration': statsAtTime!.activeDuration.inMilliseconds,
               'movingDuration': statsAtTime!.movingDuration.inMilliseconds,
+              'stationaryDuration': statsAtTime!.stationaryDuration.inMilliseconds,
               'averageSpeedMps': statsAtTime!.averageSpeedMps,
               'currentSpeedMps': statsAtTime!.currentSpeedMps,
               'totalSteps': statsAtTime!.totalSteps,
@@ -658,6 +665,11 @@ class ActivityWaypoint {
               movingDuration: Duration(
                 milliseconds: statsJson['movingDuration'] ??
                     statsJson['moving_duration_ms'] ??
+                    0,
+              ),
+              stationaryDuration: Duration(
+                milliseconds: statsJson['stationaryDuration'] ??
+                    statsJson['stationary_duration_ms'] ??
                     0,
               ),
               averageSpeedMps: (statsJson['averageSpeedMps'] ??

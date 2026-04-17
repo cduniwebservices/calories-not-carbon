@@ -580,7 +580,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     );
   }
 
-  List<FlSpot> _calculateWMA(List<FlSpot> spots, {int windowSize = 5}) {
+  List<FlSpot> _calculateWMA(List<FlSpot> spots, {int windowSize = 5, bool dropToZero = false}) {
     if (spots.length < windowSize) return List.from(spots);
     
     List<FlSpot> smoothed = [];
@@ -590,6 +590,12 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     for (int i = 1; i <= windowSize; i++) divisor += i;
     
     for (int i = 0; i < spots.length; i++) {
+      // If dropToZero is enabled and current raw value is 0, force smoothed value to 0 instantly
+      if (dropToZero && (spots[i].y).abs() < 0.001) {
+        smoothed.add(FlSpot(spots[i].x, 0));
+        continue;
+      }
+
       if (i < windowSize - 1) {
         smoothed.add(spots[i]);
         continue;
@@ -619,7 +625,12 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
     }
 
     final isAltitude = title.toLowerCase().contains('altitude');
-    final smoothedSpots = _calculateWMA(spots);
+    final isSpeed = title.toLowerCase().contains('speed');
+    final smoothedSpots = _calculateWMA(
+      spots,
+      windowSize: isAltitude ? 12 : 5,
+      dropToZero: isSpeed,
+    );
 
     // User request: Altitude Raw = Blue, Altitude Smoothed = Vivid Green (primaryAccent)
     final rawLineColor = isAltitude ? Colors.blue : color;

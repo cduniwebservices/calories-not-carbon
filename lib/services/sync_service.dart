@@ -126,6 +126,7 @@ class SyncService {
         'total_distance_meters': activity.stats.totalDistanceMeters,
         'total_duration_ms': activity.stats.totalDuration.inMilliseconds,
         'active_duration_ms': activity.stats.activeDuration.inMilliseconds,
+        'moving_duration_ms': activity.stats.movingDuration.inMilliseconds,
         'average_speed_mps': activity.stats.averageSpeedMps,
         'max_speed_mps': activity.stats.maxSpeedMps,
         'estimated_calories': activity.stats.estimatedCalories,

@@ -559,7 +559,7 @@ class ActivityController extends ChangeNotifier {
 
           final currentAlt = locationData.geoidHeight ?? locationData.altitude;
           if (_waypoints.isEmpty || _waypoints.last.type != 'stationary' || 
-              timestamp.difference(_waypoints.last.timestamp).inSeconds > 5) {
+              timestamp.difference(_waypoints.last.timestamp).inSeconds > 2) {
             _waypoints.add(
               ActivityWaypoint(
                 location: newLocation,
@@ -643,9 +643,14 @@ class ActivityController extends ChangeNotifier {
     // Active duration is wall-clock time minus paused time
     // This ensures the UI timer ticks every second while running
     final activeDuration = totalDuration - _pausedDuration;
+    
+    // Stationary duration is the part of active time where we aren't moving
+    // movingDuration + stationaryDuration = activeDuration
+    final stationaryDuration = activeDuration - _movingDuration;
 
-    final averageSpeed = activeDuration.inSeconds > 0
-        ? _totalDistance / activeDuration.inSeconds
+    // Use movingDuration for average speed to keep it stable when stationary
+    final averageSpeed = _movingDuration.inSeconds > 0
+        ? _totalDistance / _movingDuration.inSeconds
         : 0.0;
 
     // Auto-detect activity type based on moving average speed
@@ -656,8 +661,9 @@ class ActivityController extends ChangeNotifier {
         ? 1000.0 / _currentSpeed
         : 0.0;
 
+    // Calories should be based on time spent moving
     final calories = _calculateCalories(
-      activeDuration,
+      _movingDuration,
       _totalDistance,
       _activityType,
     );
@@ -671,6 +677,7 @@ class ActivityController extends ChangeNotifier {
       totalDuration: totalDuration,
       activeDuration: activeDuration,
       movingDuration: _movingDuration,
+      stationaryDuration: stationaryDuration,
       averageSpeedMps: averageSpeed,
       currentSpeedMps: _currentSpeed,
       maxSpeedMps: _maxSpeed,
@@ -690,15 +697,16 @@ class ActivityController extends ChangeNotifier {
   void _updateFinalStats(DateTime endTime) {
     final totalDuration = endTime.difference(_startTime!);
     final activeDuration = totalDuration - _pausedDuration;
+    final stationaryDuration = activeDuration - _movingDuration;
 
-    final averageSpeed = activeDuration.inSeconds > 0
-        ? _totalDistance / activeDuration.inSeconds
+    final averageSpeed = _movingDuration.inSeconds > 0
+        ? _totalDistance / _movingDuration.inSeconds
         : 0.0;
 
     _updateActivityTypeFromSpeed(averageSpeed);
 
     final averagePace = averageSpeed > 0 ? 1000.0 / averageSpeed : 0.0;
-    final calories = _calculateCalories(activeDuration, _totalDistance, _activityType);
+    final calories = _calculateCalories(_movingDuration, _totalDistance, _activityType);
     final displaySteps = _currentStepCount > 0 
         ? _currentStepCount 
         : _estimateSteps(_totalDistance, _activityType);
@@ -708,6 +716,7 @@ class ActivityController extends ChangeNotifier {
       totalDuration: totalDuration,
       activeDuration: activeDuration,
       movingDuration: _movingDuration,
+      stationaryDuration: stationaryDuration,
       averageSpeedMps: averageSpeed,
       maxSpeedMps: _maxSpeed,
       averagePaceSecondsPerKm: averagePace,
@@ -720,7 +729,6 @@ class ActivityController extends ChangeNotifier {
   }
 
   int _calculateCalories(Duration activeDuration, double distanceMeters, ActivityType activityType) {
-    if (activeDuration.inMinutes <= 0) return 0;
     const averageWeightKg = 70.0;
     final timeHours = activeDuration.inMilliseconds / (1000 * 60 * 60);
     final mets = activityType.averageMets;

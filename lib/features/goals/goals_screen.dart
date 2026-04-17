@@ -18,7 +18,7 @@ class GoalsScreen extends ConsumerStatefulWidget {
 class _GoalsScreenState extends ConsumerState<GoalsScreen>
     with TickerProviderStateMixin {
   late AnimationController _controller;
-  bool _showPanel = true; // Default to true since a goal is selected by default
+  bool _showPanel = false; // Hidden initially
   bool _isDescriptionExpanded = false;
 
   @override
@@ -41,7 +41,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
 
   void _showDescriptionPanel() {
     setState(() {
-      _showPanel = true;
+      _showPanel = !_showPanel; // Toggle visibility when a card is pressed
       _isDescriptionExpanded = false;
     });
   }
