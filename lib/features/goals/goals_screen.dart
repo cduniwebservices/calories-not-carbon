@@ -39,11 +39,24 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
     super.dispose();
   }
 
-  void _showDescriptionPanel() {
+  void _showDescriptionPanel(bool isAlreadyActive) {
     setState(() {
-      _showPanel = !_showPanel; // Toggle visibility when a card is pressed
+      if (isAlreadyActive) {
+        _showPanel = !_showPanel; // Toggle only if we tapped the center/active card
+      } else {
+        _showPanel = true; // Always show if we specifically tapped a side card to focus it
+      }
       _isDescriptionExpanded = false;
     });
+  }
+
+  void _hidePanel() {
+    if (_showPanel) {
+      setState(() {
+        _showPanel = false;
+        _isDescriptionExpanded = false;
+      });
+    }
   }
 
   void _toggleDescription() {
@@ -147,6 +160,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                     },
                     child: GoalSwiper(
                       onGoalSelected: _showDescriptionPanel,
+                      onSwipe: _hidePanel,
                     ),
                   ),
                 ),

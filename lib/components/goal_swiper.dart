@@ -6,9 +6,10 @@ import '../theme/global_theme.dart';
 import 'neon_card.dart';
 
 class GoalSwiper extends ConsumerStatefulWidget {
-  final VoidCallback? onGoalSelected;
+  final Function(bool isAlreadyActive)? onGoalSelected;
+  final VoidCallback? onSwipe;
 
-  const GoalSwiper({super.key, this.onGoalSelected});
+  const GoalSwiper({super.key, this.onGoalSelected, this.onSwipe});
 
   @override
   ConsumerState<GoalSwiper> createState() => _GoalSwiperState();
@@ -51,6 +52,7 @@ class _GoalSwiperState extends ConsumerState<GoalSwiper>
         physics: const BouncingScrollPhysics(), // Better scroll physics
         onPageChanged: (index) {
           ref.read(goalProvider.notifier).setCurrentIndex(index);
+          widget.onSwipe?.call();
         },
         itemCount: goalState.goals.length,
         itemBuilder: (context, index) {
@@ -72,8 +74,9 @@ class _GoalSwiperState extends ConsumerState<GoalSwiper>
                     index: index,
                     isActive: isActive,
                     onTap: () {
+                      final wasAlreadyActive = isActive;
                       ref.read(goalProvider.notifier).selectGoal(goal);
-                      widget.onGoalSelected?.call();
+                      widget.onGoalSelected?.call(wasAlreadyActive);
                     },
                   ),
                 ),
