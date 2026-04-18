@@ -6,7 +6,7 @@ import '../theme/global_theme.dart';
 import 'neon_card.dart';
 
 class GoalSwiper extends ConsumerStatefulWidget {
-  final Function(bool isAlreadyActive)? onGoalSelected;
+  final Function(int index)? onGoalSelected;
   final VoidCallback? onSwipe;
 
   const GoalSwiper({super.key, this.onGoalSelected, this.onSwipe});
@@ -74,9 +74,8 @@ class _GoalSwiperState extends ConsumerState<GoalSwiper>
                     index: index,
                     isActive: isActive,
                     onTap: () {
-                      final wasAlreadyActive = isActive;
                       ref.read(goalProvider.notifier).selectGoal(goal);
-                      widget.onGoalSelected?.call(wasAlreadyActive);
+                      widget.onGoalSelected?.call(index);
                     },
                   ),
                 ),
@@ -265,9 +264,4 @@ class _GoalCardState extends State<GoalCard>
       ),
     );
   }
-}
-
-// Extension to get goalState from provider
-extension GoalCardExt on _GoalCardState {
-  int get currentIndex => 0; // simplified for now
 }

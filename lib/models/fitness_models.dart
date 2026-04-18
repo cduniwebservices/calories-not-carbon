@@ -782,9 +782,9 @@ final List<Goal> defaultGoals = [
   Goal(
     id: 'petrol_diesel_car',
     type: GoalType.petrolDieselCar,
-    title: 'Petrol/Diesel Car',
+    title: 'Step out, drive less...',
     description:
-        'Track your carbon footprint from driving a conventional petrol or diesel car.',
+        'Conventional internal combustion engines are a primary source of individual carbon emissions. By tracking your activity against this mode, you can visualize the significant volume of CO₂ prevented by choosing active transport. This goal helps highlight the direct environmental benefit of leaving your car at home for short trips.',
     level: GoalLevel.easy,
     duration: const Duration(minutes: 30),
     carbonOffsetPotential: 'High',
@@ -794,9 +794,9 @@ final List<Goal> defaultGoals = [
   Goal(
     id: 'electric_vehicle',
     type: GoalType.electricVehicle,
-    title: 'Electric Vehicle',
+    title: 'Better than batteries...',
     description:
-        'Compare the environmental impact of driving an electric vehicle versus conventional cars.',
+        'Electric vehicles offer a cleaner alternative to fossil fuels, but they still carry an environmental footprint from manufacturing and energy production. Tracking against an EV helps you understand the nuance of modern sustainable travel. Even when compared to clean tech, walking or cycling remains the most effective way to reduce your personal impact.',
     level: GoalLevel.hard,
     duration: const Duration(minutes: 45),
     carbonOffsetPotential: 'Medium',
@@ -806,9 +806,9 @@ final List<Goal> defaultGoals = [
   Goal(
     id: 'motorcycle',
     type: GoalType.motorcycle,
-    title: 'Motorcycle',
+    title: 'Pure human power...',
     description:
-        'Track the emissions and environmental impact of riding a motorcycle.',
+        'While motorcycles are often more fuel-efficient than cars, they still contribute to local air pollution and carbon levels. This mode represents a middle ground in motorized transport emissions. By choosing to walk instead, you are making a positive choice for both global carbon reduction and local urban air quality.',
     level: GoalLevel.easy,
     duration: const Duration(minutes: 40),
     carbonOffsetPotential: 'Medium',
@@ -818,9 +818,9 @@ final List<Goal> defaultGoals = [
   Goal(
     id: 'train',
     type: GoalType.train,
-    title: 'Train',
+    title: 'Your own pace...',
     description:
-        'See how your train commute compares to other methods of transportation.',
+        'Rail travel is one of the most efficient forms of mass transit, moving large numbers of people with a relatively low per-person footprint. Tracking your walk as a replacement for a train trip shows your commitment to the lowest possible emission tiers. It helps quantify the final step in achieving a truly zero-carbon commute.',
     level: GoalLevel.extreme,
     duration: const Duration(hours: 2),
     carbonOffsetPotential: 'Low',
@@ -830,9 +830,9 @@ final List<Goal> defaultGoals = [
   Goal(
     id: 'boat',
     type: GoalType.boat,
-    title: 'Boat',
+    title: 'Explore on foot...',
     description:
-        'Track the carbon emissions from boat travel and water transportation.',
+        'Marine transport can be surprisingly carbon-intensive depending on the vessel type and fuel efficiency. Tracking emissions from water-based travel highlights often-overlooked sources of carbon in coastal or river regions. Replacing these trips with active land-based routes can lead to substantial and measurable carbon savings.',
     level: GoalLevel.hard,
     duration: const Duration(minutes: 25),
     carbonOffsetPotential: 'High',

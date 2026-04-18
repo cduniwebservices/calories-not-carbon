@@ -39,13 +39,9 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
     super.dispose();
   }
 
-  void _showDescriptionPanel(bool isAlreadyActive) {
+  void _showDescriptionPanel(int index) {
     setState(() {
-      if (isAlreadyActive) {
-        _showPanel = !_showPanel; // Toggle only if we tapped the center/active card
-      } else {
-        _showPanel = true; // Always show if we specifically tapped a side card to focus it
-      }
+      _showPanel = true; // Always show on click, as requested
       _isDescriptionExpanded = false;
     });
   }

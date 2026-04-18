@@ -897,7 +897,7 @@ class StatsDisplay extends ConsumerWidget {
           _buildHalfWidthStat(theme, 'MAX SPEED (km/h)', (stats.maxSpeedMps * 3.6).toStringAsFixed(1), Icons.speed),
           _buildHalfWidthStat(theme, 'ELEVATION (m)', stats.elevationGain.toStringAsFixed(0), Icons.terrain_outlined),
           _buildHalfWidthStat(theme, 'TIME MOVING', _formatDuration(stats.movingDuration), Icons.directions_walk),
-          _buildHalfWidthStat(theme, 'TIME STATIONARY', _formatDuration(stats.activeDuration - stats.movingDuration), Icons.pause_circle_outline),
+          _buildHalfWidthStat(theme, 'TIME STATIONARY', _formatDuration(stats.stationaryDuration), Icons.pause_circle_outline),
         ]),
 
         const SizedBox(height: 40),
@@ -1195,10 +1195,12 @@ class StatsDisplay extends ConsumerWidget {
   Widget _buildWeatherItem(ThemeData theme, String label, String value, IconData icon, {String? networkIcon}) {
     final parts = value.split(',');
     final firstPart = parts[0].trim();
-    final secondPart = parts.length > 1 ? parts[1].trim() : '';
-    final isNA = firstPart == 'NA' && secondPart.isEmpty;
+    final description = parts.length > 1 ? parts.sublist(1).join(',').trim() : '';
+    final isNA = firstPart == 'NA' && description.isEmpty;
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           label,
@@ -1209,13 +1211,16 @@ class StatsDisplay extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 16),
+        
+        // Temperature and Icon Row
         if (label.contains('WEATHER') && !isNA)
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
               if (networkIcon != null && networkIcon.isNotEmpty)
                 Image.network(
-                  'https:$networkIcon',
+                  networkIcon.startsWith('http') ? networkIcon : 'https:$networkIcon',
                   width: 28,
                   height: 28,
                   errorBuilder: (_, __, ___) => Icon(icon, color: GlobalTheme.primaryNeon, size: 28),
@@ -1233,32 +1238,53 @@ class StatsDisplay extends ConsumerWidget {
               ),
             ],
           )
+        else if (!isNA)
+          // For Non-weather stats (like Humidity)
+          Column(
+            children: [
+              Icon(icon, color: GlobalTheme.primaryNeon, size: 28),
+              const SizedBox(height: 8),
+              Text(
+                firstPart,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: GlobalTheme.primaryNeon,
+                  fontSize: 24,
+                ),
+              ),
+            ],
+          )
         else
+          // NA state
           Icon(icon, color: GlobalTheme.primaryNeon, size: 28),
-        if (secondPart.isNotEmpty) ...[
+
+        // Description / Subtitle
+        if (description.isNotEmpty) ...[
           const SizedBox(height: 8),
           Text(
-            secondPart,
+            description.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: GlobalTheme.primaryNeon.withOpacity(0.8),
+              fontSize: 10,
+              letterSpacing: 1.1,
+            ),
+          ),
+        ] else if (isNA) ...[
+          const SizedBox(height: 8),
+          Text(
+            'NA',
             style: theme.textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w900,
               color: GlobalTheme.primaryNeon,
               fontSize: 24,
             ),
           ),
-        ] else ...[
-          const SizedBox(height: 8),
-          Text(
-            firstPart,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: GlobalTheme.primaryNeon,
-              fontSize: 24,
-                ),
-              ),
-            ],
-          ],
-        );
-      }
+        ],
+      ],
+    );
+  }
 
   String _formatDuration(Duration d) {
     final m = d.inMinutes;

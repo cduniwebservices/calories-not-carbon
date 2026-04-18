@@ -97,6 +97,7 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
       totalDuration: Duration(milliseconds: (s1.totalDuration.inMilliseconds + (s2.totalDuration.inMilliseconds - s1.totalDuration.inMilliseconds) * t).toInt()),
       activeDuration: Duration(milliseconds: (s1.activeDuration.inMilliseconds + (s2.activeDuration.inMilliseconds - s1.activeDuration.inMilliseconds) * t).toInt()),
       movingDuration: Duration(milliseconds: (s1.movingDuration.inMilliseconds + (s2.movingDuration.inMilliseconds - s1.movingDuration.inMilliseconds) * t).toInt()),
+      stationaryDuration: Duration(milliseconds: (s1.stationaryDuration.inMilliseconds + (s2.stationaryDuration.inMilliseconds - s1.stationaryDuration.inMilliseconds) * t).toInt()),
       averageSpeedMps: s1.averageSpeedMps + (s2.averageSpeedMps - s1.averageSpeedMps) * t,
       currentSpeedMps: s1.currentSpeedMps + (s2.currentSpeedMps - s1.currentSpeedMps) * t,
       startTime: s1.startTime,
@@ -1057,9 +1058,14 @@ class _ActivityDetailScreenState extends ConsumerState<ActivityDetailScreen> {
               const Spacer(),
               if (weather.conditionIcon.isNotEmpty)
                 Image.network(
-                  'https:${weather.conditionIcon}',
+                  weather.conditionIcon.startsWith('http') ? weather.conditionIcon : 'https:${weather.conditionIcon}',
                   width: 44,
                   height: 44,
+                  errorBuilder: (context, error, stackTrace) => const Icon(
+                    Icons.wb_cloudy_outlined,
+                    color: GlobalTheme.primaryNeon,
+                    size: 32,
+                  ),
                 ),
             ],
           ),

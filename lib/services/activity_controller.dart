@@ -1,15 +1,17 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart' hide ActivityType;
 import 'package:latlong2/latlong.dart';
 import 'package:uuid/uuid.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import 'package:pedometer/pedometer.dart';
 import '../models/fitness_models.dart';
 import 'location_service.dart';
 import 'local_storage_service.dart';
 import 'weather_service.dart';
 
-/// Million-dollar level activity controller for real-time fitness tracking
+/// Million-dollar level activity controller with Sensor Fusion (GPS + Accelerometer)
 class ActivityController extends ChangeNotifier {
   static final ActivityController _instance = ActivityController._internal();
   factory ActivityController() => _instance;
@@ -35,11 +37,14 @@ class ActivityController extends ChangeNotifier {
   DateTime? _pauseTime;
   Duration _pausedDuration = Duration.zero;
   Duration _movingDuration = Duration.zero;
+  Duration _stationaryDuration = Duration.zero;
 
   // Real-time calculations
   Timer? _statsUpdateTimer;
   StreamSubscription? _locationSubscription;
   StreamSubscription? _stepSubscription;
+  StreamSubscription? _accelerometerSubscription;
+  
   double _totalDistance = 0.0;
   double _currentSpeed = 0.0;
   double _maxSpeed = 0.0;
@@ -50,6 +55,11 @@ class ActivityController extends ChangeNotifier {
   double? _lastAltitude;
   DateTime? _lastUpdateTimestamp;
 
+  // Sensor Fusion State
+  bool _isPhysicallyMoving = false;
+  double _motionMagnitude = 0.0;
+  DateTime? _lastSignificantMotionTime;
+
   // Validation metrics
   int _invalidDataPoints = 0;
   int _totalDataPoints = 0;
@@ -58,6 +68,7 @@ class ActivityController extends ChangeNotifier {
   static const Duration _statsUpdateInterval = Duration(seconds: 1);
   static const double _minimumDistanceThreshold = 2.0; // meters
   static const double _minimumSpeedThreshold = 0.5; // m/s (discard speeds below this)
+  static const double _motionVibrationThreshold = 0.15; // Gs of force for 'moving'
   static const int _speedHistoryLimit = 60; // 1 minute of history
   
   // Validation Thresholds
@@ -191,6 +202,9 @@ class ActivityController extends ChangeNotifier {
       // Start listening to pedometer
       _startStepTracking();
 
+      // Start listening to accelerometer (Sensor Fusion)
+      _startAccelerometerTracking();
+
       // Start stats update timer
       _startStatsTimer();
 
@@ -233,9 +247,10 @@ class ActivityController extends ChangeNotifier {
         );
       }
 
-      // Stop timers but keep GPS tracking for resume
+      // Stop timers and sensors but keep GPS tracking for resume
       _statsUpdateTimer?.cancel();
       _stepSubscription?.pause();
+      _stopAccelerometerTracking();
 
       debugPrint('✅ ActivityController: Activity paused');
       notifyListeners();
@@ -279,9 +294,10 @@ class ActivityController extends ChangeNotifier {
         );
       }
 
-      // Restart stats timer and pedometer
+      // Restart stats timer and sensors
       _startStatsTimer();
       _stepSubscription?.resume();
+      _startAccelerometerTracking();
 
       debugPrint('✅ ActivityController: Activity resumed');
       notifyListeners();
@@ -334,6 +350,7 @@ class ActivityController extends ChangeNotifier {
       // Stop all tracking
       await _stopLocationTracking();
       _stopStepTracking();
+      _stopAccelerometerTracking();
       _statsUpdateTimer?.cancel();
 
       // Update session with final data
@@ -369,6 +386,7 @@ class ActivityController extends ChangeNotifier {
 
     _stopLocationTracking();
     _stopStepTracking();
+    _stopAccelerometerTracking();
     _statsUpdateTimer?.cancel();
     _resetTrackingData();
     _state = ActivityState.idle;
@@ -411,6 +429,7 @@ class ActivityController extends ChangeNotifier {
     _pauseTime = null;
     _pausedDuration = Duration.zero;
     _movingDuration = Duration.zero;
+    _stationaryDuration = Duration.zero;
     _totalDistance = 0.0;
     _currentSpeed = 0.0;
     _maxSpeed = 0.0;
@@ -458,6 +477,47 @@ class ActivityController extends ChangeNotifier {
     _stepSubscription = null;
   }
 
+  void _startAccelerometerTracking() {
+    try {
+      _accelerometerSubscription = userAccelerometerEventStream().listen(
+        _onAccelerometerUpdate,
+        onError: (error) {
+          debugPrint('❌ ActivityController: Accelerometer error: $error');
+        },
+      );
+    } catch (e) {
+      debugPrint('⚠️ ActivityController: Could not start accelerometer: $e');
+    }
+  }
+
+  void _stopAccelerometerTracking() {
+    _accelerometerSubscription?.cancel();
+    _accelerometerSubscription = null;
+    _isPhysicallyMoving = false;
+  }
+
+  void _onAccelerometerUpdate(UserAccelerometerEvent event) {
+    // Calculate the magnitude of the 3D acceleration vector
+    // This is 'User' acceleration (linear), meaning gravity is already filtered out
+    _motionMagnitude = math.sqrt(
+      math.pow(event.x, 2) + 
+      math.pow(event.y, 2) + 
+      math.pow(event.z, 2)
+    );
+
+    // If magnitude is above threshold, user is physically moving (walking, cycling, etc)
+    if (_motionMagnitude > _motionVibrationThreshold) {
+      _isPhysicallyMoving = true;
+      _lastSignificantMotionTime = DateTime.now();
+    } else {
+      // If we haven't seen significant motion for 1.5 seconds, we are stationary
+      if (_lastSignificantMotionTime == null || 
+          DateTime.now().difference(_lastSignificantMotionTime!).inMilliseconds > 1500) {
+        _isPhysicallyMoving = false;
+      }
+    }
+  }
+
   void _startStatsTimer() {
     _statsUpdateTimer?.cancel();
     _statsUpdateTimer = Timer.periodic(_statsUpdateInterval, (_) {
@@ -488,6 +548,11 @@ class ActivityController extends ChangeNotifier {
       final lastTime = _lastUpdateTimestamp ?? _startTime ?? timestamp;
       final timeDiff = timestamp.difference(lastTime);
 
+      // Update the absolute last update timestamp IMMEDIATELY
+      // This ensures that any calls to _updateStats() during this method 
+      // see the correct 'gap' time.
+      _lastUpdateTimestamp = timestamp;
+
       if (_lastKnownLocation != null) {
         final distance = Geolocator.distanceBetween(
           _lastKnownLocation!.latitude,
@@ -504,8 +569,13 @@ class ActivityController extends ChangeNotifier {
           instantSpeed = distance / (timeDiff.inMilliseconds / 1000.0);
         }
 
-        // Only process if movement is significant AND above speed threshold (discarding 0/low speeds)
-        if (distance >= _minimumDistanceThreshold && instantSpeed >= _minimumSpeedThreshold) {
+        // SENSOR FUSION:
+        // Trust GPS if movement is significant. 
+        // Use Accelerometer to confirm slow movement and prevent jitter.
+        final bool isGpsMoving = distance >= _minimumDistanceThreshold && instantSpeed >= _minimumSpeedThreshold;
+        final bool isActuallyMoving = isGpsMoving || (instantSpeed > 0.3 && _isPhysicallyMoving);
+
+        if (isActuallyMoving) {
           _totalDistance += distance;
           _movingDuration += timeDiff;
           _currentSpeed = instantSpeed;
@@ -554,6 +624,7 @@ class ActivityController extends ChangeNotifier {
           );
         } else {
           // STATIONARY
+          _stationaryDuration += timeDiff;
           _currentSpeed = 0.0;
           _updateStats();
 
@@ -590,14 +661,10 @@ class ActivityController extends ChangeNotifier {
           ),
         );
       }
-      
-      // Update the absolute last update timestamp regardless of movement
-      _lastUpdateTimestamp = timestamp;
     } catch (e) {
       debugPrint('❌ ActivityController: Error processing location update: $e');
     }
   }
-
   void _validateDataPoint(double distanceMeters, double speedMps) {
     _totalDataPoints++;
     bool isPointValid = true;
@@ -644,9 +711,31 @@ class ActivityController extends ChangeNotifier {
     // This ensures the UI timer ticks every second while running
     final activeDuration = totalDuration - _pausedDuration;
     
-    // Stationary duration is the part of active time where we aren't moving
-    // movingDuration + stationaryDuration = activeDuration
-    final stationaryDuration = activeDuration - _movingDuration;
+    // PROVISIONAL ALLOCATION:
+    // To prevent timers from "jumping", we allocate the time since the last GPS pulse
+    // based on our current physical state.
+    Duration provisionalMoving = _movingDuration;
+    Duration provisionalStationary = _stationaryDuration;
+
+    if (_lastUpdateTimestamp != null) {
+      final gap = now.difference(_lastUpdateTimestamp!);
+      if (_isPhysicallyMoving) {
+        provisionalMoving += gap;
+      } else {
+        provisionalStationary += gap;
+      }
+    }
+    
+    // Ensure provisional time never exceeds active time due to clock drift
+    final totalProvisionalMs = provisionalMoving.inMilliseconds + provisionalStationary.inMilliseconds;
+    if (totalProvisionalMs > activeDuration.inMilliseconds) {
+      final ratio = activeDuration.inMilliseconds / totalProvisionalMs;
+      provisionalMoving = Duration(milliseconds: (provisionalMoving.inMilliseconds * ratio).toInt());
+      provisionalStationary = Duration(milliseconds: (provisionalStationary.inMilliseconds * ratio).toInt());
+    } else if (totalProvisionalMs < activeDuration.inMilliseconds) {
+      // If we have a tiny gap due to rounding, add it to stationary
+      provisionalStationary += Duration(milliseconds: activeDuration.inMilliseconds - totalProvisionalMs);
+    }
 
     // Use movingDuration for average speed to keep it stable when stationary
     final averageSpeed = _movingDuration.inSeconds > 0
@@ -676,8 +765,8 @@ class ActivityController extends ChangeNotifier {
       totalDistanceMeters: _totalDistance,
       totalDuration: totalDuration,
       activeDuration: activeDuration,
-      movingDuration: _movingDuration,
-      stationaryDuration: stationaryDuration,
+      movingDuration: provisionalMoving,
+      stationaryDuration: provisionalStationary,
       averageSpeedMps: averageSpeed,
       currentSpeedMps: _currentSpeed,
       maxSpeedMps: _maxSpeed,
@@ -697,7 +786,7 @@ class ActivityController extends ChangeNotifier {
   void _updateFinalStats(DateTime endTime) {
     final totalDuration = endTime.difference(_startTime!);
     final activeDuration = totalDuration - _pausedDuration;
-    final stationaryDuration = activeDuration - _movingDuration;
+    final stationaryDuration = _stationaryDuration;
 
     final averageSpeed = _movingDuration.inSeconds > 0
         ? _totalDistance / _movingDuration.inSeconds
@@ -748,6 +837,7 @@ class ActivityController extends ChangeNotifier {
   void dispose() {
     _stopLocationTracking();
     _stopStepTracking();
+    _stopAccelerometerTracking();
     _statsUpdateTimer?.cancel();
     super.dispose();
   }

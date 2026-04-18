@@ -790,16 +790,15 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
               // Weather Condition Icon
               if (weather.conditionIcon.isNotEmpty)
                 Image.network(
-                  'https:${weather.conditionIcon}',
+                  weather.conditionIcon.startsWith('http') ? weather.conditionIcon : 'https:${weather.conditionIcon}',
                   width: 48,
                   height: 48,
                   errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.cloud_queue_rounded,
-                    color: GlobalTheme.textTertiary,
+                    Icons.wb_cloudy_outlined,
+                    color: GlobalTheme.primaryNeon,
                     size: 40,
                   ),
-                ),
-            ],
+                ),            ],
           ),
           const SizedBox(height: GlobalTheme.spacing16),
           const Divider(color: GlobalTheme.surfaceBorder, height: 1),
