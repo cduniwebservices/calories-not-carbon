@@ -1,28 +1,21 @@
 platform :ios, '13.0'
 
-# Standard Flutter Podfile template
-# This dynamically finds the Flutter SDK and hooks into the build process
+# Standard Flutter Podfile loader
+# This is the most compatible way to load Flutter's build hooks
+require_relative File.join('Flutter', 'generated_tool_utils.rb')
+
 project 'Runner', {
   'Debug' => :debug,
   'Release' => :release,
   'Profile' => :profile,
 }
 
-# The following code is standard for Flutter apps to find the SDK
-def flutter_root
-  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
-  unless File.exist?(generated_xcode_build_settings_path)
-    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get has been executed."
-  end
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
 
-  File.foreach(generated_xcode_build_settings_path) do |line|
-    matches = line.match(/\AFLUTTER_ROOT=(.*)\z/)
-    return matches[1].strip if matches
-  end
-  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
-
-require File.expand_path(File.join('..', 'Flutter', 'flutter_export_ios.rb'), __FILE__)
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|
@@ -30,7 +23,7 @@ post_install do |installer|
     
     # Permission Handler Configuration
     target.build_configurations.each do |config|
-      # Get existing definitions and handle nil/String/Array types
+      # Handle nil, String, or Array types for GCC_PREPROCESSOR_DEFINITIONS
       existing_defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS']
       if existing_defs.nil?
         definitions = ['$(inherited)']
@@ -40,7 +33,7 @@ post_install do |installer|
         definitions = existing_defs.dup
       end
       
-      # Inject permission macros
+      # Inject required permission macros if missing
       ['PERMISSION_LOCATION=1', 'PERMISSION_NOTIFICATIONS=1', 'PERMISSION_SENSORS=1'].each do |perm|
         definitions << perm unless definitions.include?(perm)
       end
@@ -48,15 +41,4 @@ post_install do |installer|
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = definitions
     end
   end
-end
-
-target 'Runner' do
-  use_frameworks!
-  use_modular_headers!
-
-  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-end
-
-target 'RunnerTests' do
-  inherit! :search_paths
 end
