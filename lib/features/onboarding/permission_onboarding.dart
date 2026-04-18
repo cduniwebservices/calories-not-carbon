@@ -49,7 +49,7 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
       title: 'Location Access',
       subtitle: 'Measure your journeys',
       description:
-          'GPS helps calculate the distance you\'ve traveled and the carbon savings from choosing active transport over driving.',
+          'GPS helps calculate the distance you\'ve traveled. On iPhone, please select "Allow While Using App" then "Change to Always Allow" to ensure tracking works when your screen is off.',
       icon: Icons.location_on,
       color: GlobalTheme.primaryAction,
     ),

@@ -32,11 +32,18 @@ class PermissionService {
     final results = <Permission, PermissionStatus>{};
 
     try {
-      // Request essential location permissions
+      // 1. Request location permissions (When In Use first on iOS)
       final locationStatus = await Permission.location.request();
       results[Permission.location] = locationStatus;
 
-      // Request notification permission (Essential for background GPS on Android)
+      // 2. On iOS, if When In Use is granted, request Always for background tracking
+      if (defaultTargetPlatform == TargetPlatform.iOS && locationStatus.isGranted) {
+        final alwaysStatus = await Permission.locationAlways.request();
+        results[Permission.locationAlways] = alwaysStatus;
+        results[Permission.location] = alwaysStatus; // Update main location key
+      }
+
+      // 3. Request notification permission (Essential for background GPS)
       try {
         final notificationStatus = await Permission.notification.request();
         results[Permission.notification] = notificationStatus;
@@ -44,12 +51,12 @@ class PermissionService {
         debugPrint('⚠️ Notification permission error: $e');
       }
 
-      // Try activity recognition but don't fail if not available
+      // 4. Request activity recognition
       try {
         final activityStatus = await Permission.activityRecognition.request();
         results[Permission.activityRecognition] = activityStatus;
       } catch (e) {
-        debugPrint('⚠️ Activity recognition permission not available: $e');
+        debugPrint('⚠️ Activity recognition permission error: $e');
       }
 
       await _updatePermissionState();
