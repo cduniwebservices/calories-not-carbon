@@ -98,19 +98,18 @@ jobs:
             NEW_NAME="ios-app-${{ env.VERSION }}.app"
             mv "$APP_DIR" "$NEW_NAME"
             
-            # Create staging directory for standard artifact zip
-            mkdir -p artifact
-            cp -r "$NEW_NAME" artifact/
-            
             # Create .ipa (iOS Package)
             # Must be in a folder named 'Payload'
             mkdir -p Payload
             cp -r "$NEW_NAME" Payload/
-            zip -r "artifact/ios-app-${{ env.VERSION }}.ipa" Payload
+            
+            # Output directly to a deployment folder
+            mkdir -p deployment
+            zip -r "deployment/ios-app-${{ env.VERSION }}.ipa" Payload
           fi
 
       - name: Upload iOS App
         uses: actions/upload-artifact@v4
         with:
           name: ios-app-${{ env.VERSION }}
-          path: build/ios/iphoneos/artifact/
+          path: build/ios/iphoneos/deployment/

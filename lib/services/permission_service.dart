@@ -37,11 +37,12 @@ class PermissionService {
       final locationStatus = await Permission.location.request();
       results[Permission.location] = locationStatus;
 
-      // 2. On iOS, if When In Use is granted, request Always for background tracking
+      // 2. On iOS, if When In Use is granted, try to request Always for background tracking
+      // We don't overwrite the main location status if Always is denied, as When In Use 
+      // is enough to proceed with the app flow.
       if (defaultTargetPlatform == TargetPlatform.iOS && locationStatus.isGranted) {
         final alwaysStatus = await Permission.locationAlways.request();
         results[Permission.locationAlways] = alwaysStatus;
-        results[Permission.location] = alwaysStatus; // Update main location key
       }
 
       // 3. Request notification permission (Essential for background GPS)
