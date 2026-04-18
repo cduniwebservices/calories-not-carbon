@@ -232,9 +232,11 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
           children: [
             Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
             SizedBox(width: 12),
-            Text(
-              'Permissions Required',
-              style: TextStyle(color: GlobalTheme.textPrimary),
+            Expanded(
+              child: Text(
+                'Permissions Required',
+                style: TextStyle(color: GlobalTheme.textPrimary),
+              ),
             ),
           ],
         ),
