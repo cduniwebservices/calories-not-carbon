@@ -37,22 +37,27 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: |
+          flutter pub get
+          flutter precache --ios
+
+      - name: Debug Flutter Plugins
+        run: |
+          echo "--- .flutter-plugins ---"
+          cat .flutter-plugins || echo "NOT FOUND"
+          echo "--- .flutter-plugins-dependencies ---"
+          cat .flutter-plugins-dependencies || echo "NOT FOUND"
 
       - name: Generate iOS build files
         run: flutter build ios --config-only --no-codesign
 
-      - name: Cache CocoaPods
-        uses: actions/cache@v4
-        with:
-          path: ios/Pods
-          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile') }}
-          restore-keys: |
-            ${{ runner.os }}-pods-
-
-      - name: Pod install
+      - name: Clean and Pod install
         working-directory: ios
-        run: pod install --repo-update
+        run: |
+          rm -rf Pods Podfile.lock .symlinks
+          pod install --repo-update
+          echo "--- Podfile.lock ---"
+          grep -i "app_links" Podfile.lock || echo "app_links NOT FOUND in Podfile.lock"
 
       - name: Build iOS
         run: flutter build ios --release --no-codesign --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }} --dart-define=WEATHER_API_KEY=${{ secrets.WEATHER_API_KEY }} --dart-define=APP_VERSION=${{ env.VERSION }}
@@ -60,18 +65,12 @@ jobs:
       - name: Rename iOS App with Version and Create IPA
         run: |
           cd build/ios/iphoneos
-          # Find the .app directory (should be Runner.app or similar)
           APP_DIR=$(basename $(find . -maxdepth 1 -name "*.app" -type d | head -1))
           if [ -n "$APP_DIR" ]; then
             NEW_NAME="ios-app-${{ env.VERSION }}.app"
             mv "$APP_DIR" "$NEW_NAME"
-            
-            # Create .ipa (iOS Package)
-            # Must be in a folder named 'Payload'
             mkdir -p Payload
             cp -r "$NEW_NAME" Payload/
-            
-            # Output directly to a deployment folder
             mkdir -p deployment
             zip -r "deployment/ios-app-${{ env.VERSION }}.ipa" Payload
           fi
