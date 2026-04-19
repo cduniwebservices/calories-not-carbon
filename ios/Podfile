@@ -1,23 +1,26 @@
 platform :ios, '13.0'
 
 # Standard Flutter requirement for plugin linking
-# We use a safe check to prevent crashes in fresh CI environments
 flutter_install_all_ios_pods_path = File.join('Flutter', 'generated_tool_utils.rb')
 if File.exist?(flutter_install_all_ios_pods_path)
   require_relative flutter_install_all_ios_pods_path
 else
   # Mock methods to satisfy CocoaPods until Flutter generates the real ones
+  def flutter_ios_podfile_setup; end
   def flutter_install_all_ios_pods(path); end
   def flutter_additional_ios_build_settings(target); end
 end
+
+# Essential Flutter setup call
+flutter_ios_podfile_setup
 
 # Force all plugins to be built as frameworks
 use_frameworks!
 use_modular_headers!
 
 target 'Runner' do
-  # This will install all Flutter plugins
-  flutter_install_all_ios_pods(__dir__)
+  # This will install all Flutter plugins with absolute path
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
 post_install do |installer|
@@ -40,7 +43,6 @@ post_install do |installer|
     end
 
     # Inject Permission Handler Macros
-    # This is CRITICAL for iOS permission popups to appear
     target.build_configurations.each do |config|
       existing_defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS']
       if existing_defs.nil?
