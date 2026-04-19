@@ -36,22 +36,29 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Check Flutter version
+        run: flutter --version
+
       - name: Install dependencies
         run: |
           flutter pub get
           flutter precache --ios
 
-      - name: Debug Flutter Plugins
-        run: |
-          echo "--- .flutter-plugins ---"
-          cat .flutter-plugins || echo "NOT FOUND"
-          echo "--- .flutter-plugins-dependencies ---"
-          cat .flutter-plugins-dependencies || echo "NOT FOUND"
-
       - name: Generate iOS build files
         run: flutter build ios --config-only --no-codesign
 
-      - name: Clean and Pod install
+      - name: Verify Flutter iOS files
+        run: |
+          echo "--- Contents of ios/Flutter/ ---"
+          ls -la ios/Flutter/
+          if [ -f ios/Flutter/generated_tool_utils.rb ] || [ -f ios/Flutter/podhelper.rb ]; then
+            echo "✅ Flutter iOS files generated successfully."
+          else
+            echo "❌ ERROR: Neither generated_tool_utils.rb nor podhelper.rb were found."
+            exit 1
+          fi
+
+      - name: Pod install
         working-directory: ios
         run: |
           rm -rf Pods Podfile.lock .symlinks
