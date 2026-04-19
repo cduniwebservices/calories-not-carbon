@@ -23,6 +23,8 @@ jobs:
     name: Build iOS App
     needs: version
     runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -38,15 +40,30 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Show ios/Flutter before config
-        run: ls -la ios/Flutter/ || echo "Directory empty or missing"
-
       - name: Generate iOS config
         run: flutter build ios --config-only --no-codesign
 
-      - name: Show ios/Flutter after config
-        run: ls -la ios/Flutter/ || echo "Still empty!"
+      - name: Show ios/Flutter/ephemeral/
+        run: ls -la ios/Flutter/ephemeral/ || echo "ephemeral/ directory empty or missing"
 
-      - name: Pod install
-        working-directory: ios
-        run: pod install --repo-update
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }} --dart-define=WEATHER_API_KEY=${{ secrets.WEATHER_API_KEY }} --dart-define=APP_VERSION=${{ env.VERSION }}
+
+      - name: Rename iOS App with Version and Create IPA
+        run: |
+          cd build/ios/iphoneos
+          APP_DIR=$(basename $(find . -maxdepth 1 -name "*.app" -type d | head -1))
+          if [ -n "$APP_DIR" ]; then
+            NEW_NAME="ios-app-${{ env.VERSION }}.app"
+            mv "$APP_DIR" "$NEW_NAME"
+            mkdir -p Payload
+            cp -r "$NEW_NAME" Payload/
+            mkdir -p deployment
+            zip -r "deployment/ios-app-${{ env.VERSION }}.ipa" Payload
+          fi
+
+      - name: Upload iOS App
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app-${{ env.VERSION }}
+          path: build/ios/iphoneos/deployment/
