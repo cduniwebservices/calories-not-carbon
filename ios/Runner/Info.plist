@@ -72,7 +72,7 @@
 	<string>This app uses motion sensors to detect your fitness activities, count steps, and provide enhanced workout tracking capabilities.</string>
 	
 	<!-- Notifications permission -->
-	<key>NSNotificationsUsageDescription</key>
+	<key>NSUserNotificationsUsageDescription</key>
 	<string>This app uses notifications to keep you informed about your tracking status and progress.</string>
 	
 	<!-- Background modes for continuous tracking -->
