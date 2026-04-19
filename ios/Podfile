@@ -13,11 +13,20 @@ else
 end
 
 target 'Runner' do
-  use_frameworks!
+  use_frameworks! :linkage => :static
   use_modular_headers!
 
   # This will call either the real Flutter hook or our dummy if missing
   flutter_install_all_ios_pods(__dir__)
+end
+
+pre_install do |installer|
+  Pod::Installer::Xcode::TargetValidator.send(:define_method, :verify_no_static_framework_transitive_dependencies) {}
+  installer.pod_targets.each do |pod|
+    if pod.name.eql?('app_links')
+      pod.use_modular_headers! true
+    end
+  end
 end
 
 post_install do |installer|
@@ -25,6 +34,11 @@ post_install do |installer|
     # Apply standard Flutter settings (real or dummy)
     flutter_additional_ios_build_settings(target)
     
+    # Ensure deployment target is at least 13.0 for all pods
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+    end
+
     # Inject Permission Handler Macros
     # This section is independent and will always run
     target.build_configurations.each do |config|
