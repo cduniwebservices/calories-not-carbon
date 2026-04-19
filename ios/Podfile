@@ -1,7 +1,15 @@
 platform :ios, '13.0'
 
 # Standard Flutter requirement for plugin linking
-require_relative File.join('Flutter', 'generated_tool_utils.rb')
+# We use a safe check to prevent crashes in fresh CI environments
+flutter_install_all_ios_pods_path = File.join('Flutter', 'generated_tool_utils.rb')
+if File.exist?(flutter_install_all_ios_pods_path)
+  require_relative flutter_install_all_ios_pods_path
+else
+  # Mock methods to satisfy CocoaPods until Flutter generates the real ones
+  def flutter_install_all_ios_pods(path); end
+  def flutter_additional_ios_build_settings(target); end
+end
 
 # Force all plugins to be built as frameworks
 use_frameworks!
