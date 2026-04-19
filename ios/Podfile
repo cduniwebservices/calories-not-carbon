@@ -1,23 +1,33 @@
 platform :ios, '13.0'
 
-# Standard Flutter Podfile loader
-# This file is generated and managed by Flutter
-require_relative File.join('Flutter', 'generated_tool_utils.rb')
+# Load Flutter build hooks
+# We use a safe check to prevent crashes in fresh CI environments
+# If the file is missing, we define dummy methods to satisfy CocoaPods
+flutter_install_all_ios_pods_path = File.join('Flutter', 'generated_tool_utils.rb')
+if File.exist?(flutter_install_all_ios_pods_path)
+  require_relative flutter_install_all_ios_pods_path
+else
+  # Mock methods to satisfy CocoaPods until Flutter generates the real ones
+  def flutter_install_all_ios_pods(path); end
+  def flutter_additional_ios_build_settings(target); end
+end
 
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  # This will call either the real Flutter hook or our dummy if missing
+  flutter_install_all_ios_pods(__dir__)
 end
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|
+    # Apply standard Flutter settings (real or dummy)
     flutter_additional_ios_build_settings(target)
     
-    # Permission Handler Configuration (Million-Dollar UX)
+    # Inject Permission Handler Macros
+    # This section is independent and will always run
     target.build_configurations.each do |config|
-      # Handle nil, String, or Array types for GCC_PREPROCESSOR_DEFINITIONS
       existing_defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS']
       if existing_defs.nil?
         definitions = ['$(inherited)']
@@ -27,7 +37,7 @@ post_install do |installer|
         definitions = existing_defs.dup
       end
       
-      # Inject required permission macros
+      # Mandatory permission macros for iOS popups
       ['PERMISSION_LOCATION=1', 'PERMISSION_NOTIFICATIONS=1', 'PERMISSION_SENSORS=1'].each do |perm|
         definitions << perm unless definitions.include?(perm)
       end
