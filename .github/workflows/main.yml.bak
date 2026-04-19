@@ -1,0 +1,145 @@
+name: Flutter CI/CD
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  version:
+    name: Generate Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.gen.outputs.version }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Generate Version Number
+        id: gen
+        run: |
+          chmod +x .github/scripts/generate_version.sh
+          ./.github/scripts/generate_version.sh
+
+  build-ios:
+    name: Build iOS App
+    needs: version
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: false
+
+      - name: Diagnose Flutter Environment
+        run: |
+          echo "--- Flutter version ---"
+          flutter --version
+          echo "--- Dart version ---"
+          dart --version
+
+      - name: Install dependencies
+        run: |
+          flutter pub get
+          flutter precache --ios
+
+      - name: Generate iOS build files
+        run: |
+          set -e
+          echo "Running flutter build ios --config-only..."
+          flutter build ios --config-only --no-codesign 2>&1
+          echo "Config step completed with exit code: $?"
+
+      - name: Diagnose iOS Directory
+        run: |
+          echo "--- Contents of ios/Flutter/ ---"
+          ls -la ios/Flutter/ || echo "ios/Flutter/ directory does not exist!"
+          echo "--- Contents of ios/ ---"
+          ls -la ios/
+          echo "--- .flutter-plugins ---"
+          cat .flutter-plugins || echo ".flutter-plugins NOT FOUND"
+          echo "--- .flutter-plugins-dependencies ---"
+          cat .flutter-plugins-dependencies || echo ".flutter-plugins-dependencies NOT FOUND"
+
+      - name: Verify Flutter iOS files
+        run: |
+          if [ -f ios/Flutter/generated_tool_utils.rb ] || [ -f ios/Flutter/podhelper.rb ]; then
+            echo "✅ Flutter iOS files generated successfully."
+          else
+            echo "❌ ERROR: Neither generated_tool_utils.rb nor podhelper.rb were found."
+            exit 1
+          fi
+
+      - name: Pod install
+        working-directory: ios
+        run: |
+          rm -rf Pods Podfile.lock .symlinks
+          pod install --repo-update
+          echo "--- Podfile.lock ---"
+          grep -i "app_links" Podfile.lock || echo "app_links NOT FOUND in Podfile.lock"
+
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }} --dart-define=WEATHER_API_KEY=${{ secrets.WEATHER_API_KEY }} --dart-define=APP_VERSION=${{ env.VERSION }}
+
+      - name: Rename iOS App with Version and Create IPA
+        run: |
+          cd build/ios/iphoneos
+          APP_DIR=$(basename $(find . -maxdepth 1 -name "*.app" -type d | head -1))
+          if [ -n "$APP_DIR" ]; then
+            NEW_NAME="ios-app-${{ env.VERSION }}.app"
+            mv "$APP_DIR" "$NEW_NAME"
+            mkdir -p Payload
+            cp -r "$NEW_NAME" Payload/
+            mkdir -p deployment
+            zip -r "deployment/ios-app-${{ env.VERSION }}.ipa" Payload
+          fi
+
+      - name: Upload iOS App
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app-${{ env.VERSION }}
+          path: build/ios/iphoneos/deployment/
+
+  build-android:
+    name: Build Android APK
+    needs: [version, build-ios]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }} --dart-define=WEATHER_API_KEY=${{ secrets.WEATHER_API_KEY }} --dart-define=APP_VERSION=${{ env.VERSION }}
+
+      - name: Rename APK with Version
+        run: |
+          mkdir -p build/app/outputs/flutter-apk/renamed
+          cp build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/renamed/android-app-${{ env.VERSION }}.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-app-${{ env.VERSION }}
+          path: build/app/outputs/flutter-apk/renamed/android-app-${{ env.VERSION }}.apk
