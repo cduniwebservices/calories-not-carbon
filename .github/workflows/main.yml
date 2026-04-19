@@ -32,12 +32,15 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.41.6'
           channel: 'stable'
-          cache: true
+          cache: false
 
-      - name: Check Flutter version
-        run: flutter --version
+      - name: Diagnose Flutter Environment
+        run: |
+          echo "--- Flutter version ---"
+          flutter --version
+          echo "--- Dart version ---"
+          dart --version
 
       - name: Install dependencies
         run: |
@@ -45,12 +48,25 @@ jobs:
           flutter precache --ios
 
       - name: Generate iOS build files
-        run: flutter build ios --config-only --no-codesign
+        run: |
+          set -e
+          echo "Running flutter build ios --config-only..."
+          flutter build ios --config-only --no-codesign 2>&1
+          echo "Config step completed with exit code: $?"
+
+      - name: Diagnose iOS Directory
+        run: |
+          echo "--- Contents of ios/Flutter/ ---"
+          ls -la ios/Flutter/ || echo "ios/Flutter/ directory does not exist!"
+          echo "--- Contents of ios/ ---"
+          ls -la ios/
+          echo "--- .flutter-plugins ---"
+          cat .flutter-plugins || echo ".flutter-plugins NOT FOUND"
+          echo "--- .flutter-plugins-dependencies ---"
+          cat .flutter-plugins-dependencies || echo ".flutter-plugins-dependencies NOT FOUND"
 
       - name: Verify Flutter iOS files
         run: |
-          echo "--- Contents of ios/Flutter/ ---"
-          ls -la ios/Flutter/
           if [ -f ios/Flutter/generated_tool_utils.rb ] || [ -f ios/Flutter/podhelper.rb ]; then
             echo "✅ Flutter iOS files generated successfully."
           else
@@ -108,15 +124,8 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.41.6'
           channel: 'stable'
           cache: true
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
 
       - name: Install dependencies
         run: flutter pub get
