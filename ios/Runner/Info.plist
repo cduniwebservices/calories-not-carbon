@@ -45,6 +45,19 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>calories-not-carbon</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>caloriesnotcarbon</string>
+			</array>
+		</dict>
+	</array>
 	
 	<!-- Location permissions for fitness tracking -->
 	<key>NSLocationWhenInUseUsageDescription</key>
