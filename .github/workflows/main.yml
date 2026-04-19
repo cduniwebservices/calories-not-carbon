@@ -19,56 +19,9 @@ jobs:
           chmod +x .github/scripts/generate_version.sh
           ./.github/scripts/generate_version.sh
 
-  build-android:
-    name: Build Android APK
-    needs: version
-    runs-on: ubuntu-latest
-    env:
-      VERSION: ${{ needs.version.outputs.version }}
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'gradle'
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.41.6'
-          channel: 'stable'
-          cache: true
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build APK
-        run: flutter build apk --release --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }} --dart-define=WEATHER_API_KEY=${{ secrets.WEATHER_API_KEY }} --dart-define=APP_VERSION=${{ env.VERSION }}
-
-      - name: Rename APK with Version
-        run: |
-          mkdir -p build/app/outputs/flutter-apk/renamed
-          cp build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/renamed/android-app-${{ env.VERSION }}.apk"
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-app-${{ env.VERSION }}
-          path: build/app/outputs/flutter-apk/renamed/android-app-${{ env.VERSION }}.apk
-
   build-ios:
     name: Build iOS App
-    needs: [version, build-android]
+    needs: version
     runs-on: macos-latest
     env:
       VERSION: ${{ needs.version.outputs.version }}
@@ -113,3 +66,50 @@ jobs:
         with:
           name: ios-app-${{ env.VERSION }}
           path: build/ios/iphoneos/deployment/
+
+  build-android:
+    name: Build Android APK
+    needs: [version, build-ios]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.6'
+          channel: 'stable'
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }} --dart-define=WEATHER_API_KEY=${{ secrets.WEATHER_API_KEY }} --dart-define=APP_VERSION=${{ env.VERSION }}
+
+      - name: Rename APK with Version
+        run: |
+          mkdir -p build/app/outputs/flutter-apk/renamed
+          cp build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/renamed/android-app-${{ env.VERSION }}.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-app-${{ env.VERSION }}
+          path: build/app/outputs/flutter-apk/renamed/android-app-${{ env.VERSION }}.apk
