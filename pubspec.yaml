@@ -46,7 +46,8 @@ dependencies:
   connectivity_plus: ^6.0.0
 
   # Cloud sync
-  supabase_flutter: ^2.0.0
+  supabase_flutter: ^2.12.4
+  app_links: ^7.0.0
 
   # Crash reporting & monitoring
   sentry_flutter: ^9.0.0
