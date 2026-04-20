@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'ios_location_service.dart';
 
 /// Enterprise-level permission management service
 class PermissionService {
@@ -14,6 +16,9 @@ class PermissionService {
       StreamController<PermissionState>.broadcast();
 
   Stream<PermissionState> get permissionStream => _permissionController.stream;
+
+  // iOS-specific native location service for better permission handling
+  final IOSLocationService _iosLocationService = IOSLocationService();
 
   PermissionState _currentState = PermissionState.unknown;
   Timer? _permissionMonitor;

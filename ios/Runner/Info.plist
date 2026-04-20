@@ -67,6 +67,16 @@
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>This app needs background location access to continue tracking your fitness activities when the app is minimized, providing you with complete workout sessions.</string>
 
+	<!-- iOS background location indicator (blue bar) - required for continuous background tracking -->
+	<key>UIApplicationBackgroundFetchInterval</key>
+	<integer>0</integer>
+
+	<!-- Required for background fetch -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.transistorsoft.fetch</string>
+	</array>
+
 	<!-- Motion permissions for activity recognition -->
 	<key>NSMotionUsageDescription</key>
 	<string>This app uses motion sensors to detect your fitness activities, count steps, and provide enhanced workout tracking capabilities.</string>
