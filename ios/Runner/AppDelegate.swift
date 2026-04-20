@@ -1,6 +1,5 @@
 import Flutter
 import UIKit
-import background_fetch
 import CoreLocation
 
 @main
@@ -22,16 +21,6 @@ import CoreLocation
     LocationManager.shared.initialize()
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
-
-  // Handle background fetch events for background_fetch package
-  override func application(_ application: UIApplication, performFetchWithCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
-    BackgroundFetchPlugin.application(application, performFetchWithCompletionHandler: completionHandler)
-  }
-
-  // Handle background processing events for background_fetch package (iOS 13+)
-  override func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
-    BackgroundFetchPlugin.application(application, handleEventsForBackgroundURLSession: identifier, completionHandler: completionHandler)
   }
 
   // MARK: - Method Channel Setup
