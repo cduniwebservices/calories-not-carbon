@@ -44,7 +44,7 @@ jobs:
         run: flutter build ios --config-only --no-codesign
 
       - name: Build iOS
-        run: flutter build ios --release --no-codesign --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }} --dart-define=WEATHER_API_KEY=${{ secrets.WEATHER_API_KEY }} --dart-define=APP_VERSION=${{ env.VERSION }}
+        run: flutter build ios --release --no-codesign --verbose --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }} --dart-define=WEATHER_API_KEY=${{ secrets.WEATHER_API_KEY }} --dart-define=APP_VERSION=${{ env.VERSION }}
 
       - name: Rename iOS App with Version and Create IPA
         run: |
