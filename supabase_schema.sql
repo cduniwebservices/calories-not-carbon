@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS activities (
   total_distance_meters DOUBLE PRECISION DEFAULT 0,
   total_duration_ms BIGINT DEFAULT 0,
   active_duration_ms BIGINT DEFAULT 0,
+  moving_duration_ms BIGINT DEFAULT 0,
   average_speed_mps DOUBLE PRECISION DEFAULT 0,
   max_speed_mps DOUBLE PRECISION DEFAULT 0,
   estimated_calories INTEGER DEFAULT 0,

@@ -974,16 +974,33 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       },
     ),
     const SizedBox(height: 12),
-    _buildMockRouteButton(
-      icon: Icons.location_off,
-      label: 'Test Permission Denied Screen',
-      color: Colors.redAccent,
-      onTap: () {
-        Navigator.of(context).pop();
-        context.push('/permission-denied');
-      },
-    ),
-    const SizedBox(height: 32),
+        _buildMockRouteButton(
+          icon: Icons.location_off,
+          label: 'Test Permission Denied Screen',
+          color: Colors.redAccent,
+          onTap: () {
+            Navigator.of(context).pop();
+            context.push('/permission-denied');
+          },
+        ),
+        const SizedBox(height: 12),
+        _buildMockRouteButton(
+          icon: Icons.replay,
+          label: 'Reset Onboarding Status',
+          color: Colors.orange,
+          onTap: () async {
+            await LocalStorageService.resetOnboarding();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Onboarding status reset. Restart app to test.'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          },
+        ),
+        const SizedBox(height: 32),
   ],
 ),
 );
@@ -1174,23 +1191,25 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
         'id': session.id,
         'device_id': LocalStorageService.getDeviceId(),
         'activity_type': session.activityType.name,
+        'activity_replaced': session.activityReplaced,
         'state': session.state.name,
+        'is_valid': session.isValid,
         'total_distance_meters': session.stats.totalDistanceMeters,
         'total_duration_ms': session.stats.totalDuration.inMilliseconds,
         'active_duration_ms': session.stats.activeDuration.inMilliseconds,
+        'moving_duration_ms': session.stats.movingDuration.inMilliseconds,
         'average_speed_mps': session.stats.averageSpeedMps,
         'max_speed_mps': session.stats.maxSpeedMps,
         'estimated_calories': session.stats.estimatedCalories,
-        'total_steps': session.stats.totalSteps,
-        'elevation_gain': session.stats.elevationGain,
-        'is_valid': session.isValid,
-        'activity_replaced': session.activityReplaced,
-        'start_weather': session.startWeather?.toJson(),
-        'start_ip_lookup': session.startIpLookup?.toJson(),
         'start_time': session.stats.startTime.toIso8601String(),
         'end_time': session.stats.endTime?.toIso8601String(),
-        'route_points': sessionJson['routePoints'],
         'created_at': DateTime.now().toIso8601String(),
+        'synced_at': DateTime.now().toIso8601String(),
+        'total_steps': session.stats.totalSteps,
+        'elevation_gain': session.stats.elevationGain,
+        'start_ip_lookup': session.startIpLookup?.toJson(),
+        'start_weather': session.startWeather?.toJson(),
+        'route_points': sessionJson['routePoints'],
       });
 
       await LocalStorageService.markAsSynced(session.id);
