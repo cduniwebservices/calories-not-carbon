@@ -4,7 +4,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../services/permission_service.dart';
 import '../../services/location_service.dart';
-import '../../services/local_storage_service.dart';
 import '../../components/modern_ui_components.dart';
 import '../../components/app_button.dart';
 import '../../theme/global_theme.dart';
@@ -143,10 +142,6 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
     });
 
     if (result.isSuccess) {
-      // Mark onboarding as complete since user successfully granted permissions
-      await LocalStorageService.markOnboardingComplete();
-      debugPrint('✅ PermissionOnboarding: Permissions granted, onboarding marked complete');
-      
       // Check if notification permission was specifically denied or not granted
       final notificationStatus = result.permissions[Permission.notification];
       if (notificationStatus != null && !notificationStatus.isGranted) {

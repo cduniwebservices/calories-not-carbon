@@ -58,33 +58,23 @@
 			</array>
 		</dict>
 	</array>
-	
-  <!-- Location permissions for fitness tracking -->
-  <key>NSLocationWhenInUseUsageDescription</key>
-  <string>This app needs location access to track your fitness activities, including runs, workouts, and to provide accurate distance and pace measurements.</string>
-  <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-  <string>This app needs continuous location access to track your fitness activities in the background, ensuring accurate workout data even when the app is not actively being used.</string>
-  <key>NSLocationAlwaysUsageDescription</key>
-  <string>This app needs background location access to continue tracking your fitness activities when the app is minimized, providing you with complete workout sessions.</string>
 
-  <!-- iOS background location indicator (blue bar) - required for continuous background tracking -->
-  <key>UIApplicationBackgroundFetchInterval</key>
-  <integer>0</integer>
+	<!-- Location permissions for fitness tracking -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs location access to track your fitness activities, including runs, workouts, and to provide accurate distance and pace measurements.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs continuous location access to track your fitness activities in the background, ensuring accurate workout data even when the app is not actively being used.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>This app needs background location access to continue tracking your fitness activities when the app is minimized, providing you with complete workout sessions.</string>
 
-  <!-- Required for background fetch -->
-  <key>BGTaskSchedulerPermittedIdentifiers</key>
-  <array>
-    <string>com.transistorsoft.fetch</string>
-  </array>
-	
 	<!-- Motion permissions for activity recognition -->
 	<key>NSMotionUsageDescription</key>
 	<string>This app uses motion sensors to detect your fitness activities, count steps, and provide enhanced workout tracking capabilities.</string>
-	
+
 	<!-- Notifications permission -->
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>This app uses notifications to keep you informed about your tracking status and progress.</string>
-	
+
 	<!-- Background modes for continuous tracking -->
 	<key>UIBackgroundModes</key>
 	<array>

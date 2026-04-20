@@ -1,18 +1,13 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'ios_location_service.dart';
 
 /// Enterprise-level permission management service
 class PermissionService {
   static final PermissionService _instance = PermissionService._internal();
   factory PermissionService() => _instance;
   PermissionService._internal();
-
-  // iOS-specific native location service for better permission handling
-  final IOSLocationService _iosLocationService = IOSLocationService();
 
   // Stream controller for permission state changes
   final StreamController<PermissionState> _permissionController =
@@ -32,58 +27,22 @@ class PermissionService {
   }
 
   /// Request all necessary permissions for fitness tracking
-  /// iOS: Uses native iOS LocationManager for reliable "Always" authorization
-  /// Android: Uses permission_handler package
   Future<PermissionRequestResult> requestFitnessPermissions() async {
     debugPrint('🔐 PermissionService: Requesting fitness permissions...');
 
     final results = <Permission, PermissionStatus>{};
 
     try {
-      if (Platform.isIOS) {
-        // iOS: Use native location manager for better "Always" authorization flow
-        debugPrint('🍎 PermissionService: Requesting iOS fitness permissions...');
+      // 1. Request location permissions (When In Use first on iOS)
+      final locationStatus = await Permission.location.request();
+      results[Permission.location] = locationStatus;
 
-        // Initialize iOS location service first
-        await _iosLocationService.initialize();
-
-        // Request location permissions via permission_handler (When In Use first)
-        final locationStatus = await Permission.location.request();
-        results[Permission.location] = locationStatus;
-
-        if (locationStatus.isGranted) {
-          // Use native iOS service to request "Always" authorization
-          // This provides better control and proper iOS flow
-          debugPrint('🔐 PermissionService: Requesting iOS "Always" authorization via native...');
-          final alwaysRequested = await _iosLocationService.requestAlwaysAuthorization();
-          debugPrint('✅ PermissionService: iOS "Always" authorization requested: $alwaysRequested');
-
-          // Check the actual status after request
-          final iosStatus = await _iosLocationService.getAuthorizationStatus();
-          debugPrint('🔐 PermissionService: iOS authorization status: $iosStatus');
-
-          // Map native iOS status to permission_handler status
-          if (iosStatus == 'authorizedAlways') {
-            results[Permission.locationAlways] = PermissionStatus.granted;
-          } else if (iosStatus == 'authorizedWhenInUse') {
-            results[Permission.locationAlways] = PermissionStatus.denied;
-          } else {
-            results[Permission.locationAlways] = PermissionStatus.denied;
-          }
-        }
-      } else {
-        // Android: Use standard permission_handler
-        debugPrint('🤖 PermissionService: Requesting Android fitness permissions...');
-
-        // 1. Request location permissions
-        final locationStatus = await Permission.location.request();
-        results[Permission.location] = locationStatus;
-
-        // 2. On Android 10+, request background location separately
-        if (locationStatus.isGranted) {
-          final alwaysStatus = await Permission.locationAlways.request();
-          results[Permission.locationAlways] = alwaysStatus;
-        }
+      // 2. On iOS, if When In Use is granted, try to request Always for background tracking
+      // We don't overwrite the main location status if Always is denied, as When In Use 
+      // is enough to proceed with the app flow.
+      if (defaultTargetPlatform == TargetPlatform.iOS && locationStatus.isGranted) {
+        final alwaysStatus = await Permission.locationAlways.request();
+        results[Permission.locationAlways] = alwaysStatus;
       }
 
       // 3. Request notification permission (Essential for background GPS)
@@ -217,16 +176,7 @@ class PermissionService {
 
   Future<void> _updatePermissionState() async {
     try {
-      PermissionStatus locationStatus;
-      
-      // On iOS, check native authorization status for more accurate tracking
-      if (Platform.isIOS) {
-        final iosStatus = await _iosLocationService.getAuthorizationStatus();
-        locationStatus = _mapIOSToPermissionStatus(iosStatus);
-      } else {
-        locationStatus = await Permission.location.status;
-      }
-      
+      final locationStatus = await Permission.location.status;
       final activityStatus = await Permission.activityRecognition.status;
       final notificationStatus = await Permission.notification.status;
 
@@ -259,22 +209,6 @@ class PermissionService {
       }
     } catch (e) {
       debugPrint('❌ PermissionService: Error updating permission state: $e');
-    }
-  }
-
-  /// Map iOS native authorization status to permission_handler status
-  PermissionStatus _mapIOSToPermissionStatus(String iosStatus) {
-    switch (iosStatus) {
-      case 'authorizedAlways':
-      case 'authorizedWhenInUse':
-        return PermissionStatus.granted;
-      case 'denied':
-        return PermissionStatus.denied;
-      case 'restricted':
-        return PermissionStatus.permanentlyDenied;
-      case 'notDetermined':
-      default:
-        return PermissionStatus.denied;
     }
   }
 

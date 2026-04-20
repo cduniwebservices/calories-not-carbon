@@ -1,16 +1,12 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'background_location_service.dart';
 import 'geoid_service.dart';
-import 'ios_location_service.dart';
 
 /// Enterprise-level location service for million-dollar app quality
-/// Uses iOS native LocationManager on iOS for reliable background tracking
-/// Uses standard Geolocator + foreground task on Android
 class LocationService {
   static final LocationService _instance = LocationService._internal();
   factory LocationService() => _instance;
@@ -18,9 +14,6 @@ class LocationService {
 
   // Geoid service for altitude conversion
   final GeoidService _geoidService = GeoidService();
-
-  // iOS-specific native location service
-  final IOSLocationService _iosLocationService = IOSLocationService();
 
   // Stream controllers for real-time location updates
   final StreamController<LocationData> _locationController =
@@ -36,7 +29,7 @@ class LocationService {
       _permissionController.stream;
   Stream<LocationServiceStatus> get serviceStream => _serviceController.stream;
 
-  // Background location service (Android only)
+  // Background location service
   final BackgroundLocationService _backgroundService = BackgroundLocationService();
   StreamSubscription? _backgroundLocationSubscription;
 
@@ -45,14 +38,10 @@ class LocationService {
   LocationPermissionStatus _permissionStatus = LocationPermissionStatus.unknown;
   LocationServiceStatus _serviceStatus = LocationServiceStatus.unknown;
   StreamSubscription<Position>? _positionSubscription;
-  StreamSubscription<LocationData>? _iosLocationSubscription;
   Timer? _permissionCheckTimer;
 
   bool _isInitialized = false;
   bool _isTracking = false;
-
-  /// Check if running on iOS
-  bool get _isIOS => Platform.isIOS;
 
   /// Initialize the location service with enterprise-level error handling
   Future<void> initialize() async {
@@ -66,18 +55,8 @@ class LocationService {
       // Initialize geoid service
       await _geoidService.initialize();
 
-      // Initialize iOS native service if on iOS
-      if (_isIOS) {
-        debugPrint('🍎 LocationService: Initializing iOS native location service...');
-        await _iosLocationService.initialize();
-        // Enable background location indicator (blue bar) for user transparency
-        await _iosLocationService.setShowsBackgroundLocationIndicator(true);
-        // Set reasonable distance filter to prevent battery drain
-        await _iosLocationService.setDistanceFilter(5.0);
-      } else {
-        // Initialize background service for Android
-        await _backgroundService.initialize();
-      }
+      // Initialize background service
+      await _backgroundService.initialize();
 
       // Initial permission and service checks
       await _updatePermissionStatus();
@@ -146,8 +125,6 @@ class LocationService {
   }
 
   /// Start location tracking with enterprise-level accuracy
-  /// iOS: Uses native iOS LocationManager for reliable background tracking
-  /// Android: Uses Geolocator with foreground task
   Future<bool> startTracking() async {
     if (_isTracking) return true;
 
@@ -162,83 +139,46 @@ class LocationService {
         return false;
       }
 
-      if (_isIOS) {
-        // iOS: Use native location service for reliable background tracking
-        debugPrint('🍎 LocationService: Starting iOS native tracking...');
-        
-        // Check for "Always" authorization (required for iOS background)
-        final iosStatus = await _iosLocationService.getAuthorizationStatus();
-        if (iosStatus != 'authorizedAlways') {
-          debugPrint('⚠️ LocationService: iOS "Always" authorization recommended for background tracking. Current: $iosStatus');
-          // Try to request it
-          await _iosLocationService.requestAlwaysAuthorization();
+      // Start background foreground task for continuous tracking
+      // This keeps GPS active when app is in background or screen is off
+      try {
+        final backgroundStarted = await _backgroundService.startTracking();
+        if (!backgroundStarted) {
+          debugPrint('⚠️ LocationService: Background service could not start. Tracking will only work while app is open.');
+        } else {
+          debugPrint('✅ LocationService: Background service started successfully.');
         }
+      } catch (e) {
+        debugPrint('⚠️ LocationService: Error starting background service: $e');
+      }
 
-        // Listen to iOS native location stream
-        _iosLocationSubscription = _iosLocationService.locationStream.listen(
-          (locationData) {
-            _currentLocation = locationData;
-            _locationController.add(locationData);
-            debugPrint('📡 LocationService: iOS native location update - ${locationData.latitude}, ${locationData.longitude}');
-          },
-          onError: (error) {
-            debugPrint('❌ LocationService: iOS native location error: $error');
-          },
-        );
-
-        // Start iOS native tracking
-        final started = await _iosLocationService.startTracking();
-        if (!started) {
-          debugPrint('❌ LocationService: Failed to start iOS native tracking');
-          return false;
-        }
-
-        debugPrint('✅ LocationService: iOS native tracking started successfully');
-      } else {
-        // Android: Use standard Geolocator + foreground task
-        debugPrint('🤖 LocationService: Starting Android tracking...');
-        
-        // Start background foreground task for continuous tracking
-        // This keeps GPS active when app is in background or screen is off
-        try {
-          final backgroundStarted = await _backgroundService.startTracking();
-          if (!backgroundStarted) {
-            debugPrint('⚠️ LocationService: Background service could not start. Tracking will only work while app is open.');
-          } else {
-            debugPrint('✅ LocationService: Background service started successfully.');
-          }
-        } catch (e) {
-          debugPrint('⚠️ LocationService: Error starting background service: $e');
-        }
-
-        // Start foreground position stream (keeps working regardless of background service status)
-        _positionSubscription = Geolocator.getPositionStream(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.best,
-            distanceFilter: 0, // Receive all updates for high accuracy
-          ),
-        ).listen(
-          (position) {
-            debugPrint('📡 LocationService: RAW GPS update received: ${position.latitude}, ${position.longitude} (Acc: ${position.accuracy}m)');
-            _onLocationUpdate(position);
-          },
-          onError: _onLocationError,
-          cancelOnError: false,
-        );
-
-        // Get initial position
-        try {
-          final Position position = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.best,
-          );
+      // Start foreground position stream (keeps working regardless of background service status)
+      _positionSubscription = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.best,
+          distanceFilter: 0, // Receive all updates for high accuracy
+        ),
+      ).listen(
+        (position) {
+          debugPrint('📡 LocationService: RAW GPS update received: ${position.latitude}, ${position.longitude} (Acc: ${position.accuracy}m)');
           _onLocationUpdate(position);
-        } catch (e) {
-          debugPrint('⚠️ LocationService: Failed to get initial position: $e');
-        }
+        },
+        onError: _onLocationError,
+        cancelOnError: false,
+      );
+
+      // Get initial position
+      try {
+        final Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.best,
+        );
+        _onLocationUpdate(position);
+      } catch (e) {
+        debugPrint('⚠️ LocationService: Failed to get initial position: $e');
       }
 
       _isTracking = true;
-      debugPrint('✅ LocationService: Location tracking started successfully');
+      debugPrint('✅ LocationService: Location tracking started with background service');
       return true;
     } catch (e) {
       debugPrint('❌ LocationService: Failed to start tracking: $e');
@@ -253,20 +193,12 @@ class LocationService {
     try {
       debugPrint('🛑 LocationService: Stopping location tracking...');
 
-      if (_isIOS) {
-        // iOS: Stop native iOS location tracking
-        await _iosLocationSubscription?.cancel();
-        _iosLocationSubscription = null;
-        await _iosLocationService.stopTracking();
-      } else {
-        // Android: Stop standard Geolocator tracking
-        // Stop foreground stream
-        await _positionSubscription?.cancel();
-        _positionSubscription = null;
+      // Stop foreground stream
+      await _positionSubscription?.cancel();
+      _positionSubscription = null;
 
-        // Stop background service
-        await _backgroundService.stopTracking();
-      }
+      // Stop background service
+      await _backgroundService.stopTracking();
 
       _isTracking = false;
       debugPrint('✅ LocationService: Location tracking stopped');
@@ -338,14 +270,10 @@ class LocationService {
     debugPrint('🧹 LocationService: Disposing resources...');
 
     _positionSubscription?.cancel();
-    _iosLocationSubscription?.cancel();
     _permissionCheckTimer?.cancel();
     _locationController.close();
     _permissionController.close();
     _serviceController.close();
-
-    // Dispose iOS location service
-    _iosLocationService.dispose();
 
     _isInitialized = false;
     _isTracking = false;

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -27,7 +26,6 @@ import 'features/debug/debug_screen.dart';
 import 'services/enterprise_logger.dart';
 import 'services/performance_service.dart';
 import 'services/cache_manager.dart';
-import 'services/background_fetch_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,30 +61,6 @@ Future<void> main() async {
 
       final cacheManager = CacheManager();
       await cacheManager.preloadCriticalData();
-
-      // Initialize background fetch for iOS background wake-ups
-      // This ensures tracking can resume and data can sync when app is backgrounded
-      if (Platform.isIOS) {
-        final backgroundFetchService = BackgroundFetchService();
-        await backgroundFetchService.initialize(
-          onBackgroundFetch: () async {
-            // Called when app is in background (every 15+ minutes on iOS)
-            debugPrint('Background fetch triggered - syncing pending data');
-            // Sync pending data when app is in background
-            final syncService = SyncService();
-            await syncService.syncPendingActivities();
-          },
-          onHeadlessTask: () async {
-            // Called for iOS headless execution (app terminated)
-            debugPrint('Headless task triggered - syncing pending data');
-            // Sync pending data even when app is terminated
-            final syncService = SyncService();
-            await syncService.syncPendingActivities();
-          },
-        );
-        await backgroundFetchService.start();
-        logger.logInfo('App Startup', 'iOS background fetch initialized');
-      }
 
       logger.logInfo('App Startup', 'Fitness tracking app initialized');
 

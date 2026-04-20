@@ -558,21 +558,6 @@ class LocalStorageService {
     return _settingsBox.get(key) as T?;
   }
 
-  // Onboarding completion tracking
-  static bool hasCompletedOnboarding() {
-    return _settingsBox.get('has_completed_onboarding', defaultValue: false) as bool;
-  }
-
-  static Future<void> markOnboardingComplete() async {
-    await _settingsBox.put('has_completed_onboarding', true);
-    EnterpriseLogger().logInfo('Onboarding', 'User marked onboarding as complete');
-  }
-
-  static Future<void> resetOnboarding() async {
-    await _settingsBox.put('has_completed_onboarding', false);
-    EnterpriseLogger().logInfo('Onboarding', 'Onboarding status reset');
-  }
-
   static bool _isSynced(ActivitySession session) {
     return session.isSynced;
   }

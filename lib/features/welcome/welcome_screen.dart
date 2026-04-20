@@ -8,7 +8,6 @@ import '../../theme/global_theme.dart';
 import '../../services/version_service.dart';
 import '../../services/sync_service.dart';
 import '../../services/permission_service.dart';
-import '../../services/local_storage_service.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -179,43 +178,27 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       ),
                     );
                   },
-            child: AppButton.primary(
-              text: 'GET STARTED',
-              width: double.infinity,
-              icon: Icons.rocket_launch_rounded,
-              onPressed: () async {
-                await HapticFeedback.mediumImpact();
-
-                // Check if user has already completed onboarding
-                final hasCompletedOnboarding = LocalStorageService.hasCompletedOnboarding();
-                
-                if (hasCompletedOnboarding) {
-                  // User has seen onboarding before, go directly to goals
-                  // Permissions will be checked/requested when they start tracking
-                  debugPrint('✅ WelcomeScreen: User has completed onboarding, going to goals');
-                  if (mounted) {
-                    context.go('/goals');
-                  }
-                  return;
-                }
-
-                // First-time user or onboarding not completed - check permissions
-                final permissionService = PermissionService();
-                await permissionService.initialize();
-                final state = permissionService.currentState;
-
-                if (mounted) {
-                  if (state == PermissionState.allGranted) {
-                    // Permissions granted but onboarding not marked complete - mark it
-                    await LocalStorageService.markOnboardingComplete();
-                    context.go('/goals');
-                  } else {
-                    // Need to go through onboarding flow
-                    context.go('/permission-onboarding');
-                  }
-                }
-              },
-            ),
+                  child: AppButton.primary(
+                    text: 'GET STARTED',
+                    width: double.infinity,
+                    icon: Icons.rocket_launch_rounded,
+                    onPressed: () async {
+                      await HapticFeedback.mediumImpact();
+                      
+                      // Check permissions first
+                      final permissionService = PermissionService();
+                      await permissionService.initialize();
+                      final state = permissionService.currentState;
+                      
+                      if (mounted) {
+                        if (state == PermissionState.allGranted) {
+                          context.go('/goals');
+                        } else {
+                          context.go('/permission-onboarding');
+                        }
+                      }
+                    },
+                  ),
                 ),
               ),
             ],
