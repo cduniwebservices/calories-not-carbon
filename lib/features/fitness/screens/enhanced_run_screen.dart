@@ -881,6 +881,7 @@ class StatsDisplay extends ConsumerWidget {
       id: 'default',
       type: GoalType.petrolDieselCar,
       title: 'Default',
+      tagline: 'Track your activity',
       description: 'Default goal',
       level: GoalLevel.easy,
       duration: Duration(minutes: 30),
