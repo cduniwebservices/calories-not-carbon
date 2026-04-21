@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/fitness_models.dart';
 import '../providers/goal_provider.dart';
 import '../theme/global_theme.dart';
+import '../utils/responsive_design.dart';
 import 'neon_card.dart';
 
 class GoalSwiper extends ConsumerStatefulWidget {
@@ -44,12 +45,16 @@ class _GoalSwiperState extends ConsumerState<GoalSwiper>
   @override
   Widget build(BuildContext context) {
     final goalState = ref.watch(goalProvider);
+    final screenSize = ResponsiveDesign.getScreenSize(context);
+    
+    // Adjust height based on screen size
+    final double swiperHeight = screenSize == ScreenSizeCategory.compact ? 280 : 320;
 
     return SizedBox(
-      height: 320, // Increased height for better proportions
+      height: swiperHeight,
       child: PageView.builder(
         controller: _pageController,
-        physics: const BouncingScrollPhysics(), // Better scroll physics
+        physics: const BouncingScrollPhysics(),
         onPageChanged: (index) {
           ref.read(goalProvider.notifier).setCurrentIndex(index);
           widget.onSwipe?.call();
@@ -66,9 +71,9 @@ class _GoalSwiperState extends ConsumerState<GoalSwiper>
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeOutCubic,
                 transform: Matrix4.identity()
-                  ..scale(isActive ? 1.0 : 0.85), // Better scaling
+                  ..scale(isActive ? 1.0 : 0.85),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: GoalCard(
                     goal: goal,
                     index: index,
@@ -138,6 +143,8 @@ class _GoalCardState extends State<GoalCard>
   @override
   Widget build(BuildContext context) {
     final isNeonCard = widget.isActive;
+    final screenSize = ResponsiveDesign.getScreenSize(context);
+    final isCompact = screenSize == ScreenSizeCategory.compact;
 
     return AnimatedBuilder(
       animation: _controller,
@@ -145,6 +152,7 @@ class _GoalCardState extends State<GoalCard>
         return NeonCard(
           onTap: widget.onTap,
           isGlowing: isNeonCard,
+          padding: EdgeInsets.all(isCompact ? 12 : 16),
           gradient: isNeonCard ? GlobalTheme.primaryGradient : null,
           backgroundColor: isNeonCard ? null : GlobalTheme.surfaceCard,
           child: Column(
@@ -152,9 +160,9 @@ class _GoalCardState extends State<GoalCard>
             children: [
               // Goal type indicator
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isCompact ? 8 : 12,
+                  vertical: isCompact ? 4 : 6,
                 ),
                 decoration: BoxDecoration(
                   color: isNeonCard
@@ -169,29 +177,43 @@ class _GoalCardState extends State<GoalCard>
                         ? Colors.black
                         : GlobalTheme.textSecondary,
                     fontWeight: FontWeight.w500,
+                    fontSize: isCompact ? 10 : 12,
                   ),
                 ),
               ),
 
               const Spacer(),
 
-              // Transport icon
+              // Transport icon - Centered correctly using Stack and Align
               Expanded(
-                flex: 2,
+                flex: 3,
                 child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: isNeonCard
-                          ? Colors.black.withOpacity(0.15)
-                          : GlobalTheme.primaryNeon.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      widget.goal.icon,
-                      size: 80,
-                      color: isNeonCard ? Colors.black : GlobalTheme.primaryNeon,
-                    ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final size = constraints.maxHeight * 0.8;
+                      final iconSize = size * 0.6;
+                      
+                      return Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            width: size,
+                            height: size,
+                            decoration: BoxDecoration(
+                              color: isNeonCard
+                                  ? Colors.black.withOpacity(0.15)
+                                  : GlobalTheme.primaryNeon.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          Icon(
+                            widget.goal.icon,
+                            size: iconSize,
+                            color: isNeonCard ? Colors.black : GlobalTheme.primaryNeon,
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -199,29 +221,40 @@ class _GoalCardState extends State<GoalCard>
               const SizedBox(height: 8),
 
               // Goal title
-              Text(
-                widget.goal.title,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: isNeonCard ? Colors.black : GlobalTheme.textPrimary,
-                  fontWeight: FontWeight.w700,
+              Flexible(
+                child: Text(
+                  widget.goal.title,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: isNeonCard ? Colors.black : GlobalTheme.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: isCompact ? 18 : 22,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Goal details
               Row(
                 children: [
-                  _buildDetailChip(
-                    'Carbon Offset Potential',
-                    widget.goal.carbonOffsetPotential,
-                    isNeonCard,
+                  Expanded(
+                    child: _buildDetailChip(
+                      'Carbon Potential',
+                      widget.goal.carbonOffsetPotential,
+                      isNeonCard,
+                      isCompact,
+                    ),
                   ),
                   const SizedBox(width: 8),
-                  _buildDetailChip(
-                    'CO₂/km',
-                    '${(widget.goal.co2PerKm * 1000).toInt()}g',
-                    isNeonCard,
+                  Expanded(
+                    child: _buildDetailChip(
+                      'CO₂/km',
+                      '${(widget.goal.co2PerKm * 1000).toInt()}g',
+                      isNeonCard,
+                      isCompact,
+                    ),
                   ),
                 ],
               ),
@@ -232,9 +265,12 @@ class _GoalCardState extends State<GoalCard>
     );
   }
 
-  Widget _buildDetailChip(String label, String value, bool isNeonCard) {
+  Widget _buildDetailChip(String label, String value, bool isNeonCard, bool isCompact) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 8 : 12, 
+        vertical: isCompact ? 6 : 8
+      ),
       decoration: BoxDecoration(
         color: isNeonCard
             ? Colors.black.withOpacity(0.2)
@@ -243,6 +279,7 @@ class _GoalCardState extends State<GoalCard>
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             label,
@@ -251,13 +288,17 @@ class _GoalCardState extends State<GoalCard>
                   ? Colors.black.withOpacity(0.6)
                   : GlobalTheme.textTertiary,
               fontWeight: FontWeight.w500,
+              fontSize: isCompact ? 8 : 10,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           Text(
             value,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: isNeonCard ? Colors.black : GlobalTheme.textPrimary,
               fontWeight: FontWeight.w600,
+              fontSize: isCompact ? 11 : 13,
             ),
           ),
         ],

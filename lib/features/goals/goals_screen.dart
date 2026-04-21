@@ -6,6 +6,7 @@ import '../../components/goal_swiper.dart';
 import '../../components/profile_header.dart';
 import '../../theme/global_theme.dart';
 import '../../providers/goal_provider.dart';
+import '../../utils/responsive_design.dart';
 import '../debug/debug_screen.dart';
 
 class GoalsScreen extends ConsumerStatefulWidget {
@@ -18,7 +19,7 @@ class GoalsScreen extends ConsumerStatefulWidget {
 class _GoalsScreenState extends ConsumerState<GoalsScreen>
     with TickerProviderStateMixin {
   late AnimationController _controller;
-  bool _showPanel = false; // Hidden initially
+  bool _showPanel = false;
   bool _isDescriptionExpanded = false;
 
   @override
@@ -41,7 +42,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
 
   void _showDescriptionPanel(int index) {
     setState(() {
-      _showPanel = true; // Always show on click, as requested
+      _showPanel = true;
       _isDescriptionExpanded = false;
     });
   }
@@ -61,87 +62,90 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
     });
   }
 
-  void _openDebugScreen() {
-    DebugScreenOverlay.show(context);
-  }
-
   @override
   Widget build(BuildContext context) {
     final goalState = ref.watch(goalProvider);
+    final screenSize = ResponsiveDesign.getScreenSize(context);
+    final isCompact = screenSize == ScreenSizeCategory.compact;
 
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: GlobalTheme.backgroundGradient),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 24),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isCompact ? 16 : 24,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: isCompact ? 16 : 24),
 
-                // Profile header with debug access
-                TweenAnimationBuilder<double>(
-                  duration: const Duration(milliseconds: 500),
-                  tween: Tween<double>(begin: 0.0, end: 1.0),
-                  curve: Curves.easeOut,
-                  builder: (context, value, child) {
-                    return Opacity(
-                      opacity: value,
-                      child: Transform.translate(
-                        offset: Offset(0, 20 * (1 - value)),
-                        child: child,
-                      ),
-                    );
-                  },
-            child: ProfileHeader(
-              onUserNameTap: () => DebugScreenOverlay.show(context),
-            ),
-                ),
-
-                const SizedBox(height: 32),
-
-                // Title section
-                TweenAnimationBuilder<double>(
-                  duration: const Duration(milliseconds: 600),
-                  tween: Tween<double>(begin: 0.0, end: 1.0),
-                  curve: Curves.easeOut,
-                  builder: (context, value, child) {
-                    return Opacity(
-                      opacity: value.clamp(0.0, 1.0),
-                      child: Transform.translate(
-                        offset: Offset(0, 30 * (1 - value)),
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Choose your regular',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: GlobalTheme.textSecondary,
-                          fontWeight: FontWeight.w400,
+                  // Profile header
+                  TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 500),
+                    tween: Tween<double>(begin: 0.0, end: 1.0),
+                    curve: Curves.easeOut,
+                    builder: (context, value, child) {
+                      return Opacity(
+                        opacity: value,
+                        child: Transform.translate(
+                          offset: Offset(0, 20 * (1 - value)),
+                          child: child,
                         ),
-                      ),
-                      Text(
-                        'TRAVEL MODE',
-                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          color: GlobalTheme.textPrimary,
-                          fontWeight: FontWeight.w900,
-                          height: 1.1,
-                        ),
-                      ),
-                    ],
+                      );
+                    },
+                    child: ProfileHeader(
+                      onUserNameTap: () => DebugScreenOverlay.show(context),
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 40),
+                  SizedBox(height: isCompact ? 24 : 32),
 
-                // Goals swiper
-                Expanded(
-                  child: TweenAnimationBuilder<double>(
+                  // Title section
+                  TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 600),
+                    tween: Tween<double>(begin: 0.0, end: 1.0),
+                    curve: Curves.easeOut,
+                    builder: (context, value, child) {
+                      return Opacity(
+                        opacity: value.clamp(0.0, 1.0),
+                        child: Transform.translate(
+                          offset: Offset(0, 30 * (1 - value)),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Choose your regular',
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            color: GlobalTheme.textSecondary,
+                            fontWeight: FontWeight.w400,
+                            fontSize: isCompact ? 22 : 28,
+                          ),
+                        ),
+                        Text(
+                          'TRAVEL MODE',
+                          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                            color: GlobalTheme.textPrimary,
+                            fontWeight: FontWeight.w900,
+                            height: 1.1,
+                            fontSize: isCompact ? 28 : 32,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: isCompact ? 24 : 40),
+
+                  // Goals swiper
+                  TweenAnimationBuilder<double>(
                     duration: const Duration(milliseconds: 700),
                     tween: Tween<double>(begin: 0.0, end: 1.0),
                     curve: Curves.easeOut,
@@ -159,14 +163,91 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                       onSwipe: _hidePanel,
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                // Description (hidden until card is tapped)
-                if (_showPanel)
+                  // Description
+                  if (_showPanel)
+                    TweenAnimationBuilder<double>(
+                      duration: const Duration(milliseconds: 600),
+                      tween: Tween<double>(begin: 0.0, end: 1.0),
+                      curve: Curves.easeOut,
+                      builder: (context, value, child) {
+                        return Opacity(
+                          opacity: value.clamp(0.0, 1.0),
+                          child: Transform.translate(
+                            offset: Offset(0, 20 * (1 - value)),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: GlobalTheme.surfaceCard,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: GlobalTheme.cardShadow,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        goalState.goals[goalState.currentIndex].title,
+                                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                          color: GlobalTheme.primaryNeon,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: isCompact ? 18 : 22,
+                                        ),
+                                      ),
+                                      Text(
+                                        goalState.goals[goalState.currentIndex].tagline,
+                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                          color: GlobalTheme.textSecondary,
+                                          fontStyle: FontStyle.italic,
+                                          fontSize: isCompact ? 12 : 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),                                ),
+                                GestureDetector(
+                                  onTap: _toggleDescription,
+                                  child: Icon(
+                                    _isDescriptionExpanded
+                                        ? Icons.keyboard_arrow_up
+                                        : Icons.keyboard_arrow_down,
+                                    color: GlobalTheme.primaryNeon,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (_isDescriptionExpanded) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                goalState.goals[goalState.currentIndex].description,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: GlobalTheme.textSecondary,
+                                  height: 1.5,
+                                  fontSize: isCompact ? 13 : 14,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  SizedBox(height: isCompact ? 16 : 24),
+
+                  // Continue button
                   TweenAnimationBuilder<double>(
-                    duration: const Duration(milliseconds: 600),
+                    duration: const Duration(milliseconds: 700),
                     tween: Tween<double>(begin: 0.0, end: 1.0),
                     curve: Curves.easeOut,
                     builder: (context, value, child) {
@@ -178,78 +259,16 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                         ),
                       );
                     },
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: GlobalTheme.surfaceCard,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: GlobalTheme.cardShadow,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  goalState.goals[goalState.currentIndex].title,
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    color: GlobalTheme.primaryNeon,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: _toggleDescription,
-                                child: Icon(
-                                  _isDescriptionExpanded
-                                      ? Icons.keyboard_arrow_up
-                                      : Icons.keyboard_arrow_down,
-                                  color: GlobalTheme.primaryNeon,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          if (_isDescriptionExpanded)
-                            Text(
-                              goalState.goals[goalState.currentIndex].description,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: GlobalTheme.textSecondary,
-                                height: 1.5,
-                              ),
-                            ),
-                        ],
-                      ),
+                    child: AppButton.primary(
+                      text: 'COMMENCE ACTIVITY',
+                      width: double.infinity,
+                      onPressed: () => context.go('/run'),
                     ),
                   ),
 
-                const SizedBox(height: 24),
-
-                // Continue button
-                TweenAnimationBuilder<double>(
-                  duration: const Duration(milliseconds: 700),
-                  tween: Tween<double>(begin: 0.0, end: 1.0),
-                  curve: Curves.easeOut,
-                  builder: (context, value, child) {
-                    return Opacity(
-                      opacity: value.clamp(0.0, 1.0),
-                      child: Transform.translate(
-                        offset: Offset(0, 20 * (1 - value)),
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: AppButton.primary(
-                    text: 'COMMENCE ACTIVITY',
-                    width: double.infinity,
-                    onPressed: () => context.go('/run'),
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-              ],
+                  SizedBox(height: isCompact ? 16 : 32),
+                ],
+              ),
             ),
           ),
         ),

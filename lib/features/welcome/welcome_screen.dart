@@ -9,6 +9,7 @@ import '../../services/version_service.dart';
 import '../../services/sync_service.dart';
 import '../../services/permission_service.dart';
 import '../../services/local_storage_service.dart';
+import '../../utils/responsive_design.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -31,6 +32,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final screenSize = ResponsiveDesign.getScreenSize(context);
+    final isCompact = screenSize == ScreenSizeCategory.compact;
     
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -43,17 +46,17 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             children: [
               // Main Content
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
+                padding: EdgeInsets.symmetric(horizontal: isCompact ? 24 : 32),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 20),
+                    SizedBox(height: isCompact ? 10 : 20),
                     // Header badge
                     Center(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isCompact ? 16 : 20,
+                          vertical: isCompact ? 8 : 10,
                         ),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.05),
@@ -68,20 +71,21 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             color: GlobalTheme.textSecondary,
                             letterSpacing: 1.5,
                             fontWeight: FontWeight.bold,
+                            fontSize: isCompact ? 9 : 11,
                           ),
                         ),
                       ),
                     ).animate().fadeIn(duration: 600.ms).slideY(begin: -0.2, end: 0),
 
-                    const Spacer(flex: 2),
+                    const Spacer(flex: 1),
 
                     // Main Illustration
                     Hero(
                       tag: 'app_logo',
                       child: Container(
-                        height: 380,
+                        height: isCompact ? 280 : 380,
                         width: double.infinity,
-                        padding: const EdgeInsets.all(40),
+                        padding: EdgeInsets.all(isCompact ? 30 : 40),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             begin: Alignment.topLeft,
@@ -104,7 +108,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       ),
                     ).animate().scale(duration: 800.ms, curve: Curves.easeOutBack),
 
-                    const Spacer(flex: 3),
+                    const Spacer(flex: 2),
 
                     // App Title
                     Text(
@@ -113,6 +117,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         fontWeight: FontWeight.w900,
                         height: 1.0,
                         color: GlobalTheme.textPrimary,
+                        fontSize: isCompact ? 42 : 57,
                       ),
                     ).animate().fadeIn(delay: 400.ms).slideX(begin: -0.2, end: 0),
                     Text(
@@ -121,6 +126,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         fontWeight: FontWeight.w900,
                         height: 1.0,
                         color: GlobalTheme.textPrimary,
+                        fontSize: isCompact ? 42 : 57,
                       ),
                     ).animate().fadeIn(delay: 600.ms).slideX(begin: -0.2, end: 0),
                     
@@ -134,11 +140,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               fontWeight: FontWeight.w900,
                               height: 1.0,
                               color: GlobalTheme.primaryNeon,
+                              fontSize: isCompact ? 42 : 57,
                             ),
                           ).animate().fadeIn(delay: 800.ms).slideX(begin: -0.2, end: 0),
                         ),
                         
-                        // Version number - repositioned to right side above button area
+                        // Version number
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8.0),
                           child: Opacity(
@@ -147,7 +154,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               VersionService.displayVersion,
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: GlobalTheme.textTertiary,
-                                fontSize: 10,
+                                fontSize: isCompact ? 9 : 10,
                                 letterSpacing: 0.5,
                               ),
                             ),
@@ -156,14 +163,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       ],
                     ),
 
-                    const SizedBox(height: 120), // Padding for the fixed button
+                    SizedBox(height: isCompact ? 80 : 120), // Padding for the fixed button
                   ],
                 ),
               ),
 
-              // Fixed Bottom Button - matching tracking screen position
+              // Fixed Bottom Button
               Positioned(
-                bottom: 24,
+                bottom: isCompact ? 16 : 24,
                 left: 16,
                 right: 16,
                 child: TweenAnimationBuilder<double>(

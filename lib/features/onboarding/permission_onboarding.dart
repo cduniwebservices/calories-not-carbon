@@ -8,6 +8,7 @@ import '../../services/local_storage_service.dart';
 import '../../components/modern_ui_components.dart';
 import '../../components/app_button.dart';
 import '../../theme/global_theme.dart';
+import '../../utils/responsive_design.dart';
 
 /// Enterprise-level permission onboarding flow
 class PermissionOnboardingFlow extends StatefulWidget {
@@ -269,13 +270,16 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = ResponsiveDesign.getScreenSize(context);
+    final isCompact = screenSize == ScreenSizeCategory.compact;
+
     return Scaffold(
       backgroundColor: GlobalTheme.backgroundPrimary,
       body: SafeArea(
         child: Column(
           children: [
             // Progress indicator
-            _buildProgressIndicator(),
+            _buildProgressIndicator(isCompact),
 
             // Content
             Expanded(
@@ -289,22 +293,22 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
                 },
                 itemCount: _pages.length,
                 itemBuilder: (context, index) {
-                  return _buildPage(_pages[index], index);
+                  return _buildPage(_pages[index], index, isCompact);
                 },
               ),
             ),
 
             // Navigation buttons
-            _buildNavigationButtons(),
+            _buildNavigationButtons(isCompact),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildProgressIndicator() {
+  Widget _buildProgressIndicator(bool isCompact) {
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isCompact ? 16 : 24),
       child: Column(
         children: [
           Row(
@@ -320,7 +324,7 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
               const Spacer(),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isCompact ? 8 : 16),
           LinearProgressIndicator(
             value: (_currentPage + 1) / _pages.length,
             backgroundColor: GlobalTheme.textTertiary.withOpacity(0.3),
@@ -333,82 +337,89 @@ class _PermissionOnboardingFlowState extends State<PermissionOnboardingFlow>
     );
   }
 
-  Widget _buildPage(OnboardingPage page, int index) {
+  Widget _buildPage(OnboardingPage page, int index, bool isCompact) {
     return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        children: [
-          const Spacer(),
+      padding: EdgeInsets.all(isCompact ? 24 : 32),
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            if (!isCompact) const SizedBox(height: 40),
 
-          // Icon
-          Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: page.color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(page.icon, size: 60, color: page.color),
-              )
-              .animate(key: ValueKey(index))
-              .scale(duration: 600.ms, curve: Curves.elasticOut)
-              .then()
-              .shimmer(duration: 2000.ms, color: page.color.withOpacity(0.3)),
+            // Icon
+            Container(
+                  width: isCompact ? 90 : 120,
+                  height: isCompact ? 90 : 120,
+                  decoration: BoxDecoration(
+                    color: page.color.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    page.icon, 
+                    size: isCompact ? 45 : 60, 
+                    color: page.color
+                  ),
+                )
+                .animate(key: ValueKey(index))
+                .scale(duration: 600.ms, curve: Curves.elasticOut)
+                .then()
+                .shimmer(duration: 2000.ms, color: page.color.withOpacity(0.3)),
 
-          const SizedBox(height: 48),
+            SizedBox(height: isCompact ? 32 : 48),
 
-          // Title
-          Text(
-                page.title,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              )
-              .animate(key: ValueKey('title_$index'))
-              .fadeIn(delay: 200.ms)
-              .slideY(begin: 0.3, end: 0),
+            // Title
+            Text(
+                  page.title,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: isCompact ? 24 : 28,
+                  ),
+                  textAlign: TextAlign.center,
+                )
+                .animate(key: ValueKey('title_$index'))
+                .fadeIn(delay: 200.ms)
+                .slideY(begin: 0.3, end: 0),
 
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // Subtitle
-          Text(
-                page.subtitle,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: page.color,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              )
-              .animate(key: ValueKey('subtitle_$index'))
-              .fadeIn(delay: 400.ms)
-              .slideY(begin: 0.3, end: 0),
+            // Subtitle
+            Text(
+                  page.subtitle,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: page.color,
+                    fontWeight: FontWeight.w600,
+                    fontSize: isCompact ? 16 : 18,
+                  ),
+                  textAlign: TextAlign.center,
+                )
+                .animate(key: ValueKey('subtitle_$index'))
+                .fadeIn(delay: 400.ms)
+                .slideY(begin: 0.3, end: 0),
 
-          const SizedBox(height: 24),
+            SizedBox(height: isCompact ? 16 : 24),
 
-          // Description
-          Text(
-                page.description,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppTheme.textSecondary,
-                  height: 1.6,
-                ),
-                textAlign: TextAlign.center,
-              )
-              .animate(key: ValueKey('description_$index'))
-              .fadeIn(delay: 600.ms)
-              .slideY(begin: 0.3, end: 0),
-
-          const Spacer(),
-        ],
+            // Description
+            Text(
+                  page.description,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppTheme.textSecondary,
+                    height: 1.6,
+                    fontSize: isCompact ? 14 : 16,
+                  ),
+                  textAlign: TextAlign.center,
+                )
+                .animate(key: ValueKey('description_$index'))
+                .fadeIn(delay: 600.ms)
+                .slideY(begin: 0.3, end: 0),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildNavigationButtons() {
+  Widget _buildNavigationButtons(bool isCompact) {
     return Padding(
-      padding: const EdgeInsets.all(32),
+      padding: EdgeInsets.all(isCompact ? 20 : 32),
       child: Column(
         children: [
           // Permission status indicator (on last page)

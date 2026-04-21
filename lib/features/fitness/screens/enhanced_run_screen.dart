@@ -12,6 +12,7 @@ import '../../../components/fitness_tracking_widgets.dart';
 import '../../../services/navigation_service.dart';
 import '../../../services/haptic_service.dart';
 import '../../../theme/global_theme.dart';
+import '../../../utils/responsive_design.dart';
 import '../../debug/debug_screen.dart';
 
 /// Million-dollar level fitness tracking screen with real-time GPS integration
@@ -675,6 +676,9 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
     // Haptic feedback for important dialog
     await HapticFeedback.mediumImpact();
 
+    final screenSize = ResponsiveDesign.getScreenSize(context);
+    final isCompact = screenSize == ScreenSizeCategory.compact;
+
     return await showDialog<bool>(
           context: context,
           barrierDismissible: false,
@@ -692,64 +696,124 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 1.2,
+                    fontSize: isCompact ? 20 : 24,
                   ),
             ),
-            content: const Text(
+            content: Text(
               'Are you sure you want to stop and save this activity? Your progress will be saved.',
-              style: TextStyle(color: GlobalTheme.textSecondary, height: 1.5),
+              style: TextStyle(
+                color: GlobalTheme.textSecondary, 
+                height: 1.5,
+                fontSize: isCompact ? 14 : 16,
+              ),
             ),
             actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             actions: [
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        await HapticService.fitnessHaptic('light');
-                        Navigator.of(context).pop(false);
-                      },
-                      icon: const Icon(Icons.close_rounded, size: 18),
-                      label: const Text('CANCEL'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: GlobalTheme.primaryNeon,
-                        side: const BorderSide(color: GlobalTheme.primaryNeon, width: 1.5),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        textStyle: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        await HapticService.fitnessHaptic('light');
-                        Navigator.of(context).pop(true);
-                      },
-                      icon: const Icon(Icons.check_circle_rounded, size: 18),
-                      label: const Text('STOP & SAVE'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: GlobalTheme.primaryNeon,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        textStyle: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.1,
+              if (isCompact)
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          await HapticService.fitnessHaptic('light');
+                          Navigator.of(context).pop(true);
+                        },
+                        icon: const Icon(Icons.check_circle_rounded, size: 18),
+                        label: const Text('STOP & SAVE'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: GlobalTheme.primaryNeon,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.1,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          await HapticService.fitnessHaptic('light');
+                          Navigator.of(context).pop(false);
+                        },
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        label: const Text('CANCEL'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: GlobalTheme.primaryNeon,
+                          side: const BorderSide(color: GlobalTheme.primaryNeon, width: 1.5),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          await HapticService.fitnessHaptic('light');
+                          Navigator.of(context).pop(false);
+                        },
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        label: const Text('CANCEL'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: GlobalTheme.primaryNeon,
+                          side: const BorderSide(color: GlobalTheme.primaryNeon, width: 1.5),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          await HapticService.fitnessHaptic('light');
+                          Navigator.of(context).pop(true);
+                        },
+                        icon: const Icon(Icons.check_circle_rounded, size: 18),
+                        label: const Text('STOP & SAVE'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: GlobalTheme.primaryNeon,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
         ) ??

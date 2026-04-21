@@ -8,6 +8,7 @@ import '../../../providers/activity_providers.dart';
 import '../../../components/modern_ui_components.dart';
 import '../../../components/app_button.dart';
 import '../../../services/navigation_service.dart';
+import '../../../utils/responsive_design.dart';
 
 /// Production-quality history screen for viewing past activities
 class HistoryScreen extends ConsumerStatefulWidget {
@@ -48,6 +49,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final activityHistory = ref.watch(activityHistoryProvider);
+    final screenSize = ResponsiveDesign.getScreenSize(context);
+    final isCompact = screenSize == ScreenSizeCategory.compact;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -61,11 +64,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
               // Header with back button and title
               _buildHeader(
                 theme,
+                isCompact,
               ).animate().fadeIn(duration: 300.ms).slideY(begin: -0.2, end: 0),
 
               // Filter chips
               _buildFilterChips(
                 theme,
+                isCompact,
               ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
 
               // History list or empty state
@@ -86,15 +91,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
+  Widget _buildHeader(ThemeData theme, bool isCompact) {
     return Padding(
-      padding: const EdgeInsets.all(GlobalTheme.spacing16),
+      padding: EdgeInsets.all(isCompact ? 12.0 : GlobalTheme.spacing16),
       child: Row(
         children: [
           // Back button
           Container(
-            width: 40,
-            height: 40,
+            width: isCompact ? 36 : 40,
+            height: isCompact ? 36 : 40,
             decoration: BoxDecoration(
               color: theme.surfaceCard,
               borderRadius: BorderRadius.circular(GlobalTheme.radiusMedium),
@@ -105,16 +110,16 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
               child: InkWell(
                 borderRadius: BorderRadius.circular(GlobalTheme.radiusMedium),
                 onTap: () => context.go('/goals'),
-                child: const Icon(
+                child: Icon(
                   Icons.arrow_back_ios_rounded,
                   color: GlobalTheme.textPrimary,
-                  size: 20,
+                  size: isCompact ? 16 : 20,
                 ),
               ),
             ),
           ),
 
-          const SizedBox(width: GlobalTheme.spacing16),
+          SizedBox(width: isCompact ? 12 : GlobalTheme.spacing16),
 
           // Title and subtitle
           Expanded(
@@ -126,13 +131,19 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: GlobalTheme.textPrimary,
+                    fontSize: isCompact ? 20 : 28,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  'Track your progress over time',
+                  isCompact ? 'Track your progress' : 'Track your progress over time',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: GlobalTheme.textSecondary,
+                    fontSize: isCompact ? 11 : 14,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -140,9 +151,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
 
           // Stats summary badge
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: GlobalTheme.spacing12,
-              vertical: GlobalTheme.spacing8,
+            padding: EdgeInsets.symmetric(
+              horizontal: isCompact ? 8 : GlobalTheme.spacing12,
+              vertical: isCompact ? 4 : GlobalTheme.spacing8,
             ),
             decoration: BoxDecoration(
               gradient: GlobalTheme.primaryGradient,
@@ -155,20 +166,23 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   Icons.trending_up_rounded,
                   color: Colors.black,
-                  size: 16,
+                  size: isCompact ? 12 : 16,
                 ),
-                const SizedBox(width: GlobalTheme.spacing4),
+                SizedBox(width: isCompact ? 2 : GlobalTheme.spacing4),
                 Consumer(
                   builder: (context, ref, child) {
                     final totalActivities = ref.watch(totalActivitiesProvider);
                     return Text(
-                      '$totalActivities ${totalActivities == 1 ? 'activity' : 'activities'}',
+                      isCompact 
+                        ? '$totalActivities activ...'
+                        : '$totalActivities ${totalActivities == 1 ? 'activity' : 'activities'}',
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: Colors.black,
                         fontWeight: FontWeight.w700,
+                        fontSize: isCompact ? 10 : 12,
                       ),
                     );
                   },
@@ -181,10 +195,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
     );
   }
 
-  Widget _buildFilterChips(ThemeData theme) {
+  Widget _buildFilterChips(ThemeData theme, bool isCompact) {
     return Container(
-      height: 50,
-      padding: const EdgeInsets.symmetric(horizontal: GlobalTheme.spacing16),
+      height: isCompact ? 44 : 50,
+      padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : GlobalTheme.spacing16),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: _filterOptions.length,

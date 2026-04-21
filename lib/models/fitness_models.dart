@@ -695,6 +695,23 @@ class ActivityWaypoint {
 /// Goal types available in the application
 enum GoalType { petrolDieselCar, electricVehicle, motorcycle, train, boat }
 
+extension GoalTypeExtension on GoalType {
+  String get displayName {
+    switch (this) {
+      case GoalType.petrolDieselCar:
+        return 'Petrol/Diesel Car';
+      case GoalType.electricVehicle:
+        return 'Electric Vehicle';
+      case GoalType.motorcycle:
+        return 'Motorcycle';
+      case GoalType.train:
+        return 'Train';
+      case GoalType.boat:
+        return 'Boat/Ferry';
+    }
+  }
+}
+
 /// Goal level difficulty
 enum GoalLevel { easy, hard, extreme }
 
@@ -703,6 +720,7 @@ class Goal {
   final String id;
   final GoalType type;
   final String title;
+  final String tagline;
   final String description;
   final GoalLevel level;
   final Duration duration;
@@ -716,6 +734,7 @@ class Goal {
     required this.id,
     required this.type,
     required this.title,
+    required this.tagline,
     required this.description,
     required this.level,
     required this.duration,
@@ -730,6 +749,7 @@ class Goal {
     String? id,
     GoalType? type,
     String? title,
+    String? tagline,
     String? description,
     GoalLevel? level,
     Duration? duration,
@@ -743,6 +763,7 @@ class Goal {
       id: id ?? this.id,
       type: type ?? this.type,
       title: title ?? this.title,
+      tagline: tagline ?? this.tagline,
       description: description ?? this.description,
       level: level ?? this.level,
       duration: duration ?? this.duration,
@@ -782,7 +803,8 @@ final List<Goal> defaultGoals = [
   Goal(
     id: 'petrol_diesel_car',
     type: GoalType.petrolDieselCar,
-    title: 'Step out, drive less...',
+    title: GoalType.petrolDieselCar.displayName,
+    tagline: 'Step out, drive less...',
     description:
         'Conventional internal combustion engines are a primary source of individual carbon emissions. By tracking your activity against this mode, you can visualize the significant volume of CO₂ prevented by choosing active transport. This goal helps highlight the direct environmental benefit of leaving your car at home for short trips.',
     level: GoalLevel.easy,
@@ -794,7 +816,8 @@ final List<Goal> defaultGoals = [
   Goal(
     id: 'electric_vehicle',
     type: GoalType.electricVehicle,
-    title: 'Better than batteries...',
+    title: GoalType.electricVehicle.displayName,
+    tagline: 'Better than batteries...',
     description:
         'Electric vehicles offer a cleaner alternative to fossil fuels, but they still carry an environmental footprint from manufacturing and energy production. Tracking against an EV helps you understand the nuance of modern sustainable travel. Even when compared to clean tech, walking or cycling remains the most effective way to reduce your personal impact.',
     level: GoalLevel.hard,
@@ -806,7 +829,8 @@ final List<Goal> defaultGoals = [
   Goal(
     id: 'motorcycle',
     type: GoalType.motorcycle,
-    title: 'Pure human power...',
+    title: GoalType.motorcycle.displayName,
+    tagline: 'Pure human power...',
     description:
         'While motorcycles are often more fuel-efficient than cars, they still contribute to local air pollution and carbon levels. This mode represents a middle ground in motorized transport emissions. By choosing to walk instead, you are making a positive choice for both global carbon reduction and local urban air quality.',
     level: GoalLevel.easy,
@@ -818,7 +842,8 @@ final List<Goal> defaultGoals = [
   Goal(
     id: 'train',
     type: GoalType.train,
-    title: 'Your own pace...',
+    title: GoalType.train.displayName,
+    tagline: 'Your own pace...',
     description:
         'Rail travel is one of the most efficient forms of mass transit, moving large numbers of people with a relatively low per-person footprint. Tracking your walk as a replacement for a train trip shows your commitment to the lowest possible emission tiers. It helps quantify the final step in achieving a truly zero-carbon commute.',
     level: GoalLevel.extreme,
@@ -830,7 +855,8 @@ final List<Goal> defaultGoals = [
   Goal(
     id: 'boat',
     type: GoalType.boat,
-    title: 'Explore on foot...',
+    title: GoalType.boat.displayName,
+    tagline: 'Explore on foot...',
     description:
         'Marine transport can be surprisingly carbon-intensive depending on the vessel type and fuel efficiency. Tracking emissions from water-based travel highlights often-overlooked sources of carbon in coastal or river regions. Replacing these trips with active land-based routes can lead to substantial and measurable carbon savings.',
     level: GoalLevel.hard,
