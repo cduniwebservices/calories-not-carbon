@@ -16,6 +16,15 @@ import CoreLocation
     private let significantChangeDistance: CLLocationDistance = 10
     private let minimumUpdateInterval: TimeInterval = 1.0
     private var lastUpdateTime: Date?
+    
+    // Data quality filtering
+    private var lastValidLocation: CLLocation?
+    private var validReadingCount = 0
+    private let minValidReadingsBeforeAccept = 3
+    private let maxAcceptableSpeedMps: CLLocationSpeed = 55.56 // 200 km/h max (covers cycling, running, any human activity)
+    private let maxAcceptableHorizontalAccuracy: CLLocationAccuracy = 100.0 // meters
+    private let maxAcceptableAltitudeChange: CLLocationDistance = 100.0 // meters per reading
+    private let minAcceptableTimestampAge: TimeInterval = -5.0 // reject cached locations older than 5 seconds
 
     private override init() {
         super.init()
@@ -127,7 +136,15 @@ import CoreLocation
         }
         lastUpdateTime = now
 
+        // Validate location quality
+        guard isValidLocation(location) else {
+            print("⚠️ LocationManager: Discarding invalid location - accuracy: \(location.horizontalAccuracy)m, speed: \(location.speed)m/s")
+            return
+        }
+
         lastLocation = location
+        lastValidLocation = location
+        validReadingCount += 1
 
         let locationData: [String: Any] = [
             "latitude": location.coordinate.latitude,
@@ -149,7 +166,52 @@ import CoreLocation
             sink(locationData)
         }
 
-        print("📍 LocationManager: Location update - Lat: \(location.coordinate.latitude), Lng: \(location.coordinate.longitude)")
+        print("📍 LocationManager: Location update - Lat: \(location.coordinate.latitude), Lng: \(location.coordinate.longitude), Acc: \(location.horizontalAccuracy)m")
+    }
+
+    /// Validate location quality to filter out GPS glitches and cached data
+    private func isValidLocation(_ location: CLLocation) -> Bool {
+        // Check 1: Horizontal accuracy must be reasonable
+        guard location.horizontalAccuracy > 0 && location.horizontalAccuracy <= maxAcceptableHorizontalAccuracy else {
+            print("⚠️ LocationManager: Invalid accuracy - \(location.horizontalAccuracy)m")
+            return false
+        }
+
+        // Check 2: Timestamp should not be stale (cached location)
+        let timestampAge = location.timestamp.timeIntervalSinceNow
+        guard timestampAge >= minAcceptableTimestampAge else {
+            print("⚠️ LocationManager: Stale location - \(abs(timestampAge))s old")
+            return false
+        }
+
+        // Check 3: Speed must be reasonable for human activity
+        // -1.0 means speed is invalid/unknown, which is acceptable
+        if location.speed >= 0 && location.speed > maxAcceptableSpeedMps {
+            print("⚠️ LocationManager: Impossible speed - \(location.speed)m/s (\(location.speed * 3.6)km/h)")
+            return false
+        }
+
+        // Check 4: Altitude change must be reasonable
+        if let lastValid = lastValidLocation {
+            let altitudeChange = abs(location.altitude - lastValid.altitude)
+            let timeInterval = location.timestamp.timeIntervalSince(lastValid.timestamp)
+            
+            // Only check altitude change if readings are close in time (< 10 seconds)
+            if timeInterval < 10 && altitudeChange > maxAcceptableAltitudeChange {
+                print("⚠️ LocationManager: Extreme altitude change - \(altitudeChange)m in \(timeInterval)s")
+                return false
+            }
+        }
+
+        // Check 5: Need minimum valid readings before accepting (warm-up period)
+        // This prevents initial GPS lock spikes
+        if validReadingCount < minValidReadingsBeforeAccept {
+            print("⚠️ LocationManager: Warming up - reading \(validReadingCount + 1)/\(minValidReadingsBeforeAccept)")
+            // Still increment but don't reject entirely
+            return true
+        }
+
+        return true
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {

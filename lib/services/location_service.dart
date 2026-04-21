@@ -353,17 +353,77 @@ class LocationService {
 
   // Private methods
 
+  // Data quality filtering (applies to all platforms)
+  LocationData? _lastValidLocation;
+  int _consecutiveValidReadings = 0;
+  static const int _minValidReadings = 3;
+  static const double _maxAcceptableSpeedMps = 55.56; // 200 km/h
+  static const double _maxAcceptableAccuracy = 100.0; // meters
+  static const Duration _maxStaleLocationAge = Duration(seconds: 5);
+
   void _onLocationUpdate(Position position) {
+    // Data quality validation
+    if (!_isValidLocation(position)) {
+      debugPrint(
+        '⚠️ LocationService: Discarding invalid location - '
+        'Acc: ${position.accuracy}m, Speed: ${position.speed}m/s, '
+        'Age: ${DateTime.now().difference(position.timestamp).inSeconds}s',
+      );
+      return;
+    }
+
+    _consecutiveValidReadings++;
+    
     final locationData = LocationData.fromPosition(position);
     _currentLocation = locationData;
+    _lastValidLocation = locationData;
     _locationController.add(locationData);
 
     debugPrint(
       '📍 LocationService: Location updated - '
       'Lat: ${position.latitude.toStringAsFixed(6)}, '
       'Lng: ${position.longitude.toStringAsFixed(6)}, '
-      'Accuracy: ${position.accuracy.toStringAsFixed(1)}m',
+      'Accuracy: ${position.accuracy.toStringAsFixed(1)}m, '
+      'Speed: ${(position.speed * 3.6).toStringAsFixed(1)}km/h',
     );
+  }
+
+  /// Validate location data quality
+  bool _isValidLocation(Position position) {
+    // Check 1: Accuracy must be reasonable
+    if (position.accuracy <= 0 || position.accuracy > _maxAcceptableAccuracy) {
+      return false;
+    }
+
+    // Check 2: Location must not be stale (cached)
+    final age = DateTime.now().difference(position.timestamp);
+    if (age > _maxStaleLocationAge) {
+      return false;
+    }
+
+    // Check 3: Speed must be reasonable (-1 is unknown/invalid)
+    if (position.speed >= 0 && position.speed > _maxAcceptableSpeedMps) {
+      return false;
+    }
+
+    // Check 4: Altitude change must be reasonable
+    if (_lastValidLocation != null) {
+      final altitudeChange = (position.altitude - (_lastValidLocation?.altitude ?? 0)).abs();
+      final timeDelta = position.timestamp.difference(_lastValidLocation?.timestamp ?? position.timestamp).inSeconds;
+      
+      if (timeDelta > 0 && timeDelta < 10 && altitudeChange > 100) {
+        // More than 100m altitude change in less than 10 seconds is suspicious
+        return false;
+      }
+    }
+
+    // Check 5: Warm-up period - need minimum valid readings
+    if (_consecutiveValidReadings < _minValidReadings) {
+      debugPrint('⚠️ LocationService: GPS warming up - reading $_consecutiveValidReadings/$_minValidReadings');
+      return true; // Don't reject, just log
+    }
+
+    return true;
   }
 
   void _onLocationError(dynamic error) {

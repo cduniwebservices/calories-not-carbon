@@ -92,5 +92,16 @@
 		<string>background-processing</string>
 		<string>background-fetch</string>
 	</array>
+
+	<!-- App Transport Security - Allow HTTP for map tiles -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsArbitraryLoadsForMedia</key>
+		<true/>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

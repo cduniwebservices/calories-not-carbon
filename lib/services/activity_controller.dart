@@ -39,6 +39,11 @@ class ActivityController extends ChangeNotifier {
   Duration _movingDuration = Duration.zero;
   Duration _stationaryDuration = Duration.zero;
 
+  // Timer-based duration tracking for accurate moving/stationary time
+  Timer? _durationTimer;
+  DateTime? _lastDurationUpdateTime;
+  bool _wasMoving = false;
+
   // Real-time calculations
   Timer? _statsUpdateTimer;
   StreamSubscription? _locationSubscription;
@@ -207,6 +212,9 @@ class ActivityController extends ChangeNotifier {
 
       // Start stats update timer
       _startStatsTimer();
+      
+      // Start duration tracking timer for accurate moving/stationary time
+      _startDurationTimer();
 
       debugPrint('✅ ActivityController: Activity started successfully');
       notifyListeners();
@@ -249,6 +257,7 @@ class ActivityController extends ChangeNotifier {
 
       // Stop timers and sensors but keep GPS tracking for resume
       _statsUpdateTimer?.cancel();
+      _pauseDurationTimer();
       _stepSubscription?.pause();
       _stopAccelerometerTracking();
 
@@ -296,6 +305,7 @@ class ActivityController extends ChangeNotifier {
 
       // Restart stats timer and sensors
       _startStatsTimer();
+      _resumeDurationTimer();
       _stepSubscription?.resume();
       _startAccelerometerTracking();
 
@@ -430,6 +440,10 @@ class ActivityController extends ChangeNotifier {
     _pausedDuration = Duration.zero;
     _movingDuration = Duration.zero;
     _stationaryDuration = Duration.zero;
+    _durationTimer?.cancel();
+    _durationTimer = null;
+    _lastDurationUpdateTime = null;
+    _wasMoving = false;
     _totalDistance = 0.0;
     _currentSpeed = 0.0;
     _maxSpeed = 0.0;
@@ -523,6 +537,56 @@ class ActivityController extends ChangeNotifier {
     _statsUpdateTimer = Timer.periodic(_statsUpdateInterval, (_) {
       if (_state == ActivityState.running) {
         _updateStats();
+      }
+    });
+  }
+
+  /// Start the duration timer that tracks moving vs stationary time every second
+  void _startDurationTimer() {
+    _durationTimer?.cancel();
+    _lastDurationUpdateTime = DateTime.now();
+    _wasMoving = false;
+    
+    _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_state != ActivityState.running) return;
+      
+      final now = DateTime.now();
+      final timeDiff = now.difference(_lastDurationUpdateTime ?? now);
+      _lastDurationUpdateTime = now;
+      
+      // Add time to moving or stationary based on current movement state
+      if (_isPhysicallyMoving || _currentSpeed > 0.5) {
+        _movingDuration += timeDiff;
+        _wasMoving = true;
+      } else {
+        _stationaryDuration += timeDiff;
+        _wasMoving = false;
+      }
+    });
+  }
+
+  /// Pause the duration timer
+  void _pauseDurationTimer() {
+    _durationTimer?.cancel();
+    _lastDurationUpdateTime = null;
+  }
+
+  /// Resume the duration timer
+  void _resumeDurationTimer() {
+    _lastDurationUpdateTime = DateTime.now();
+    _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_state != ActivityState.running) return;
+      
+      final now = DateTime.now();
+      final timeDiff = now.difference(_lastDurationUpdateTime ?? now);
+      _lastDurationUpdateTime = now;
+      
+      if (_isPhysicallyMoving || _currentSpeed > 0.5) {
+        _movingDuration += timeDiff;
+        _wasMoving = true;
+      } else {
+        _stationaryDuration += timeDiff;
+        _wasMoving = false;
       }
     });
   }
@@ -706,35 +770,27 @@ class ActivityController extends ChangeNotifier {
 
     final now = DateTime.now();
     final totalDuration = now.difference(_startTime!);
-    
+
     // Active duration is wall-clock time minus paused time
     // This ensures the UI timer ticks every second while running
     final activeDuration = totalDuration - _pausedDuration;
-    
-    // PROVISIONAL ALLOCATION:
-    // To prevent timers from "jumping", we allocate the time since the last GPS pulse
-    // based on our current physical state.
-    Duration provisionalMoving = _movingDuration;
-    Duration provisionalStationary = _stationaryDuration;
 
-    if (_lastUpdateTimestamp != null) {
-      final gap = now.difference(_lastUpdateTimestamp!);
-      if (_isPhysicallyMoving) {
-        provisionalMoving += gap;
-      } else {
-        provisionalStationary += gap;
-      }
-    }
-    
-    // Ensure provisional time never exceeds active time due to clock drift
-    final totalProvisionalMs = provisionalMoving.inMilliseconds + provisionalStationary.inMilliseconds;
-    if (totalProvisionalMs > activeDuration.inMilliseconds) {
-      final ratio = activeDuration.inMilliseconds / totalProvisionalMs;
-      provisionalMoving = Duration(milliseconds: (provisionalMoving.inMilliseconds * ratio).toInt());
-      provisionalStationary = Duration(milliseconds: (provisionalStationary.inMilliseconds * ratio).toInt());
-    } else if (totalProvisionalMs < activeDuration.inMilliseconds) {
-      // If we have a tiny gap due to rounding, add it to stationary
-      provisionalStationary += Duration(milliseconds: activeDuration.inMilliseconds - totalProvisionalMs);
+    // Duration timer now tracks moving/stationary time accurately every second
+    // Just use the tracked values directly
+    final provisionalMoving = _movingDuration;
+    final provisionalStationary = _stationaryDuration;
+
+    // Ensure duration never exceeds active time due to clock drift
+    final totalTrackedMs = provisionalMoving.inMilliseconds + provisionalStationary.inMilliseconds;
+    if (totalTrackedMs > activeDuration.inMilliseconds) {
+      // Scale down proportionally if there's drift
+      final ratio = activeDuration.inMilliseconds / totalTrackedMs;
+      _movingDuration = Duration(milliseconds: (_movingDuration.inMilliseconds * ratio).toInt());
+      _stationaryDuration = Duration(milliseconds: (_stationaryDuration.inMilliseconds * ratio).toInt());
+    } else if (totalTrackedMs < activeDuration.inMilliseconds) {
+      // If there's a gap, add it to stationary
+      final gap = Duration(milliseconds: activeDuration.inMilliseconds - totalTrackedMs);
+      _stationaryDuration += gap;
     }
 
     // Use movingDuration for average speed to keep it stable when stationary
@@ -765,8 +821,8 @@ class ActivityController extends ChangeNotifier {
       totalDistanceMeters: _totalDistance,
       totalDuration: totalDuration,
       activeDuration: activeDuration,
-      movingDuration: provisionalMoving,
-      stationaryDuration: provisionalStationary,
+      movingDuration: _movingDuration,
+      stationaryDuration: _stationaryDuration,
       averageSpeedMps: averageSpeed,
       currentSpeedMps: _currentSpeed,
       maxSpeedMps: _maxSpeed,
