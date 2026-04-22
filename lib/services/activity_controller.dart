@@ -286,19 +286,21 @@ class ActivityController extends ChangeNotifier {
         stats: FitnessStats(startTime: _startTime!),
       );
 
-      // Start stats update timer
-      _startStatsTimer();
+    // Start stats update timer
+    _startStatsTimer();
 
-      // Start duration tracking timer for accurate moving/stationary time
-      _startDurationTimer();
+    // Start duration tracking timer for accurate moving/stationary time
+    _startDurationTimer();
 
-      // Final stabilization state
-      _gpsStabilizationState = _gpsStabilizationState?.copyWith(
-        isStabilizing: false,
-        stabilityMessage: 'GPS Ready - Tracking Started',
-      );
+    // Final stabilization state - create new instance since _resetTrackingData cleared the old one
+    _gpsStabilizationState = GpsStabilizationState(
+      isStabilizing: false,
+      isStable: true,
+      requiredStableReadings: _requiredStableReadings,
+      stabilityMessage: 'GPS Ready - Tracking Started',
+    );
 
-      debugPrint('✅ ActivityController: Tracking started successfully');
+    debugPrint('✅ ActivityController: Tracking started successfully');
       notifyListeners();
       return true;
     } catch (e) {
