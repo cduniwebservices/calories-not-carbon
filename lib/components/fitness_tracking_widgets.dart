@@ -398,7 +398,7 @@ class _ActivityControlsWidgetState extends State<ActivityControlsWidget>
           _buildActivityTypeSelector(theme, accent),
           const SizedBox(height: 20),
           AppButton.primary(
-            text: 'Start ${widget.activityType.displayName}',
+            text: 'COMMENCE ACTIVITY',
             onPressed: widget.onStart,
             isLoading: widget.isLoading,
             width: double.infinity,

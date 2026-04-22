@@ -9,6 +9,12 @@ final activityControllerProvider = Provider<ActivityController>((ref) {
   return ActivityController();
 });
 
+/// Provider for GPS stabilization status
+final gpsStabilizingProvider = StateNotifierProvider<GpsStabilizationNotifier, GpsStabilizationState>((ref) {
+  final controller = ref.watch(activityControllerProvider);
+  return GpsStabilizationNotifier(controller);
+});
+
 /// Provider for current activity session
 final currentActivitySessionProvider =
     StateNotifierProvider<ActivitySessionNotifier, ActivitySession?>((ref) {
@@ -170,9 +176,12 @@ class ActivityActions {
   /// Initialize the activity controller
   Future<bool> initialize() => _controller.initialize();
 
-  /// Start a new activity
+  /// Start a new activity (includes GPS warm-up phase)
   Future<bool> startActivity(ActivityType type, {String? activityReplaced}) =>
       _controller.startActivity(type, activityReplaced: activityReplaced);
+
+  /// Begin actual tracking after GPS stabilization
+  Future<bool> beginTracking() => _controller.beginTracking();
 
   /// Pause current activity
   Future<bool> pauseActivity() => _controller.pauseActivity();
@@ -194,6 +203,31 @@ class ActivityActions {
   bool get isTracking => _controller.isTracking;
   bool get isPaused => _controller.isPaused;
   ActivityType get activityType => _controller.activityType;
+  bool get isWarmingUp => _controller.isWarmingUp;
+}
+
+/// GPS stabilization notifier
+class GpsStabilizationNotifier extends StateNotifier<GpsStabilizationState> {
+  final ActivityController _controller;
+
+  GpsStabilizationNotifier(this._controller) : super(const GpsStabilizationState()) {
+    _controller.addListener(_onControllerUpdate);
+  }
+
+  void _onControllerUpdate() {
+    if (!mounted) return;
+
+    final stabilizationData = _controller.gpsStabilizationData;
+    if (stabilizationData != null) {
+      state = stabilizationData;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onControllerUpdate);
+    super.dispose();
+  }
 }
 
 /// Provider for activity history (fetches from local storage)

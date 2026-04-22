@@ -49,7 +49,7 @@ class ActivityController extends ChangeNotifier {
   StreamSubscription? _locationSubscription;
   StreamSubscription? _stepSubscription;
   StreamSubscription? _accelerometerSubscription;
-  
+
   double _totalDistance = 0.0;
   double _currentSpeed = 0.0;
   double _maxSpeed = 0.0;
@@ -75,12 +75,24 @@ class ActivityController extends ChangeNotifier {
   static const double _minimumSpeedThreshold = 0.5; // m/s (discard speeds below this)
   static const double _motionVibrationThreshold = 0.15; // Gs of force for 'moving'
   static const int _speedHistoryLimit = 60; // 1 minute of history
-  
+
   // Validation Thresholds
-  static const double _maxRunningSpeedMps = 5.0;  // 18 km/h
+  static const double _maxRunningSpeedMps = 5.0; // 18 km/h
   static const double _maxWalkingSpeedMps = 1.66; // 6 km/h
   static const int _speedAutoDetectThresholdKmhWalking = 6;
   static const int _speedAutoDetectThresholdKmhRunning = 18;
+
+  // GPS Stabilization
+  GpsStabilizationState? _gpsStabilizationState;
+  final List<double> _altitudeReadings = [];
+  final List<double> _speedReadings = [];
+  static const int _requiredStableReadings = 5;
+  static const double _maxAltitudeVariance = 2.0; // meters
+  static const double _maxSpeedVariance = 1.0; // m/s
+  static const double _minAccuracyForStability = 20.0; // meters
+  static const int _maxWarmupDurationSeconds = 30; // max time to wait for GPS
+  DateTime? _warmupStartTime;
+  Timer? _warmupCheckTimer;
 
   // Getters
   ActivitySession? get currentSession => _currentSession;
@@ -92,11 +104,14 @@ class ActivityController extends ChangeNotifier {
   LatLng? get lastKnownLocation => _lastKnownLocation;
   bool get isTracking => _state == ActivityState.running;
   bool get isPaused => _state == ActivityState.paused;
+  bool get isWarmingUp => _state == ActivityState.warmingUp;
   bool get canStart => _state == ActivityState.idle;
   bool get canPause => _state == ActivityState.running;
   bool get canResume => _state == ActivityState.paused;
   bool get canStop =>
       _state == ActivityState.running || _state == ActivityState.paused;
+  bool get canBeginTracking => _state == ActivityState.warmingUp && (_gpsStabilizationState?.isStable ?? false);
+  GpsStabilizationState? get gpsStabilizationData => _gpsStabilizationState;
 
   /// Initialize the activity controller
   Future<bool> initialize() async {
@@ -114,7 +129,7 @@ class ActivityController extends ChangeNotifier {
     }
   }
 
-  /// Start a new activity session
+  /// Start a new activity session (enters warmingUp state first)
   Future<bool> startActivity(ActivityType type, {String? activityReplaced}) async {
     if (!canStart) {
       debugPrint(
@@ -125,7 +140,7 @@ class ActivityController extends ChangeNotifier {
 
     try {
       debugPrint(
-        '🚀 ActivityController: Starting activity (Alternative Transport: $activityReplaced)...',
+        '🚀 ActivityController: Starting activity warm-up (Alternative Transport: $activityReplaced)...',
       );
 
       // Ensure GPS is ready with timeout and retries
@@ -165,7 +180,8 @@ class ActivityController extends ChangeNotifier {
       _activityType = type;
       _startTime = DateTime.now();
       _lastUpdateTimestamp = _startTime;
-      _state = ActivityState.running;
+      _state = ActivityState.warmingUp;
+      _warmupStartTime = _startTime;
 
       // Create new session
       _currentSession = ActivitySession(
@@ -193,7 +209,7 @@ class ActivityController extends ChangeNotifier {
         ),
       );
 
-      // Start GPS tracking
+      // Start GPS tracking for warm-up phase
       final trackingStarted = await _locationService.startTracking();
       if (!trackingStarted) {
         debugPrint('❌ ActivityController: Failed to start GPS tracking');
@@ -201,22 +217,19 @@ class ActivityController extends ChangeNotifier {
         return false;
       }
 
-      // Start listening to location updates
+      // Initialize GPS stabilization tracking
+      _initializeGpsStabilization(location);
+
+      // Start listening to location updates (for warm-up)
       _startLocationTracking();
-      
+
       // Start listening to pedometer
       _startStepTracking();
 
       // Start listening to accelerometer (Sensor Fusion)
       _startAccelerometerTracking();
 
-      // Start stats update timer
-      _startStatsTimer();
-      
-      // Start duration tracking timer for accurate moving/stationary time
-      _startDurationTimer();
-
-      debugPrint('✅ ActivityController: Activity started successfully');
+      debugPrint('✅ ActivityController: Activity warming up - waiting for GPS stabilization');
       notifyListeners();
       return true;
     } catch (e) {
@@ -225,6 +238,186 @@ class ActivityController extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  /// Begin actual tracking after GPS stabilization
+  Future<bool> beginTracking() async {
+    if (_state != ActivityState.warmingUp) {
+      debugPrint('⚠️ ActivityController: Cannot begin tracking - not in warmingUp state');
+      return false;
+    }
+
+    try {
+      debugPrint('▶️ ActivityController: GPS stabilized - beginning tracking');
+
+      // Stop warm-up timer
+      _warmupCheckTimer?.cancel();
+      _warmupCheckTimer = null;
+
+      // Reset start time to actual tracking start
+      _startTime = DateTime.now();
+      _lastUpdateTimestamp = _startTime;
+      _state = ActivityState.running;
+
+      // Reset tracking data for actual tracking (discard warm-up readings)
+      _altitudeReadings.clear();
+      _speedReadings.clear();
+      _totalDistance = 0.0;
+      _totalElevationGain = 0.0;
+      _routePoints.clear();
+      _waypoints.clear();
+
+      // Re-add current position as the true starting point
+      if (_lastKnownLocation != null) {
+        _routePoints.add(_lastKnownLocation!);
+        _waypoints.add(
+          ActivityWaypoint(
+            location: _lastKnownLocation!,
+            timestamp: _startTime!,
+            type: 'start',
+            altitude: _lastAltitude,
+          ),
+        );
+      }
+
+      // Update session
+      _currentSession = _currentSession?.copyWith(
+        state: _state,
+        stats: FitnessStats(startTime: _startTime!),
+      );
+
+      // Start stats update timer
+      _startStatsTimer();
+
+      // Start duration tracking timer for accurate moving/stationary time
+      _startDurationTimer();
+
+      // Final stabilization state
+      _gpsStabilizationState = _gpsStabilizationState?.copyWith(
+        isStabilizing: false,
+        stabilityMessage: 'GPS Ready - Tracking Started',
+      );
+
+      debugPrint('✅ ActivityController: Tracking started successfully');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('❌ ActivityController: Failed to begin tracking: $e');
+      return false;
+    }
+  }
+
+  /// Initialize GPS stabilization tracking
+  void _initializeGpsStabilization(LocationData location) {
+    _altitudeReadings.clear();
+    _speedReadings.clear();
+    _warmupStartTime = DateTime.now();
+
+    _gpsStabilizationState = GpsStabilizationState(
+      isStabilizing: true,
+      isStable: false,
+      currentAltitude: location.geoidHeight ?? location.altitude,
+      currentSpeed: location.speed ?? 0.0,
+      gpsAccuracy: location.accuracy,
+      requiredStableReadings: _requiredStableReadings,
+      stabilityMessage: 'Waiting for GPS signal to stabilize...',
+    );
+
+    // Start warm-up check timer
+    _warmupCheckTimer?.cancel();
+    _warmupCheckTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _checkWarmupTimeout();
+    });
+  }
+
+  /// Check if warm-up has timed out
+  void _checkWarmupTimeout() {
+    if (_warmupStartTime == null || _state != ActivityState.warmingUp) return;
+
+    final elapsed = DateTime.now().difference(_warmupStartTime!);
+    if (elapsed.inSeconds > _maxWarmupDurationSeconds) {
+      debugPrint('⚠️ ActivityController: GPS warm-up timed out - forcing begin tracking');
+      // Force begin tracking after timeout
+      beginTracking();
+    }
+  }
+
+  /// Update GPS stabilization state with new readings
+  void _updateGpsStabilization(LocationData location) {
+    if (_state != ActivityState.warmingUp) return;
+
+    final altitude = location.geoidHeight ?? location.altitude ?? 0.0;
+    final speed = location.speed ?? 0.0;
+    final accuracy = location.accuracy;
+
+    // Add readings
+    _altitudeReadings.add(altitude);
+    _speedReadings.add(speed);
+
+    // Keep only last N readings
+    if (_altitudeReadings.length > _requiredStableReadings) {
+      _altitudeReadings.removeAt(0);
+    }
+    if (_speedReadings.length > _requiredStableReadings) {
+      _speedReadings.removeAt(0);
+    }
+
+    // Calculate variances if we have enough readings
+    double? altitudeVariance;
+    double? speedVariance;
+    bool isStable = false;
+    String message;
+
+    if (_altitudeReadings.length >= 3) {
+      altitudeVariance = _calculateVariance(_altitudeReadings);
+      speedVariance = _calculateVariance(_speedReadings);
+
+      // Check stability criteria
+      final altitudeStable = altitudeVariance <= _maxAltitudeVariance;
+      final speedStable = speedVariance <= _maxSpeedVariance;
+      final accuracyGood = accuracy <= _minAccuracyForStability;
+
+      if (altitudeStable && speedStable && accuracyGood) {
+        isStable = true;
+        message = 'GPS signal stable - Ready to start';
+      } else {
+        final issues = <String>[];
+        if (!altitudeStable) issues.add('altitude');
+        if (!speedStable) issues.add('speed');
+        if (!accuracyGood) issues.add('accuracy');
+        message = 'Stabilizing ${issues.join(', ')}...';
+      }
+    } else {
+      message = 'Collecting GPS readings (${_altitudeReadings.length}/$_requiredStableReadings)...';
+    }
+
+    _gpsStabilizationState = GpsStabilizationState(
+      isStabilizing: true,
+      isStable: isStable,
+      currentAltitude: altitude,
+      currentSpeed: speed,
+      altitudeVariance: altitudeVariance,
+      speedVariance: speedVariance,
+      stableReadingsCount: _altitudeReadings.length,
+      requiredStableReadings: _requiredStableReadings,
+      gpsAccuracy: accuracy,
+      stabilityMessage: message,
+    );
+
+    notifyListeners();
+
+    // Auto-begin tracking once stable
+    if (isStable && _state == ActivityState.warmingUp) {
+      beginTracking();
+    }
+  }
+
+  /// Calculate variance of a list of values
+  double _calculateVariance(List<double> values) {
+    if (values.length < 2) return 0.0;
+    final mean = values.reduce((a, b) => a + b) / values.length;
+    final squaredDiffs = values.map((v) => math.pow(v - mean, 2)).toList();
+    return squaredDiffs.reduce((a, b) => a + b) / values.length;
   }
 
   /// Pause the current activity
@@ -456,6 +649,13 @@ class ActivityController extends ChangeNotifier {
     _isValid = true;
     _invalidDataPoints = 0;
     _totalDataPoints = 0;
+    // Reset GPS stabilization
+    _altitudeReadings.clear();
+    _speedReadings.clear();
+    _warmupStartTime = null;
+    _warmupCheckTimer?.cancel();
+    _warmupCheckTimer = null;
+    _gpsStabilizationState = null;
   }
 
   void _startLocationTracking() {
@@ -601,6 +801,12 @@ class ActivityController extends ChangeNotifier {
   }
 
   void _onLocationUpdate(dynamic locationData) {
+    // Update GPS stabilization during warmup
+    if (_state == ActivityState.warmingUp && locationData is LocationData) {
+      _updateGpsStabilization(locationData);
+      return;
+    }
+
     if (_state != ActivityState.running) return;
 
     try {

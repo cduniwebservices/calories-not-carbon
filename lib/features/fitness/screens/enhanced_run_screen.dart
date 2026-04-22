@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,7 +45,8 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
   }
 
   Future<void> _checkAutoStartParameter() async {
-    // Auto-start immediately when screen loads
+    // Auto-start GPS warm-up immediately when screen loads
+    // User must still press START button once GPS stabilizes
     await Future.delayed(const Duration(milliseconds: 800));
     if (mounted) {
       final actions = ref.read(activityActionsProvider);
@@ -82,6 +84,7 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
     final activityState = ref.watch(activityStateProvider);
     final fitnessStats = ref.watch(fitnessStatsProvider);
     final routePoints = ref.watch(routePointsProvider);
+    final gpsStabilization = ref.watch(gpsStabilizingProvider);
     final actions = ref.read(activityActionsProvider);
     final mediaQuery = MediaQuery.of(context);
 
@@ -119,8 +122,8 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
                 // App bar with activity status
                 _buildAppBar(theme, activityState, fitnessStats, actions),
 
-                // Tab bar for Map/Stats view
-                if (activityState != ActivityState.idle)
+                // Tab bar for Map/Stats view (only when actually running, not warming up)
+                if (activityState == ActivityState.running || activityState == ActivityState.paused)
                   _buildTabBar(theme)
                       .animate()
                       .fadeIn(duration: 300.ms)
@@ -144,15 +147,14 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
                         ),
                       );
                     },
-                    child: activityState == ActivityState.idle
-                        ? _buildLoadingView(theme)
-                        : _buildActiveTrackingView(
-                            theme,
-                            activityState,
-                            fitnessStats,
-                            routePoints,
-                            actions,
-                          ),
+                    child: _buildContentView(
+                      activityState,
+                      gpsStabilization,
+                      theme,
+                      fitnessStats,
+                      routePoints,
+                      actions,
+                    ),
                   ),
                 ),
               ],
@@ -161,6 +163,33 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
         ),
       ),
     );
+  }
+
+  Widget _buildContentView(
+    ActivityState activityState,
+    GpsStabilizationState gpsStabilization,
+    ThemeData theme,
+    FitnessStats stats,
+    List<LatLng> routePoints,
+    ActivityActions actions,
+  ) {
+    switch (activityState) {
+      case ActivityState.idle:
+        return _buildLoadingView(theme);
+      case ActivityState.warmingUp:
+        return _buildWarmingUpView(theme, gpsStabilization, actions);
+      case ActivityState.running:
+      case ActivityState.paused:
+        return _buildActiveTrackingView(
+          theme,
+          activityState,
+          stats,
+          routePoints,
+          actions,
+        );
+      case ActivityState.completed:
+        return _buildLoadingView(theme);
+    }
   }
 
   Widget _buildAppBar(
@@ -295,6 +324,240 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
     );
   }
 
+  Widget _buildWarmingUpView(
+    ThemeData theme,
+    GpsStabilizationState stabilizationState,
+    ActivityActions actions,
+  ) {
+    final progress = stabilizationState.progress.clamp(0.0, 1.0);
+    final isStable = stabilizationState.isStable;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // GPS Icon with pulse animation
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isStable
+                    ? GlobalTheme.primaryNeon.withOpacity(0.2)
+                    : Colors.amber.withOpacity(0.2),
+              ),
+              child: Icon(
+                isStable ? Icons.gps_fixed : Icons.gps_not_fixed,
+                size: 56,
+                color: isStable ? GlobalTheme.primaryNeon : Colors.amber,
+              ),
+            )
+                .animate(onPlay: (c) => c.repeat(reverse: true))
+                .scale(duration: 1500.ms, begin: const Offset(0.9, 0.9), end: const Offset(1.05, 1.05)),
+
+            const SizedBox(height: 32),
+
+            // Status text
+            Text(
+              isStable ? 'GPS Signal Stable!' : 'Stabilizing GPS Signal...',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ).animate().fadeIn(),
+
+            const SizedBox(height: 12),
+
+            // Stability message
+            Text(
+              stabilizationState.stabilityMessage ?? 'Waiting for accurate readings...',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: GlobalTheme.textSecondary,
+              ),
+            ).animate().fadeIn(delay: 200.ms),
+
+            const SizedBox(height: 32),
+
+            // Progress indicator
+            Container(
+              width: double.infinity,
+              height: 8,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: progress,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isStable ? GlobalTheme.primaryNeon : Colors.amber,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+            ).animate().slideX(begin: -1, end: 0, duration: 500.ms),
+
+            const SizedBox(height: 16),
+
+            // Reading count
+            Text(
+              '${stabilizationState.stableReadingsCount}/${stabilizationState.requiredStableReadings} stable readings',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: GlobalTheme.textTertiary,
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            // Current metrics display
+            if (stabilizationState.currentAltitude != null) ...[
+              _buildMetricRow(
+                'Altitude',
+                '${stabilizationState.currentAltitude!.toStringAsFixed(1)} m',
+                Icons.terrain_outlined,
+                stabilizationState.altitudeVariance != null
+                    ? '±${stabilizationState.altitudeVariance!.toStringAsFixed(1)}m variance'
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              _buildMetricRow(
+                'Speed',
+                '${((stabilizationState.currentSpeed ?? 0) * 3.6).toStringAsFixed(1)} km/h',
+                Icons.speed_outlined,
+                stabilizationState.speedVariance != null
+                    ? '±${(stabilizationState.speedVariance! * 3.6).toStringAsFixed(1)} km/h variance'
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              _buildMetricRow(
+                'Accuracy',
+                '${stabilizationState.gpsAccuracy.toStringAsFixed(1)} m',
+                Icons.gps_fixed_outlined,
+                stabilizationState.gpsAccuracy <= 10
+                    ? 'Excellent'
+                    : stabilizationState.gpsAccuracy <= 20
+                        ? 'Good'
+                        : 'Poor',
+              ),
+            ],
+
+            const Spacer(),
+
+            // Manual start button (shown when stable)
+            if (isStable)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: GlobalTheme.primaryNeon,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: GlobalTheme.primaryNeon.withOpacity(0.4),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    actions.beginTracking();
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 28),
+                        const SizedBox(width: 12),
+                        Text(
+                          'START ACTIVITY',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: Colors.black,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+                  .animate()
+                  .fadeIn(duration: 400.ms)
+                  .scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1))
+                  .then()
+                  .shimmer(duration: 2000.ms, color: Colors.white.withOpacity(0.3)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetricRow(String label, String value, IconData icon, String? subtitle) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: GlobalTheme.primaryNeon.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: GlobalTheme.primaryNeon, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: GlobalTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: GlobalTheme.textTertiary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActiveTrackingView(
     ThemeData theme,
     ActivityState state,
@@ -403,6 +666,8 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
     switch (state) {
       case ActivityState.idle:
         return 'HEALTHY HUMANS, HEALTHY PLANET';
+      case ActivityState.warmingUp:
+        return 'GPS stabilizing - please wait';
       case ActivityState.running:
         return 'Activity in progress';
       case ActivityState.paused:
@@ -416,6 +681,8 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
     switch (state) {
       case ActivityState.idle:
         return theme.colorScheme.onSurface.withOpacity(0.7);
+      case ActivityState.warmingUp:
+        return Colors.amber;
       case ActivityState.running:
         return GlobalTheme.primaryAccent; // Green
       case ActivityState.paused:

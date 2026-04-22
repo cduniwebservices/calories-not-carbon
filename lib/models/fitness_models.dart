@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
 /// Activity state management for fitness tracking
-enum ActivityState { idle, running, paused, completed }
+enum ActivityState { idle, warmingUp, running, paused, completed }
 
 extension ActivityStateExtension on ActivityState {
   String get displayName {
     switch (this) {
       case ActivityState.idle:
         return 'Idle';
+      case ActivityState.warmingUp:
+        return 'GPS Stabilizing';
       case ActivityState.running:
         return 'In Progress';
       case ActivityState.paused:
@@ -22,6 +24,8 @@ extension ActivityStateExtension on ActivityState {
     switch (this) {
       case ActivityState.idle:
         return Colors.grey;
+      case ActivityState.warmingUp:
+        return Colors.amber;
       case ActivityState.running:
         return Colors.green;
       case ActivityState.paused:
@@ -32,7 +36,9 @@ extension ActivityStateExtension on ActivityState {
   }
 
   bool get isActive =>
-      this == ActivityState.running || this == ActivityState.paused;
+      this == ActivityState.warmingUp ||
+      this == ActivityState.running ||
+      this == ActivityState.paused;
 }
 
 /// Activity types available for tracking
@@ -796,6 +802,62 @@ class Goal {
       return '${minutes}m';
     }
   }
+}
+
+/// GPS stabilization state for warm-up phase
+class GpsStabilizationState {
+  final bool isStabilizing;
+  final bool isStable;
+  final double? currentAltitude;
+  final double? currentSpeed;
+  final double? altitudeVariance;
+  final double? speedVariance;
+  final int stableReadingsCount;
+  final int requiredStableReadings;
+  final double gpsAccuracy;
+  final String? stabilityMessage;
+
+  const GpsStabilizationState({
+    this.isStabilizing = false,
+    this.isStable = false,
+    this.currentAltitude,
+    this.currentSpeed,
+    this.altitudeVariance,
+    this.speedVariance,
+    this.stableReadingsCount = 0,
+    this.requiredStableReadings = 5,
+    this.gpsAccuracy = double.infinity,
+    this.stabilityMessage,
+  });
+
+  GpsStabilizationState copyWith({
+    bool? isStabilizing,
+    bool? isStable,
+    double? currentAltitude,
+    double? currentSpeed,
+    double? altitudeVariance,
+    double? speedVariance,
+    int? stableReadingsCount,
+    int? requiredStableReadings,
+    double? gpsAccuracy,
+    String? stabilityMessage,
+  }) {
+    return GpsStabilizationState(
+      isStabilizing: isStabilizing ?? this.isStabilizing,
+      isStable: isStable ?? this.isStable,
+      currentAltitude: currentAltitude ?? this.currentAltitude,
+      currentSpeed: currentSpeed ?? this.currentSpeed,
+      altitudeVariance: altitudeVariance ?? this.altitudeVariance,
+      speedVariance: speedVariance ?? this.speedVariance,
+      stableReadingsCount: stableReadingsCount ?? this.stableReadingsCount,
+      requiredStableReadings: requiredStableReadings ?? this.requiredStableReadings,
+      gpsAccuracy: gpsAccuracy ?? this.gpsAccuracy,
+      stabilityMessage: stabilityMessage ?? this.stabilityMessage,
+    );
+  }
+
+  /// Progress percentage (0.0 to 1.0)
+  double get progress => stableReadingsCount / requiredStableReadings;
 }
 
 /// Default travel modes for carbon calculation
