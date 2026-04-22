@@ -169,12 +169,13 @@ class ActivityController extends ChangeNotifier {
         return false;
       }
 
-      // Reset all tracking data
-      _resetTrackingData();
+    // Reset all tracking data
+    _resetTrackingData();
 
-      // Fetch weather and IP lookup asynchronously
-      _fetchStartWeather(location.latitude, location.longitude);
-      _fetchStartIpLookup();
+    // Fetch weather and IP lookup asynchronously (fire-and-forget, will attach to session when ready)
+    // Note: These complete after session creation but before beginTracking()
+    _fetchStartWeather(location.latitude, location.longitude);
+    _fetchStartIpLookup();
 
       // Set initial activity type and start time
       _activityType = type;
@@ -280,11 +281,12 @@ class ActivityController extends ChangeNotifier {
         );
       }
 
-      // Update session
-      _currentSession = _currentSession?.copyWith(
-        state: _state,
-        stats: FitnessStats(startTime: _startTime!),
-      );
+    // Update session - preserve existing data like weather/IP that was fetched during warm-up
+    _currentSession = _currentSession?.copyWith(
+      state: _state,
+      stats: FitnessStats(startTime: _startTime!),
+    );
+    debugPrint('📝 ActivityController: Session updated for tracking - preserving warm-up data (weather: ${_currentSession?.startWeather != null})');
 
     // Start stats update timer
     _startStatsTimer();
@@ -616,10 +618,15 @@ class ActivityController extends ChangeNotifier {
 
   Future<void> _fetchStartWeather(double lat, double lon) async {
     try {
+      debugPrint('🌍 ActivityController: Fetching start weather for $lat, $lon...');
       final weather = await _weatherService.getCurrentWeather(lat, lon);
       if (weather != null && _currentSession != null) {
         _currentSession = _currentSession!.copyWith(startWeather: weather);
-        debugPrint('🌍 ActivityController: Start weather recorded: ${weather.tempC}°C');
+        debugPrint('🌍 ActivityController: Start weather recorded: ${weather.tempC}°C in ${weather.location?.name}');
+      } else if (weather == null) {
+        debugPrint('⚠️ ActivityController: Weather fetch returned null (check WEATHER_API_KEY)');
+      } else {
+        debugPrint('⚠️ ActivityController: Weather fetched but session is null');
       }
     } catch (e) {
       debugPrint('⚠️ ActivityController: Error fetching start weather: $e');
@@ -847,10 +854,11 @@ class ActivityController extends ChangeNotifier {
         final bool isGpsMoving = distance >= _minimumDistanceThreshold && instantSpeed >= _minimumSpeedThreshold;
         final bool isActuallyMoving = isGpsMoving || (instantSpeed > 0.3 && _isPhysicallyMoving);
 
-        if (isActuallyMoving) {
-          _totalDistance += distance;
-          _movingDuration += timeDiff;
-          _currentSpeed = instantSpeed;
+      if (isActuallyMoving) {
+        _totalDistance += distance;
+        // NOTE: Duration is tracked by _durationTimer, NOT here
+        // to prevent double-counting when iOS pauses/resumes location updates
+        _currentSpeed = instantSpeed;
           _routePoints.add(newLocation);
 
           // VALIDATION: Cadence and Speed check
@@ -894,10 +902,11 @@ class ActivityController extends ChangeNotifier {
               altitude: currentAlt,
             ),
           );
-        } else {
-          // STATIONARY
-          _stationaryDuration += timeDiff;
-          _currentSpeed = 0.0;
+      } else {
+        // STATIONARY
+        // NOTE: Duration is tracked by _durationTimer, NOT here
+        // to prevent double-counting when iOS pauses/resumes location updates
+        _currentSpeed = 0.0;
           _updateStats();
 
           final currentAlt = locationData.geoidHeight ?? locationData.altitude;

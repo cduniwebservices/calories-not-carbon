@@ -57,11 +57,14 @@ class _NeonCardState extends State<NeonCard>
 
   void _onTapUp(TapUpDetails details) {
     _controller.reverse();
-    widget.onTap?.call();
   }
 
   void _onTapCancel() {
     _controller.reverse();
+  }
+
+  void _onTap() {
+    widget.onTap?.call();
   }
 
   @override
@@ -70,6 +73,7 @@ class _NeonCardState extends State<NeonCard>
       onTapDown: widget.onTap != null ? _onTapDown : null,
       onTapUp: widget.onTap != null ? _onTapUp : null,
       onTapCancel: widget.onTap != null ? _onTapCancel : null,
+      onTap: widget.onTap != null ? _onTap : null,
       child: AnimatedBuilder(
         animation: _scaleAnimation,
         builder: (context, child) {

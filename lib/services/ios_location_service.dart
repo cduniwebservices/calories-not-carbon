@@ -207,13 +207,24 @@ class IOSLocationService {
     if (data is! Map) return;
 
     try {
+      // Handle iOS speed which can be -1.0 when unknown/invalid
+      // Convert -1.0 to null so ActivityController calculates speed from distance/time
+      double? speed;
+      if (data['speed'] != null) {
+        final rawSpeed = (data['speed'] as num).toDouble();
+        if (rawSpeed >= 0) {
+          speed = rawSpeed;
+        }
+        // If speed is -1.0 (iOS invalid), leave as null for distance-based calculation
+      }
+
       final locationData = LocationData(
         latitude: (data['latitude'] as num).toDouble(),
         longitude: (data['longitude'] as num).toDouble(),
         accuracy: (data['accuracy'] as num).toDouble(),
         altitude: data['altitude'] != null ? (data['altitude'] as num).toDouble() : null,
         heading: data['heading'] != null ? (data['heading'] as num).toDouble() : null,
-        speed: data['speed'] != null ? (data['speed'] as num).toDouble() : null,
+        speed: speed,
         timestamp: DateTime.parse(data['timestamp'] as String),
       );
 
@@ -224,7 +235,8 @@ class IOSLocationService {
         '📍 IOSLocationService: Location update - '
         'Lat: ${locationData.latitude.toStringAsFixed(6)}, '
         'Lng: ${locationData.longitude.toStringAsFixed(6)}, '
-        'Acc: ${locationData.accuracy.toStringAsFixed(1)}m',
+        'Acc: ${locationData.accuracy.toStringAsFixed(1)}m, '
+        'Speed: ${locationData.speed?.toStringAsFixed(2) ?? "null"} m/s',
       );
     } catch (e) {
       debugPrint('❌ IOSLocationService: Error parsing location data: $e');
