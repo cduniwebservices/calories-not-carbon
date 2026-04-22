@@ -290,4 +290,3 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
     );
   }
 }
-}
