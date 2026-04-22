@@ -551,60 +551,344 @@ class _DebugScreenState extends ConsumerState<DebugScreen>
       attemptedTime = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
     }
 
+    return InkWell(
+      onTap: () => _showActivityDetailDialog(session),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: GlobalTheme.surfaceCard,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${session.activityType.name.toUpperCase()} • ${session.state.name}',
+                    style: const TextStyle(color: GlobalTheme.primaryNeon, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
+                const Icon(Icons.open_in_new, color: Colors.grey, size: 14),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'ID: ${session.id.substring(0, 8)}... | Distance: ${session.stats.formattedDistance} | Calories: ${session.stats.estimatedCalories}',
+              style: const TextStyle(color: Colors.grey, fontSize: 11),
+            ),
+            Text(
+              'Duration: ${session.stats.formattedDuration} | Route points: ${session.routePoints.length}',
+              style: const TextStyle(color: Colors.grey, fontSize: 11),
+            ),
+            Row(
+              children: [
+                Text(
+                  'Synced:',
+                  style: const TextStyle(color: Colors.grey, fontSize: 11),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  isSynced ? '✅' : '❌',
+                  style: const TextStyle(fontSize: 11),
+                ),
+                if (isSynced && syncedTime.isNotEmpty) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    '@ $syncedTime',
+                    style: const TextStyle(color: Colors.green, fontSize: 11, fontFamily: 'monospace'),
+                  ),
+                ],
+                if (!isSynced && attemptedTime.isNotEmpty) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    'attempted @ $attemptedTime',
+                    style: const TextStyle(color: Colors.orange, fontSize: 11, fontFamily: 'monospace'),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showActivityDetailDialog(ActivitySession session) {
+    final stats = session.stats;
+    final waypoints = session.waypoints;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: GlobalTheme.backgroundPrimary,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Activity Details',
+                            style: TextStyle(
+                              color: GlobalTheme.primaryNeon,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            '${session.activityType.displayName} • ${session.id.substring(0, 8)}',
+                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(color: Colors.white24),
+              // Scrollable content
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  children: [
+                    // Sync Status
+                    _buildDetailSection('SYNC STATUS', [
+                      _buildDetailRow('Is Synced', session.isSynced.toString()),
+                      _buildDetailRow('Synced At', session.syncedAt?.toIso8601String() ?? 'N/A'),
+                      _buildDetailRow('Last Attempt', session.lastSyncAttempt?.toIso8601String() ?? 'N/A'),
+                      _buildDetailRow('Is Valid', session.isValid.toString()),
+                    ]),
+                    const SizedBox(height: 16),
+
+                    // Stats
+                    _buildDetailSection('STATISTICS', [
+                      _buildDetailRow('Total Distance', '${stats.totalDistanceMeters.toStringAsFixed(2)} m (${stats.formattedDistance})'),
+                      _buildDetailRow('Total Duration', '${stats.totalDuration.inMilliseconds} ms (${stats.formattedDuration})'),
+                      _buildDetailRow('Active Duration', '${stats.activeDuration.inMilliseconds} ms'),
+                      _buildDetailRow('Moving Duration', '${stats.movingDuration.inMilliseconds} ms'),
+                      _buildDetailRow('Stationary Duration', '${stats.stationaryDuration.inMilliseconds} ms'),
+                      _buildDetailRow('Average Speed', '${stats.averageSpeedMps.toStringAsFixed(2)} m/s'),
+                      _buildDetailRow('Current Speed', '${stats.currentSpeedMps.toStringAsFixed(2)} m/s'),
+                      _buildDetailRow('Max Speed', '${stats.maxSpeedMps.toStringAsFixed(2)} m/s'),
+                      _buildDetailRow('Average Pace', '${stats.averagePaceSecondsPerKm.toStringAsFixed(2)} s/km (${stats.formattedAveragePace})'),
+                      _buildDetailRow('Calories', stats.estimatedCalories.toString()),
+                      _buildDetailRow('Steps', stats.totalSteps.toString()),
+                      _buildDetailRow('Elevation Gain', '${stats.elevationGain.toStringAsFixed(2)} m'),
+                      _buildDetailRow('Altitude', '${stats.altitude.toStringAsFixed(2)} m'),
+                    ]),
+                    const SizedBox(height: 16),
+
+                    // Timing
+                    _buildDetailSection('TIMING', [
+                      _buildDetailRow('Start Time', stats.startTime.toIso8601String()),
+                      _buildDetailRow('End Time', stats.endTime?.toIso8601String() ?? 'N/A'),
+                    ]),
+                    const SizedBox(height: 16),
+
+                    // Waypoints Summary
+                    _buildDetailSection('WAYPOINTS', [
+                      _buildDetailRow('Total Waypoints', waypoints.length.toString()),
+                      _buildDetailRow('Track Points', waypoints.where((w) => w.type == 'track_point').length.toString()),
+                      _buildDetailRow('Stationary Points', waypoints.where((w) => w.type == 'stationary').length.toString()),
+                      _buildDetailRow('Start Points', waypoints.where((w) => w.type == 'start').length.toString()),
+                      _buildDetailRow('Start Point Waypoints', waypoints.where((w) => w.type == 'start_point').length.toString()),
+                    ]),
+                    const SizedBox(height: 16),
+
+                    // Weather
+                    if (session.startWeather != null)
+                      _buildDetailSection('WEATHER (START)', [
+                        _buildDetailRow('Location', '${session.startWeather!.location?.name}, ${session.startWeather!.location?.country}'),
+                        _buildDetailRow('Temperature', '${session.startWeather!.tempC}°C (feels like ${session.startWeather!.feelsLikeC}°C)'),
+                        _buildDetailRow('Condition', session.startWeather!.conditionText),
+                        _buildDetailRow('Humidity', '${session.startWeather!.humidity}%'),
+                        _buildDetailRow('Wind', '${session.startWeather!.windKph} kph ${session.startWeather!.windDir}'),
+                        _buildDetailRow('UV Index', session.startWeather!.uv.toString()),
+                      ])
+                    else
+                      _buildDetailSection('WEATHER', [
+                        const Text('No weather data recorded', style: TextStyle(color: Colors.orange, fontSize: 12)),
+                      ]),
+                    const SizedBox(height: 16),
+
+                    // Full Waypoints Data
+                    _buildDetailSection('FULL WAYPOINT DATA', [
+                      const Text('Tap to expand waypoint details', style: TextStyle(color: Colors.grey, fontSize: 10, fontStyle: FontStyle.italic)),
+                      const SizedBox(height: 8),
+                      ...waypoints.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final wp = entry.value;
+                        return _buildWaypointTile(index, wp);
+                      }),
+                    ]),
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailSection(String title, List<Widget> children) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: GlobalTheme.surfaceCard,
-        borderRadius: BorderRadius.circular(8),
+        color: GlobalTheme.surfaceCard.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${session.activityType.name.toUpperCase()} • ${session.state.name}',
-            style: const TextStyle(color: GlobalTheme.primaryNeon, fontWeight: FontWeight.bold, fontSize: 12),
+            title,
+            style: TextStyle(
+              color: GlobalTheme.primaryNeon,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+            ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'ID: ${session.id.substring(0, 8)}... | Distance: ${session.stats.formattedDistance} | Calories: ${session.stats.estimatedCalories}',
-            style: const TextStyle(color: Colors.grey, fontSize: 11),
+          const SizedBox(height: 8),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
+            ),
           ),
-          Text(
-            'Duration: ${session.stats.formattedDuration} | Route points: ${session.routePoints.length}',
-            style: const TextStyle(color: Colors.grey, fontSize: 11),
-          ),
-          Row(
-            children: [
-              Text(
-                'Synced:',
-                style: const TextStyle(color: Colors.grey, fontSize: 11),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                isSynced ? '✅' : '❌',
-                style: const TextStyle(fontSize: 11),
-              ),
-              if (isSynced && syncedTime.isNotEmpty) ...[
-                const SizedBox(width: 4),
-                Text(
-                  '@ $syncedTime',
-                  style: const TextStyle(color: Colors.green, fontSize: 11, fontFamily: 'monospace'),
-                ),
-              ],
-              if (!isSynced && attemptedTime.isNotEmpty) ...[
-                const SizedBox(width: 4),
-                Text(
-                  'attempted @ $attemptedTime',
-                  style: const TextStyle(color: Colors.orange, fontSize: 11, fontFamily: 'monospace'),
-                ),
-              ],
-            ],
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.white, fontSize: 11, fontFamily: 'monospace'),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildWaypointTile(int index, ActivityWaypoint wp) {
+    final stats = wp.statsAtTime;
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(left: 16, bottom: 8),
+      title: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: _getWaypointColor(wp.type),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Center(
+              child: Text(
+                '$index',
+                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${wp.type} • ${wp.timestamp.toIso8601String().split('T')[1].substring(0, 8)}',
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  'Lat: ${wp.location.latitude.toStringAsFixed(6)}, Lng: ${wp.location.longitude.toStringAsFixed(6)}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 10, fontFamily: 'monospace'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      children: [
+        if (stats != null) ...[
+          _buildDetailRow('  Distance', '${stats.totalDistanceMeters.toStringAsFixed(2)} m'),
+          _buildDetailRow('  Duration', '${stats.totalDuration.inMilliseconds} ms'),
+          _buildDetailRow('  Active Time', '${stats.activeDuration.inMilliseconds} ms'),
+          _buildDetailRow('  Moving Time', '${stats.movingDuration.inMilliseconds} ms'),
+          _buildDetailRow('  Stationary Time', '${stats.stationaryDuration.inMilliseconds} ms'),
+          _buildDetailRow('  Current Speed', '${stats.currentSpeedMps.toStringAsFixed(2)} m/s'),
+          _buildDetailRow('  Avg Speed', '${stats.averageSpeedMps.toStringAsFixed(2)} m/s'),
+          _buildDetailRow('  Steps', stats.totalSteps.toString()),
+          _buildDetailRow('  Elevation', '${stats.elevationGain.toStringAsFixed(2)} m'),
+        ] else
+          const Text('No stats recorded at this waypoint', style: TextStyle(color: Colors.grey, fontSize: 10, fontStyle: FontStyle.italic)),
+      ],
+    );
+  }
+
+  Color _getWaypointColor(String type) {
+    switch (type) {
+      case 'start':
+        return Colors.green;
+      case 'start_point':
+        return Colors.green.shade700;
+      case 'track_point':
+        return GlobalTheme.primaryNeon;
+      case 'stationary':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
   }
 
   Future<void> _fetchTestWeather() async {

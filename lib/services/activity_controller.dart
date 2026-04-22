@@ -260,13 +260,14 @@ class ActivityController extends ChangeNotifier {
       _lastUpdateTimestamp = _startTime;
       _state = ActivityState.running;
 
-      // Reset tracking data for actual tracking (discard warm-up readings)
-      _altitudeReadings.clear();
-      _speedReadings.clear();
-      _totalDistance = 0.0;
-      _totalElevationGain = 0.0;
-      _routePoints.clear();
-      _waypoints.clear();
+    // Reset tracking data for actual tracking (discard warm-up readings)
+    _altitudeReadings.clear();
+    _speedReadings.clear();
+    _totalDistance = 0.0;
+    _totalElevationGain = 0.0;
+    _lastAltitude = null; // Reset altitude baseline to prevent warm-up drift from affecting elevation
+    _routePoints.clear();
+    _waypoints.clear();
 
       // Re-add current position as the true starting point
       if (_lastKnownLocation != null) {

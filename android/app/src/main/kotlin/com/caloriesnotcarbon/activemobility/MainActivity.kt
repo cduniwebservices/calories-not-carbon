@@ -1,4 +1,4 @@
-package com.example.calories_not_carbon
+package com.caloriesnotcarbon.activemobility
 
 import io.flutter.embedding.android.FlutterActivity
 
