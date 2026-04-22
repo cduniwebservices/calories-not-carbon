@@ -93,6 +93,10 @@ class FitnessStatsWidget extends StatelessWidget {
         icon = Icons.play_circle_outline;
         color = Colors.grey;
         break;
+      case ActivityState.warmingUp:
+        icon = Icons.gps_fixed;
+        color = Colors.amber;
+        break;
       case ActivityState.running:
         icon = Icons.play_circle_filled;
         color = accent;
