@@ -360,7 +360,7 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
 
             // Status text
             Text(
-              isStable ? 'GPS Signal Stable!' : 'Stabilizing GPS Signal...',
+              isStable ? 'Signal Stable!' : 'Calibrating...',
               style: theme.textTheme.headlineSmall?.copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
@@ -666,7 +666,7 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
       case ActivityState.idle:
         return 'HEALTHY HUMANS, HEALTHY PLANET';
       case ActivityState.warmingUp:
-        return 'GPS stabilizing - please wait';
+        return 'Please wait';
       case ActivityState.running:
         return 'Activity in progress';
       case ActivityState.paused:

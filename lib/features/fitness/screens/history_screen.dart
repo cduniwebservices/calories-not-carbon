@@ -376,14 +376,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
                               (activity.stats.totalDistanceMeters / 1000).toStringAsFixed(2),
                               Icons.route_rounded,
                             ),
-                            const SizedBox(width: GlobalTheme.spacing24),
+                            const SizedBox(width: GlobalTheme.spacing12),
                             _buildStatItem(
                               theme,
                               'Pace (/km)',
                               activity.stats.formattedAveragePace,
                               Icons.speed_rounded,
                             ),
-                            const SizedBox(width: GlobalTheme.spacing24),
+                            const SizedBox(width: GlobalTheme.spacing12),
                             _buildStatItem(
                               theme,
                               'Calories (kcal)',
@@ -432,24 +432,28 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen>
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: GlobalTheme.primaryAccent),
+              Icon(icon, size: 14, color: GlobalTheme.primaryAccent),
               const SizedBox(width: GlobalTheme.spacing4),
               Text(
-                label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: GlobalTheme.textTertiary,
-                  fontWeight: FontWeight.w500,
+                value,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: GlobalTheme.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: GlobalTheme.spacing4),
+          const SizedBox(height: 2),
           Text(
-            value,
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: GlobalTheme.textPrimary,
-              fontWeight: FontWeight.w700,
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: GlobalTheme.textTertiary,
+              fontWeight: FontWeight.w500,
+              fontSize: 10,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

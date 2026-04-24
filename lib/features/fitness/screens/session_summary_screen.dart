@@ -267,7 +267,7 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
   Widget _buildMainStats(ThemeData theme, FitnessStats stats) {
     final mainStats = [
       {
-        'label': 'DISTANCE (KM)',
+        'label': 'Dist. (km)',
         'value': (stats.totalDistanceMeters / 1000).toStringAsFixed(2),
         'icon': Icons.route_rounded,
         'color': GlobalTheme.primaryAccent,
@@ -893,7 +893,7 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
             'color': GlobalTheme.statusSuccess,
           },
           {
-            'label': 'Calories Burned (kcal)',
+            'label': 'Calories (kcal)',
             'value': stats.formattedCalories,
             'icon': Icons.local_fire_department_rounded,
             'color': GlobalTheme.primaryAccent,
@@ -911,7 +911,7 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
             'color': GlobalTheme.statusWarning,
           },
           {
-            'label': 'Average Speed (km/h)',
+            'label': 'Av. Speed (km/h)',
             'value': (stats.averageSpeedMps * 3.6).toStringAsFixed(1),
             'icon': Icons.speed_rounded,
             'color': GlobalTheme.primaryAction,

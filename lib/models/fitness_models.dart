@@ -10,7 +10,7 @@ extension ActivityStateExtension on ActivityState {
       case ActivityState.idle:
         return 'Idle';
       case ActivityState.warmingUp:
-        return 'GPS Stabilizing';
+        return 'Calibrating';
       case ActivityState.running:
         return 'In Progress';
       case ActivityState.paused:

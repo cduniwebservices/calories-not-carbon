@@ -105,6 +105,8 @@ class FitnessStatsAdapter extends TypeAdapter<FitnessStats> {
       totalDistanceMeters: fields[0] as double,
       totalDuration: Duration(milliseconds: fields[1] as int),
       activeDuration: Duration(milliseconds: fields[2] as int),
+      movingDuration: Duration(milliseconds: fields[14] as int? ?? 0),
+      stationaryDuration: Duration(milliseconds: fields[15] as int? ?? 0),
       averageSpeedMps: fields[3] as double,
       currentSpeedMps: fields[4] as double,
       maxSpeedMps: fields[5] as double,
@@ -124,7 +126,7 @@ class FitnessStatsAdapter extends TypeAdapter<FitnessStats> {
   @override
   void write(BinaryWriter writer, FitnessStats obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.totalDistanceMeters)
       ..writeByte(1)
@@ -152,7 +154,11 @@ class FitnessStatsAdapter extends TypeAdapter<FitnessStats> {
       ..writeByte(12)
       ..write(obj.elevationGain)
       ..writeByte(13)
-      ..write(obj.altitude);
+      ..write(obj.altitude)
+      ..writeByte(14)
+      ..write(obj.movingDuration.inMilliseconds)
+      ..writeByte(15)
+      ..write(obj.stationaryDuration.inMilliseconds);
   }
 
   @override

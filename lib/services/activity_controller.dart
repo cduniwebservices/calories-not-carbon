@@ -65,6 +65,10 @@ class ActivityController extends ChangeNotifier {
   double _motionMagnitude = 0.0;
   DateTime? _lastSignificantMotionTime;
 
+  // Fetching state
+  bool _isFetchingWeather = false;
+  bool _isFetchingIp = false;
+
   // Validation metrics
   int _invalidDataPoints = 0;
   int _totalDataPoints = 0;
@@ -73,7 +77,7 @@ class ActivityController extends ChangeNotifier {
   static const Duration _statsUpdateInterval = Duration(seconds: 1);
   static const double _minimumDistanceThreshold = 2.0; // meters
   static const double _minimumSpeedThreshold = 0.5; // m/s (discard speeds below this)
-  static const double _motionVibrationThreshold = 0.15; // Gs of force for 'moving'
+  static const double _motionVibrationThreshold = 0.08; // Lowered for better Android sensitivity
   static const int _speedHistoryLimit = 60; // 1 minute of history
 
   // Validation Thresholds
@@ -172,11 +176,6 @@ class ActivityController extends ChangeNotifier {
     // Reset all tracking data
     _resetTrackingData();
 
-    // Fetch weather and IP lookup asynchronously (fire-and-forget, will attach to session when ready)
-    // Note: These complete after session creation but before beginTracking()
-    _fetchStartWeather(location.latitude, location.longitude);
-    _fetchStartIpLookup();
-
       // Set initial activity type and start time
       _activityType = type;
       _startTime = DateTime.now();
@@ -184,7 +183,7 @@ class ActivityController extends ChangeNotifier {
       _state = ActivityState.warmingUp;
       _warmupStartTime = _startTime;
 
-      // Create new session
+      // Create new session FIRST so it exists when weather/IP fetch completes
       _currentSession = ActivitySession(
         id: _uuid.v4(),
         activityType: type,
@@ -194,6 +193,13 @@ class ActivityController extends ChangeNotifier {
         activityReplaced: activityReplaced,
         createdAt: DateTime.now(),
       );
+
+    // Fetch weather and IP lookup - we wait for these to start but they have internal timeouts
+    // This ensures they are captured correctly even if there's a slight network delay
+    await Future.wait([
+      _fetchStartWeather(location.latitude, location.longitude),
+      _fetchStartIpLookup(),
+    ]);
 
       // Set initial location
       _lastKnownLocation = LatLng(location.latitude, location.longitude);
@@ -384,13 +390,13 @@ class ActivityController extends ChangeNotifier {
 
       if (altitudeStable && speedStable && accuracyGood) {
         isStable = true;
-        message = 'GPS signal stable - Ready to start';
+        message = 'Signal stable - Ready to start';
       } else {
         final issues = <String>[];
         if (!altitudeStable) issues.add('altitude');
         if (!speedStable) issues.add('speed');
         if (!accuracyGood) issues.add('accuracy');
-        message = 'Stabilizing ${issues.join(', ')}...';
+        message = 'Calibrating ${issues.join(', ')}...';
       }
     } else {
       message = 'Collecting GPS readings (${_altitudeReadings.length}/$_requiredStableReadings)...';
@@ -606,7 +612,10 @@ class ActivityController extends ChangeNotifier {
   /// Private methods
 
   Future<void> _fetchStartIpLookup() async {
+    if (_isFetchingIp || (_currentSession?.startIpLookup != null)) return;
+    
     try {
+      _isFetchingIp = true;
       final ipData = await _weatherService.getIpLookup();
       if (ipData != null && _currentSession != null) {
         _currentSession = _currentSession!.copyWith(startIpLookup: ipData);
@@ -614,11 +623,16 @@ class ActivityController extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('⚠️ ActivityController: Error during IP lookup: $e');
+    } finally {
+      _isFetchingIp = false;
     }
   }
 
   Future<void> _fetchStartWeather(double lat, double lon) async {
+    if (_isFetchingWeather || (_currentSession?.startWeather != null)) return;
+
     try {
+      _isFetchingWeather = true;
       debugPrint('🌍 ActivityController: Fetching start weather for $lat, $lon...');
       final weather = await _weatherService.getCurrentWeather(lat, lon);
       if (weather != null && _currentSession != null) {
@@ -631,6 +645,8 @@ class ActivityController extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('⚠️ ActivityController: Error fetching start weather: $e');
+    } finally {
+      _isFetchingWeather = false;
     }
   }
 
@@ -734,9 +750,9 @@ class ActivityController extends ChangeNotifier {
       _isPhysicallyMoving = true;
       _lastSignificantMotionTime = DateTime.now();
     } else {
-      // If we haven't seen significant motion for 1.5 seconds, we are stationary
+      // Increased grace period to 3 seconds for more consistent detection during walking gait
       if (_lastSignificantMotionTime == null || 
-          DateTime.now().difference(_lastSignificantMotionTime!).inMilliseconds > 1500) {
+          DateTime.now().difference(_lastSignificantMotionTime!).inMilliseconds > 3000) {
         _isPhysicallyMoving = false;
       }
     }
@@ -746,6 +762,8 @@ class ActivityController extends ChangeNotifier {
     _statsUpdateTimer?.cancel();
     _statsUpdateTimer = Timer.periodic(_statsUpdateInterval, (_) {
       if (_state == ActivityState.running) {
+        // Also update durations here to ensure accurate per-second tracking
+        _updateDurations(DateTime.now());
         _updateStats();
       }
     });
@@ -759,24 +777,38 @@ class ActivityController extends ChangeNotifier {
     
     _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_state != ActivityState.running) return;
-      
-      final now = DateTime.now();
-      final timeDiff = now.difference(_lastDurationUpdateTime ?? now);
-      _lastDurationUpdateTime = now;
-      
-      // Add time to moving or stationary based on current movement state
-      if (_isPhysicallyMoving || _currentSpeed > 0.5) {
-        _movingDuration += timeDiff;
-        _wasMoving = true;
-      } else {
-        _stationaryDuration += timeDiff;
-        _wasMoving = false;
-      }
+      _updateDurations(DateTime.now());
     });
+  }
+
+  /// Update moving/stationary durations based on current movement state
+  void _updateDurations(DateTime now) {
+    if (_state != ActivityState.running || _lastDurationUpdateTime == null) {
+      _lastDurationUpdateTime = now;
+      return;
+    }
+
+    final timeDiff = now.difference(_lastDurationUpdateTime!);
+    _lastDurationUpdateTime = now;
+
+    if (timeDiff.inMilliseconds <= 0) return;
+
+    // A person is 'moving' if either the GPS reports speed OR the accelerometer detects physical motion
+    // We use a slightly lower speed threshold (0.3 m/s = ~1 km/h) when fused with accelerometer
+    final bool currentlyMoving = (_currentSpeed > 0.5) || (_isPhysicallyMoving && _currentSpeed > 0.1);
+
+    if (currentlyMoving) {
+      _movingDuration += timeDiff;
+      _wasMoving = true;
+    } else {
+      _stationaryDuration += timeDiff;
+      _wasMoving = false;
+    }
   }
 
   /// Pause the duration timer
   void _pauseDurationTimer() {
+    _updateDurations(DateTime.now());
     _durationTimer?.cancel();
     _lastDurationUpdateTime = null;
   }
@@ -786,18 +818,7 @@ class ActivityController extends ChangeNotifier {
     _lastDurationUpdateTime = DateTime.now();
     _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_state != ActivityState.running) return;
-      
-      final now = DateTime.now();
-      final timeDiff = now.difference(_lastDurationUpdateTime ?? now);
-      _lastDurationUpdateTime = now;
-      
-      if (_isPhysicallyMoving || _currentSpeed > 0.5) {
-        _movingDuration += timeDiff;
-        _wasMoving = true;
-      } else {
-        _stationaryDuration += timeDiff;
-        _wasMoving = false;
-      }
+      _updateDurations(DateTime.now());
     });
   }
 
@@ -823,14 +844,12 @@ class ActivityController extends ChangeNotifier {
       final newLocation = LatLng(locationData.latitude, locationData.longitude);
       final timestamp = DateTime.now();
       
-      // Calculate time difference from the absolute last location update
-      // This prevents "leaking" stationary time into moving duration
+      // 1. Update durations first to attribute the time since last update to the previous state
+      _updateDurations(timestamp);
+
+      // 2. Update the absolute last update timestamp
       final lastTime = _lastUpdateTimestamp ?? _startTime ?? timestamp;
       final timeDiff = timestamp.difference(lastTime);
-
-      // Update the absolute last update timestamp IMMEDIATELY
-      // This ensures that any calls to _updateStats() during this method 
-      // see the correct 'gap' time.
       _lastUpdateTimestamp = timestamp;
 
       if (_lastKnownLocation != null) {
@@ -999,16 +1018,12 @@ class ActivityController extends ChangeNotifier {
     final provisionalStationary = _stationaryDuration;
 
     // Ensure duration never exceeds active time due to clock drift
-    final totalTrackedMs = provisionalMoving.inMilliseconds + provisionalStationary.inMilliseconds;
-    if (totalTrackedMs > activeDuration.inMilliseconds) {
-      // Scale down proportionally if there's drift
+    // But don't automatically add gaps to stationary anymore, as _updateDurations handles it accurately
+    final totalTrackedMs = _movingDuration.inMilliseconds + _stationaryDuration.inMilliseconds;
+    if (totalTrackedMs > activeDuration.inMilliseconds && totalTrackedMs > 0) {
       final ratio = activeDuration.inMilliseconds / totalTrackedMs;
       _movingDuration = Duration(milliseconds: (_movingDuration.inMilliseconds * ratio).toInt());
       _stationaryDuration = Duration(milliseconds: (_stationaryDuration.inMilliseconds * ratio).toInt());
-    } else if (totalTrackedMs < activeDuration.inMilliseconds) {
-      // If there's a gap, add it to stationary
-      final gap = Duration(milliseconds: activeDuration.inMilliseconds - totalTrackedMs);
-      _stationaryDuration += gap;
     }
 
     // Use movingDuration for average speed to keep it stable when stationary

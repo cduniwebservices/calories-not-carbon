@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS activities (
   total_duration_ms BIGINT DEFAULT 0,
   active_duration_ms BIGINT DEFAULT 0,
   moving_duration_ms BIGINT DEFAULT 0,
+  stationary_duration_ms BIGINT DEFAULT 0,
   average_speed_mps DOUBLE PRECISION DEFAULT 0,
   max_speed_mps DOUBLE PRECISION DEFAULT 0,
   estimated_calories INTEGER DEFAULT 0,
