@@ -10,8 +10,15 @@ class GoalSwiper extends ConsumerStatefulWidget {
   final Function(int index)? onGoalSelected;
   final VoidCallback? onSwipe;
   final double? height;
+  final bool isExpanded;
 
-  const GoalSwiper({super.key, this.onGoalSelected, this.onSwipe, this.height});
+  const GoalSwiper({
+    super.key, 
+    this.onGoalSelected, 
+    this.onSwipe, 
+    this.height,
+    this.isExpanded = false,
+  });
 
   @override
   ConsumerState<GoalSwiper> createState() => _GoalSwiperState();
@@ -99,6 +106,7 @@ class _GoalSwiperState extends ConsumerState<GoalSwiper>
                           goal: goal,
                           index: index,
                           isActive: isActive,
+                          isExpanded: widget.isExpanded,
                           onTap: null, // We handle it in the outer GestureDetector
                         ),
                       ),
@@ -118,6 +126,7 @@ class GoalCard extends StatefulWidget {
   final Goal goal;
   final int index;
   final bool isActive;
+  final bool isExpanded;
   final VoidCallback? onTap;
 
   const GoalCard({
@@ -125,6 +134,7 @@ class GoalCard extends StatefulWidget {
     required this.goal,
     required this.index,
     this.isActive = false,
+    this.isExpanded = false,
     this.onTap,
   });
 
@@ -176,109 +186,137 @@ class _GoalCardState extends State<GoalCard>
           padding: EdgeInsets.all(isCompact ? 12 : 16),
           gradient: isNeonCard ? GlobalTheme.primaryGradient : null,
           backgroundColor: isNeonCard ? null : GlobalTheme.surfaceCard,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
             children: [
-              // Goal type indicator
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isCompact ? 8 : 12,
-                  vertical: isCompact ? 4 : 6,
-                ),
-                decoration: BoxDecoration(
-                  color: isNeonCard
-                      ? Colors.black.withOpacity(0.2)
-                      : GlobalTheme.surfaceCard,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '${widget.index + 1}/5',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: isNeonCard
-                        ? Colors.black
-                        : GlobalTheme.textSecondary,
-                    fontWeight: FontWeight.w500,
-                    fontSize: isCompact ? 10 : 12,
-                  ),
-                ),
-              ),
-
-              const Spacer(),
-
-              // Transport icon - Centered correctly using Stack and Align
-              Expanded(
-                flex: 3,
-                child: Center(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final size = constraints.maxHeight * 0.8;
-                      final iconSize = size * 0.6;
-                      
-                      return Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Container(
-                            width: size,
-                            height: size,
-                            decoration: BoxDecoration(
-                              color: isNeonCard
-                                  ? Colors.black.withOpacity(0.15)
-                                  : GlobalTheme.primaryNeon.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          Icon(
-                            widget.goal.icon,
-                            size: iconSize,
-                            color: isNeonCard ? Colors.black : GlobalTheme.primaryNeon,
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              // Goal title
-              Flexible(
-                child: Text(
-                  widget.goal.title,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: isNeonCard ? Colors.black : GlobalTheme.textPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: isCompact ? 18 : 22,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Goal details
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: _buildDetailChip(
-                      'Carbon Potential',
-                      widget.goal.carbonOffsetPotential,
-                      isNeonCard,
-                      isCompact,
+                  // Goal type indicator
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isCompact ? 8 : 12,
+                      vertical: isCompact ? 4 : 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isNeonCard
+                          ? Colors.black.withOpacity(0.2)
+                          : GlobalTheme.surfaceCard,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${widget.index + 1}/5',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: isNeonCard
+                            ? Colors.black
+                            : GlobalTheme.textSecondary,
+                        fontWeight: FontWeight.w500,
+                        fontSize: isCompact ? 10 : 12,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildDetailChip(
-                      'CO₂/km',
-                      '${(widget.goal.co2PerKm * 1000).toInt()}g',
-                      isNeonCard,
-                      isCompact,
+
+                  const Spacer(),
+
+                  // Transport icon - Centered correctly using Stack and Align (if NOT expanded)
+                  if (!widget.isExpanded)
+                    Expanded(
+                      flex: 3,
+                      child: Center(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final size = constraints.maxHeight * 0.8;
+                            final iconSize = size * 0.6;
+                            
+                            return Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Container(
+                                  width: size,
+                                  height: size,
+                                  decoration: BoxDecoration(
+                                    color: isNeonCard
+                                        ? Colors.black.withOpacity(0.15)
+                                        : GlobalTheme.primaryNeon.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                Icon(
+                                  widget.goal.icon,
+                                  size: iconSize,
+                                  color: isNeonCard ? Colors.black : GlobalTheme.primaryNeon,
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 8),
+
+                  // Goal title
+                  Flexible(
+                    child: Text(
+                      widget.goal.title,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: isNeonCard ? Colors.black : GlobalTheme.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: isCompact ? 18 : 22,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+
+                  if (!widget.isExpanded) ...[
+                    const SizedBox(height: 12),
+                    // Goal details
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildDetailChip(
+                            'Carbon Potential',
+                            widget.goal.carbonOffsetPotential,
+                            isNeonCard,
+                            isCompact,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildDetailChip(
+                            'CO₂/km',
+                            '${(widget.goal.co2PerKm * 1000).toInt()}g',
+                            isNeonCard,
+                            isCompact,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
+              
+              // Move transport icon to top right if expanded
+              if (widget.isExpanded)
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isNeonCard
+                          ? Colors.black.withOpacity(0.15)
+                          : GlobalTheme.primaryNeon.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      widget.goal.icon,
+                      size: 24,
+                      color: isNeonCard ? Colors.black : GlobalTheme.primaryNeon,
+                    ),
+                  ),
+                ),
             ],
           ),
         );
