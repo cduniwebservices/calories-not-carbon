@@ -158,32 +158,6 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
           ),
 
           const Spacer(),
-
-          // Share button
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              gradient: GlobalTheme.primaryGradient,
-              borderRadius: BorderRadius.circular(GlobalTheme.radiusMedium),
-              boxShadow: GlobalTheme.neonGlow(
-                GlobalTheme.primaryNeon,
-                opacity: 0.2,
-              ),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(GlobalTheme.radiusMedium),
-                onTap: _shareSession,
-                child: const Icon(
-                  Icons.share_rounded,
-                  color: Colors.black,
-                  size: 20,
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -1016,31 +990,6 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
           text: 'Save Activity',
           width: double.infinity,
         ),
-
-        const SizedBox(height: GlobalTheme.spacing16),
-
-        // Secondary actions row
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _shareSession,
-                icon: const Icon(Icons.share_rounded),
-                label: const Text('Share'),
-              ),
-            ),
-
-            const SizedBox(width: GlobalTheme.spacing16),
-
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _viewAnalytics,
-                icon: const Icon(Icons.analytics_rounded),
-                label: const Text('Analytics'),
-              ),
-            ),
-          ],
-        ),
       ],
     ).animate().fadeIn(delay: 1800.ms).slideY(begin: 0.2, end: 0);
   }
@@ -1091,48 +1040,6 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen>
 
     // Navigate to history screen to show the saved activity
     NavigationService.goToHistory(context);
-  }
-
-  void _shareSession() {
-    // In a real app, this would open the system share sheet
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.share_rounded, color: Colors.white, size: 18),
-            SizedBox(width: GlobalTheme.spacing8),
-            Text('Sharing feature coming soon!'),
-          ],
-        ),
-        backgroundColor: GlobalTheme.statusInfo,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(GlobalTheme.spacing16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(GlobalTheme.radiusMedium),
-        ),
-      ),
-    );
-  }
-
-  void _viewAnalytics() {
-    // In a real app, this would navigate to analytics screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.analytics_rounded, color: Colors.white, size: 18),
-            SizedBox(width: GlobalTheme.spacing8),
-            Text('Analytics feature coming soon!'),
-          ],
-        ),
-        backgroundColor: GlobalTheme.statusInfo,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(GlobalTheme.spacing16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(GlobalTheme.radiusMedium),
-        ),
-      ),
-    );
   }
 
   /// Standardized H:MM:SS or MM:SS format

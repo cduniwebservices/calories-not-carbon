@@ -9,8 +9,9 @@ import 'neon_card.dart';
 class GoalSwiper extends ConsumerStatefulWidget {
   final Function(int index)? onGoalSelected;
   final VoidCallback? onSwipe;
+  final double? height;
 
-  const GoalSwiper({super.key, this.onGoalSelected, this.onSwipe});
+  const GoalSwiper({super.key, this.onGoalSelected, this.onSwipe, this.height});
 
   @override
   ConsumerState<GoalSwiper> createState() => _GoalSwiperState();
@@ -47,48 +48,68 @@ class _GoalSwiperState extends ConsumerState<GoalSwiper>
     final goalState = ref.watch(goalProvider);
     final screenSize = ResponsiveDesign.getScreenSize(context);
     
-    // Adjust height based on screen size
-    final double swiperHeight = screenSize == ScreenSizeCategory.compact ? 280 : 320;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Use provided height, or available height, or default based on screen size
+        final double swiperHeight = widget.height ?? 
+            (constraints.hasBoundedHeight 
+                ? constraints.maxHeight 
+                : (screenSize == ScreenSizeCategory.compact ? 280 : 320));
 
-    return SizedBox(
-      height: swiperHeight,
-      child: PageView.builder(
-        controller: _pageController,
-        physics: const BouncingScrollPhysics(),
-        onPageChanged: (index) {
-          ref.read(goalProvider.notifier).setCurrentIndex(index);
-          widget.onSwipe?.call();
-        },
-        itemCount: goalState.goals.length,
-        itemBuilder: (context, index) {
-          final goal = goalState.goals[index];
-          final isActive = index == goalState.currentIndex;
+        return SizedBox(
+          height: swiperHeight,
+          child: PageView.builder(
+            controller: _pageController,
+            physics: const BouncingScrollPhysics(),
+            onPageChanged: (index) {
+              ref.read(goalProvider.notifier).setCurrentIndex(index);
+              widget.onSwipe?.call();
+            },
+            itemCount: goalState.goals.length,
+            itemBuilder: (context, index) {
+              final goal = goalState.goals[index];
+              final isActive = index == goalState.currentIndex;
 
-          return AnimatedBuilder(
-            animation: _animationController,
-            builder: (context, child) {
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOutCubic,
-                transform: Matrix4.identity()
-                  ..scale(isActive ? 1.0 : 0.85),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: GoalCard(
-                    goal: goal,
-                    index: index,
-                    isActive: isActive,
+              return AnimatedBuilder(
+                animation: _animationController,
+                builder: (context, child) {
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onTap: () {
                       ref.read(goalProvider.notifier).selectGoal(goal);
                       widget.onGoalSelected?.call(index);
+                      
+                      // If tapping a non-active card, snap to it
+                      if (!isActive) {
+                        _pageController.animateToPage(
+                          index,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOutCubic,
+                        );
+                      }
                     },
-                  ),
-                ),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      transform: Matrix4.identity()
+                        ..scale(isActive ? 1.0 : 0.85),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: GoalCard(
+                          goal: goal,
+                          index: index,
+                          isActive: isActive,
+                          onTap: null, // We handle it in the outer GestureDetector
+                        ),
+                      ),
+                    ),
+                  );
+                },
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }

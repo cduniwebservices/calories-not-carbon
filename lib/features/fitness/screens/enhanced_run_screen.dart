@@ -987,7 +987,7 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
                           Navigator.of(context).pop(true);
                         },
                         icon: const Icon(Icons.check_circle_rounded, size: 18),
-                        label: const Text('STOP & SAVE'),
+                        label: const Text('STOP'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: GlobalTheme.primaryNeon,
                           foregroundColor: Colors.black,
@@ -1062,7 +1062,7 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
                           Navigator.of(context).pop(true);
                         },
                         icon: const Icon(Icons.check_circle_rounded, size: 18),
-                        label: const Text('STOP & SAVE'),
+                        label: const Text('STOP'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: GlobalTheme.primaryNeon,
                           foregroundColor: Colors.black,
