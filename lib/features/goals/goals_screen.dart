@@ -170,7 +170,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                               child: GoalSwiper(
                                 onGoalSelected: _showDescriptionPanel,
                                 onSwipe: _hidePanel,
-                                isExpanded: _showPanel,
+                                isExpanded: _isDescriptionExpanded,
                               ),
                             ),
                           ),
