@@ -740,7 +740,7 @@ class ActivityController extends ChangeNotifier {
 
   void _startAccelerometerTracking() {
     try {
-      _accelerometerSubscription = userAccelerometerEventStream().listen(
+      _accelerometerSubscription = userAccelerometerEvents.listen(
         _onAccelerometerUpdate,
         onError: (error) {
           debugPrint('❌ ActivityController: Accelerometer error: $error');
@@ -780,7 +780,7 @@ class ActivityController extends ChangeNotifier {
 
   void _startBarometerTracking() {
     try {
-      _barometerSubscription = barometerEventStream().listen(
+      _barometerSubscription = barometerEvents.listen(
         _onBarometerUpdate,
         onError: (error) {
           debugPrint('⚠️ ActivityController: Barometer not available: $error');
