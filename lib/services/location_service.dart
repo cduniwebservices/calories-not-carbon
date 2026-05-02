@@ -72,8 +72,9 @@ class LocationService {
         await _iosLocationService.initialize();
         // Enable background location indicator (blue bar) for user transparency
         await _iosLocationService.setShowsBackgroundLocationIndicator(true);
-        // Set reasonable distance filter to prevent battery drain
-        await _iosLocationService.setDistanceFilter(5.0);
+        // Set distance filter to 0 so we receive updates even when stationary
+        // This is critical for detecting stationary time on iOS
+        await _iosLocationService.setDistanceFilter(0.0);
       } else {
         // Initialize background service for Android
         await _backgroundService.initialize();

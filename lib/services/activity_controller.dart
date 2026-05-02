@@ -59,6 +59,8 @@ class ActivityController extends ChangeNotifier {
   double _totalElevationGain = 0.0;
   double? _lastAltitude;
   DateTime? _lastUpdateTimestamp;
+  DateTime? _lastLocationUpdateTime;
+  static const Duration _locationStalenessTimeout = Duration(seconds: 2);
 
   // Sensor Fusion State
   bool _isPhysicallyMoving = false;
@@ -671,6 +673,7 @@ class ActivityController extends ChangeNotifier {
     _currentStepCount = 0;
     _totalElevationGain = 0.0;
     _lastAltitude = null;
+    _lastLocationUpdateTime = null;
     _stats = FitnessStats(startTime: DateTime.now());
     _isValid = true;
     _invalidDataPoints = 0;
@@ -793,6 +796,12 @@ class ActivityController extends ChangeNotifier {
 
     if (timeDiff.inMilliseconds <= 0) return;
 
+    // Staleness check: if no location update for >2 seconds, assume stationary
+    if (_lastLocationUpdateTime != null &&
+        now.difference(_lastLocationUpdateTime!) > _locationStalenessTimeout) {
+      _currentSpeed = 0.0;
+    }
+
     // A person is 'moving' if either the GPS reports speed OR the accelerometer detects physical motion
     // We use a slightly lower speed threshold (0.3 m/s = ~1 km/h) when fused with accelerometer
     final bool currentlyMoving = (_currentSpeed > 0.5) || (_isPhysicallyMoving && _currentSpeed > 0.1);
@@ -843,9 +852,12 @@ class ActivityController extends ChangeNotifier {
     try {
       final newLocation = LatLng(locationData.latitude, locationData.longitude);
       final timestamp = DateTime.now();
-      
+
       // 1. Update durations first to attribute the time since last update to the previous state
       _updateDurations(timestamp);
+
+      // Track when we last received a location update (for staleness detection)
+      _lastLocationUpdateTime = timestamp;
 
       // 2. Update the absolute last update timestamp
       final lastTime = _lastUpdateTimestamp ?? _startTime ?? timestamp;
@@ -860,25 +872,32 @@ class ActivityController extends ChangeNotifier {
           newLocation.longitude,
         );
 
+        // GPS jitter filter: if distance is less than the reported horizontal accuracy,
+        // the apparent movement is likely just GPS noise, not real movement
+        final horizontalAccuracy = locationData.accuracy is double ? locationData.accuracy as double : 10.0;
+        final bool isDistanceReliable = distance >= horizontalAccuracy;
+
         // Calculate instantaneous speed
         double instantSpeed = 0.0;
         if (locationData.speed != null && locationData.speed > 0) {
+          // Use GPS-reported speed when available (from Doppler, more reliable than distance/time)
           instantSpeed = locationData.speed;
-        } else if (timeDiff.inMilliseconds > 0) {
+        } else if (timeDiff.inMilliseconds > 0 && isDistanceReliable) {
+          // Only use distance-based fallback if the distance is reliable (exceeds GPS accuracy)
           instantSpeed = distance / (timeDiff.inMilliseconds / 1000.0);
         }
 
         // SENSOR FUSION:
-        // Trust GPS if movement is significant. 
+        // Trust GPS if movement is significant.
         // Use Accelerometer to confirm slow movement and prevent jitter.
-        final bool isGpsMoving = distance >= _minimumDistanceThreshold && instantSpeed >= _minimumSpeedThreshold;
+        final bool isGpsMoving = isDistanceReliable && distance >= _minimumDistanceThreshold && instantSpeed >= _minimumSpeedThreshold;
         final bool isActuallyMoving = isGpsMoving || (instantSpeed > 0.3 && _isPhysicallyMoving);
 
-      if (isActuallyMoving) {
-        _totalDistance += distance;
-        // NOTE: Duration is tracked by _durationTimer, NOT here
-        // to prevent double-counting when iOS pauses/resumes location updates
-        _currentSpeed = instantSpeed;
+        if (isActuallyMoving) {
+          _totalDistance += distance;
+          // NOTE: Duration is tracked by _durationTimer, NOT here
+          // to prevent double-counting when iOS pauses/resumes location updates
+          _currentSpeed = instantSpeed;
           _routePoints.add(newLocation);
 
           // VALIDATION: Cadence and Speed check
@@ -922,16 +941,17 @@ class ActivityController extends ChangeNotifier {
               altitude: currentAlt,
             ),
           );
-      } else {
-        // STATIONARY
-        // NOTE: Duration is tracked by _durationTimer, NOT here
-        // to prevent double-counting when iOS pauses/resumes location updates
-        _currentSpeed = 0.0;
+        } else {
+          // STATIONARY
+          // NOTE: Duration is tracked by _durationTimer, NOT here
+          // to prevent double-counting when iOS pauses/resumes location updates
+          _currentSpeed = 0.0;
           _updateStats();
 
           final currentAlt = locationData.geoidHeight ?? locationData.altitude;
-          if (_waypoints.isEmpty || _waypoints.last.type != 'stationary' || 
-              timestamp.difference(_waypoints.last.timestamp).inSeconds > 2) {
+          // Record a stationary waypoint every 5 seconds to track position even when still
+          if (_waypoints.isEmpty || _waypoints.last.type != 'stationary' ||
+              timestamp.difference(_waypoints.last.timestamp).inSeconds >= 5) {
             _waypoints.add(
               ActivityWaypoint(
                 location: newLocation,
@@ -949,9 +969,9 @@ class ActivityController extends ChangeNotifier {
         _routePoints.add(newLocation);
         final currentAlt = locationData.geoidHeight ?? locationData.altitude;
         _lastAltitude = currentAlt;
-        
+
         _updateStats();
-        
+
         _waypoints.add(
           ActivityWaypoint(
             location: newLocation,

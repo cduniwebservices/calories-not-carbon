@@ -207,16 +207,18 @@ class IOSLocationService {
     if (data is! Map) return;
 
     try {
-      // Handle iOS speed which can be -1.0 when unknown/invalid
-      // Convert -1.0 to null so ActivityController calculates speed from distance/time
-      double? speed;
-      if (data['speed'] != null) {
-        final rawSpeed = (data['speed'] as num).toDouble();
-        if (rawSpeed >= 0) {
-          speed = rawSpeed;
-        }
-        // If speed is -1.0 (iOS invalid), leave as null for distance-based calculation
+    // Handle iOS speed which can be -1.0 when unknown/invalid
+    // Treat -1.0 as 0.0 (stationary) since iOS returns -1.0 when speed cannot be determined
+    // This is the common case when stationary - using distance-based fallback amplifies GPS jitter
+    double? speed;
+    if (data['speed'] != null) {
+      final rawSpeed = (data['speed'] as num).toDouble();
+      if (rawSpeed >= 0) {
+        speed = rawSpeed;
+      } else {
+        speed = 0.0;
       }
+    }
 
       final locationData = LocationData(
         latitude: (data['latitude'] as num).toDouble(),

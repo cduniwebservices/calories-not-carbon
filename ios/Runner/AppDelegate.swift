@@ -13,7 +13,7 @@ import CoreLocation
     private var lastLocation: CLLocation?
 
     private var showsBackgroundLocationIndicator = true
-    private let significantChangeDistance: CLLocationDistance = 10
+    private let trackingDistanceFilter: CLLocationDistance = 0
     private let minimumUpdateInterval: TimeInterval = 1.0
     private var lastUpdateTime: Date?
     
@@ -36,7 +36,7 @@ import CoreLocation
         locationManager = CLLocationManager()
         locationManager?.delegate = self
         locationManager?.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager?.distanceFilter = significantChangeDistance
+        locationManager?.distanceFilter = trackingDistanceFilter
         locationManager?.activityType = .fitness
         locationManager?.allowsBackgroundLocationUpdates = true
         locationManager?.pausesLocationUpdatesAutomatically = false
