@@ -234,23 +234,26 @@ class ActivityWaypointAdapter extends TypeAdapter<ActivityWaypoint> {
       type: fields[2] as String,
       statsAtTime: fields[3] as FitnessStats?,
       altitude: fields[4] as double?,
+      rawSensorData: fields[5] as Map<String, dynamic>?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ActivityWaypoint obj) {
     writer
-      ..writeByte(5)
-      ..writeByte(0)
-      ..write(obj.location)
-      ..writeByte(1)
-      ..write(obj.timestamp.millisecondsSinceEpoch)
-      ..writeByte(2)
-      ..write(obj.type)
-      ..writeByte(3)
-      ..write(obj.statsAtTime)
-      ..writeByte(4)
-      ..write(obj.altitude);
+    ..writeByte(6)
+    ..writeByte(0)
+    ..write(obj.location)
+    ..writeByte(1)
+    ..write(obj.timestamp.millisecondsSinceEpoch)
+    ..writeByte(2)
+    ..write(obj.type)
+    ..writeByte(3)
+    ..write(obj.statsAtTime)
+    ..writeByte(4)
+    ..write(obj.altitude)
+    ..writeByte(5)
+    ..write(obj.rawSensorData);
   }
 
   @override

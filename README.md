@@ -129,4 +129,43 @@ lib/
 
 ---
 
-*Last Updated: April 2026*
+## 🔬 Raw Sensor Data (Diagnostics)
+
+Each waypoint records raw sensor data for cross-platform debugging. This data is stored in `rawSensorData` on the `ActivityWaypoint` model and flows through to both Hive (local) and Supabase (remote) without requiring schema changes, since `route_points` is a JSONB column.
+
+### Fields recorded per waypoint
+
+| Field | Description |
+|-------|-------------|
+| `platform` | `"ios"` or `"android"` |
+| `rawAltitude` | Raw altitude from GPS (ellipsoidal on Android, MSL on iOS) |
+| `geoidHeight` | Orthometric height after geoid correction (Android only) |
+| `geoidUndulation` | Geoid N value: `rawAltitude - geoidHeight` (indicates if GeoidService is working) |
+| `gpsAccuracy` | Horizontal accuracy in meters |
+| `platformSpeed` | Raw speed from GPS (before any iOS -1.0 → 0.0 conversion) |
+| `calculatedSpeed` | Speed after jitter filtering and processing |
+| `distanceFromLastPoint` | Haversine distance from previous waypoint (meters) |
+| `isDistanceReliable` | Whether distance exceeded GPS accuracy (jitter filter) |
+| `barometricPressureHpa` | Current barometric pressure in hPa from device sensor |
+| `barometricAltitudeMeters` | Relative altitude from barometer using the barometric formula (sensitive to ~0.5m changes) |
+| `seaLevelPressureHpa` | Reference pressure captured at activity start (used as P0 in altitude calculation) |
+
+### iOS vs Android altitude differences
+
+- **iOS**: `CLLocation.altitude` is orthometric (MSL) — ready to use as-is
+- **Android**: `Position.altitude` is ellipsoidal (WGS84) — requires geoid correction via `GeoidService`
+- The `geoidUndulation` field reveals whether the EGM96 correction is being applied (should be ~10-25m in Australia, not 0)
+
+### Barometric altitude
+
+The device barometer (where available) provides pressure readings sensitive to ~0.5m altitude changes. The barometric altitude is calculated using:
+
+```
+h = 44330 × (1 - (P / P0)^(1/5.255))
+```
+
+Where `P` is the current pressure and `P0` is the reference pressure captured at the start of the activity. This gives **relative** altitude from the starting point — useful for detecting elevation gain on hills even when GPS altitude is inaccurate. Not all devices have a barometer sensor; the field will be `null` on devices without one.
+
+---
+
+*Last Updated: May 2026*

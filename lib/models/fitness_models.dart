@@ -609,6 +609,7 @@ class ActivityWaypoint {
   final String type; // 'start', 'pause', 'resume', 'milestone', 'finish', 'track_point'
   final FitnessStats? statsAtTime;
   final double? altitude;
+  final Map<String, dynamic>? rawSensorData;
 
   const ActivityWaypoint({
     required this.location,
@@ -616,10 +617,11 @@ class ActivityWaypoint {
     required this.type,
     this.statsAtTime,
     this.altitude,
+    this.rawSensorData,
   });
 
   Map<String, dynamic> toJson() {
-    return {
+    final json = <String, dynamic>{
       'location': {'lat': location.latitude, 'lng': location.longitude},
       'timestamp': timestamp.toIso8601String(),
       'type': type,
@@ -638,11 +640,16 @@ class ActivityWaypoint {
             }
           : null,
     };
+    if (rawSensorData != null && rawSensorData!.isNotEmpty) {
+      json['rawSensorData'] = rawSensorData;
+    }
+    return json;
   }
 
   factory ActivityWaypoint.fromJson(Map<String, dynamic> json) {
     final locationMap = json['location'] as Map<String, dynamic>;
     final statsJson = json['statsAtTime'] as Map<String, dynamic>?;
+    final rawSensorJson = json['rawSensorData'] as Map<String, dynamic>?;
 
     return ActivityWaypoint(
       location: LatLng(
@@ -652,6 +659,7 @@ class ActivityWaypoint {
       timestamp: DateTime.parse(json['timestamp'] as String),
       type: json['type'] as String,
       altitude: json['altitude']?.toDouble(),
+      rawSensorData: rawSensorJson,
       statsAtTime: statsJson != null
           ? FitnessStats(
               totalDistanceMeters: (statsJson['totalDistanceMeters'] ??

@@ -56,7 +56,7 @@ dependencies:
   flutter_svg: ^2.0.0
 
   # Hardware Access
-  sensors_plus: ^4.0.2
+  sensors_plus: ^6.0.0
   pedometer: ^4.0.1
 
   # Sharing & File Access

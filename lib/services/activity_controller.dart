@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart' hide ActivityType;
@@ -66,6 +67,13 @@ class ActivityController extends ChangeNotifier {
   bool _isPhysicallyMoving = false;
   double _motionMagnitude = 0.0;
   DateTime? _lastSignificantMotionTime;
+
+  // Barometer State
+  StreamSubscription? _barometerSubscription;
+  double _currentPressureHpa = 0.0;
+  double? _referencePressureHpa;
+  double? _barometricAltitude;
+  static const double _seaLevelPressureHpa = 1013.25;
 
   // Fetching state
   bool _isFetchingWeather = false;
@@ -235,8 +243,11 @@ class ActivityController extends ChangeNotifier {
       // Start listening to pedometer
       _startStepTracking();
 
-      // Start listening to accelerometer (Sensor Fusion)
-      _startAccelerometerTracking();
+  // Start listening to accelerometer (Sensor Fusion)
+  _startAccelerometerTracking();
+
+  // Start listening to barometer (pressure sensor for altitude diagnostics)
+  _startBarometerTracking();
 
       debugPrint('✅ ActivityController: Activity warming up - waiting for GPS stabilization');
       notifyListeners();
@@ -464,8 +475,9 @@ class ActivityController extends ChangeNotifier {
       // Stop timers and sensors but keep GPS tracking for resume
       _statsUpdateTimer?.cancel();
       _pauseDurationTimer();
-      _stepSubscription?.pause();
-      _stopAccelerometerTracking();
+  _stepSubscription?.pause();
+  _stopAccelerometerTracking();
+  _stopBarometerTracking();
 
       debugPrint('✅ ActivityController: Activity paused');
       notifyListeners();
@@ -512,8 +524,9 @@ class ActivityController extends ChangeNotifier {
       // Restart stats timer and sensors
       _startStatsTimer();
       _resumeDurationTimer();
-      _stepSubscription?.resume();
-      _startAccelerometerTracking();
+  _stepSubscription?.resume();
+  _startAccelerometerTracking();
+  _startBarometerTracking();
 
       debugPrint('✅ ActivityController: Activity resumed');
       notifyListeners();
@@ -563,11 +576,12 @@ class ActivityController extends ChangeNotifier {
       // Update final stats
       _updateFinalStats(endTime);
 
-      // Stop all tracking
-      await _stopLocationTracking();
-      _stopStepTracking();
-      _stopAccelerometerTracking();
-      _statsUpdateTimer?.cancel();
+  // Stop all tracking
+  await _stopLocationTracking();
+  _stopStepTracking();
+  _stopAccelerometerTracking();
+  _stopBarometerTracking();
+  _statsUpdateTimer?.cancel();
 
       // Update session with final data
       if (_currentSession != null) {
@@ -603,6 +617,7 @@ class ActivityController extends ChangeNotifier {
     _stopLocationTracking();
     _stopStepTracking();
     _stopAccelerometerTracking();
+    _stopBarometerTracking();
     _statsUpdateTimer?.cancel();
     _resetTrackingData();
     _state = ActivityState.idle;
@@ -672,8 +687,11 @@ class ActivityController extends ChangeNotifier {
     _initialStepCount = 0;
     _currentStepCount = 0;
     _totalElevationGain = 0.0;
-    _lastAltitude = null;
-    _lastLocationUpdateTime = null;
+  _lastAltitude = null;
+  _lastLocationUpdateTime = null;
+  _currentPressureHpa = 0.0;
+  _referencePressureHpa = null;
+  _barometricAltitude = null;
     _stats = FitnessStats(startTime: DateTime.now());
     _isValid = true;
     _invalidDataPoints = 0;
@@ -756,8 +774,37 @@ class ActivityController extends ChangeNotifier {
       // Increased grace period to 3 seconds for more consistent detection during walking gait
       if (_lastSignificantMotionTime == null || 
           DateTime.now().difference(_lastSignificantMotionTime!).inMilliseconds > 3000) {
-        _isPhysicallyMoving = false;
-      }
+    _isPhysicallyMoving = false;
+    }
+  }
+
+  void _startBarometerTracking() {
+    try {
+      _barometerSubscription = barometerEventStream().listen(
+        _onBarometerUpdate,
+        onError: (error) {
+          debugPrint('⚠️ ActivityController: Barometer not available: $error');
+        },
+      );
+    } catch (e) {
+      debugPrint('⚠️ ActivityController: Could not start barometer: $e');
+    }
+  }
+
+  void _stopBarometerTracking() {
+    _barometerSubscription?.cancel();
+    _barometerSubscription = null;
+  }
+
+  void _onBarometerUpdate(BarometerEvent event) {
+    _currentPressureHpa = event.pressure;
+    if (_referencePressureHpa == null) {
+      _referencePressureHpa = event.pressure;
+    }
+    // Barometric formula: h = 44330 * (1 - (P/P0)^(1/5.255))
+    // Gives altitude in meters above the reference point where P0 was measured
+    if (_referencePressureHpa != null && _referencePressureHpa! > 0) {
+      _barometricAltitude = 44330.0 * (1.0 - math.pow(_currentPressureHpa / _referencePressureHpa!, 1.0 / 5.255));
     }
   }
 
@@ -864,6 +911,25 @@ class ActivityController extends ChangeNotifier {
       final timeDiff = timestamp.difference(lastTime);
       _lastUpdateTimestamp = timestamp;
 
+      // Build raw sensor data map for diagnostics
+      final rawAltitude = locationData.altitude;
+      final geoidHeight = locationData.geoidHeight;
+      final geoidUndulation = rawAltitude != null && rawAltitude != 0.0
+          ? rawAltitude - (geoidHeight ?? rawAltitude)
+          : null;
+      final rawSensorData = <String, dynamic>{
+        'platform': Platform.isIOS ? 'ios' : 'android',
+        'rawAltitude': rawAltitude,
+        'geoidHeight': geoidHeight,
+        'geoidUndulation': geoidUndulation,
+        'gpsAccuracy': locationData.accuracy is double ? locationData.accuracy as double : null,
+        'platformSpeed': locationData.speed,
+        'calculatedSpeed': _currentSpeed,
+        'barometricPressureHpa': _currentPressureHpa > 0 ? _currentPressureHpa : null,
+        'barometricAltitudeMeters': _barometricAltitude,
+        'seaLevelPressureHpa': _referencePressureHpa,
+      };
+
       if (_lastKnownLocation != null) {
         final distance = Geolocator.distanceBetween(
           _lastKnownLocation!.latitude,
@@ -886,6 +952,11 @@ class ActivityController extends ChangeNotifier {
           // Only use distance-based fallback if the distance is reliable (exceeds GPS accuracy)
           instantSpeed = distance / (timeDiff.inMilliseconds / 1000.0);
         }
+
+        // Update calculatedSpeed in raw sensor data now that we know it
+        rawSensorData['calculatedSpeed'] = instantSpeed;
+        rawSensorData['distanceFromLastPoint'] = distance;
+        rawSensorData['isDistanceReliable'] = isDistanceReliable;
 
         // SENSOR FUSION:
         // Trust GPS if movement is significant.
@@ -939,6 +1010,7 @@ class ActivityController extends ChangeNotifier {
               type: 'track_point',
               statsAtTime: _stats,
               altitude: currentAlt,
+              rawSensorData: rawSensorData,
             ),
           );
         } else {
@@ -946,6 +1018,7 @@ class ActivityController extends ChangeNotifier {
           // NOTE: Duration is tracked by _durationTimer, NOT here
           // to prevent double-counting when iOS pauses/resumes location updates
           _currentSpeed = 0.0;
+          rawSensorData['calculatedSpeed'] = 0.0;
           _updateStats();
 
           final currentAlt = locationData.geoidHeight ?? locationData.altitude;
@@ -959,6 +1032,7 @@ class ActivityController extends ChangeNotifier {
                 type: 'stationary',
                 statsAtTime: _stats,
                 altitude: currentAlt,
+                rawSensorData: rawSensorData,
               ),
             );
           }
@@ -979,6 +1053,7 @@ class ActivityController extends ChangeNotifier {
             type: 'start_point',
             statsAtTime: _stats,
             altitude: currentAlt,
+            rawSensorData: rawSensorData,
           ),
         );
       }
@@ -1147,6 +1222,7 @@ class ActivityController extends ChangeNotifier {
     _stopLocationTracking();
     _stopStepTracking();
     _stopAccelerometerTracking();
+    _stopBarometerTracking();
     _statsUpdateTimer?.cancel();
     super.dispose();
   }
