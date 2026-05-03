@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -24,12 +25,23 @@ class LocationService {
       StreamController<LocationPermissionStatus>.broadcast();
   final StreamController<LocationServiceStatus> _serviceController =
       StreamController<LocationServiceStatus>.broadcast();
+  final StreamController<double> _barometerController =
+      StreamController<double>.broadcast();
+
+  // Barometer platform channel
+  static const MethodChannel _barometerMethodChannel =
+      MethodChannel('com.caloriesnotcarbon/barometer');
+  static const EventChannel _barometerEventChannel =
+      EventChannel('com.caloriesnotcarbon/barometer_updates');
+  StreamSubscription? _barometerEventSubscription;
+  bool _barometerStarted = false;
 
   // Getters for streams
   Stream<LocationData> get locationStream => _locationController.stream;
   Stream<LocationPermissionStatus> get permissionStream =>
       _permissionController.stream;
   Stream<LocationServiceStatus> get serviceStream => _serviceController.stream;
+  Stream<double> get barometerStream => _barometerController.stream;
 
   // Background location service
   final BackgroundLocationService _backgroundService = BackgroundLocationService();
@@ -238,9 +250,10 @@ class LocationService {
         }
       }
 
-      _isTracking = true;
-      debugPrint('✅ LocationService: Location tracking started successfully');
-      return true;
+    _isTracking = true;
+    _startBarometer();
+    debugPrint('✅ LocationService: Location tracking started successfully');
+    return true;
     } catch (e) {
       debugPrint('❌ LocationService: Failed to start tracking: $e');
       return false;
@@ -269,10 +282,55 @@ class LocationService {
         await _backgroundService.stopTracking();
       }
 
-      _isTracking = false;
-      debugPrint('✅ LocationService: Location tracking stopped');
+    _isTracking = false;
+    _stopBarometer();
+    debugPrint('✅ LocationService: Location tracking stopped');
+  } catch (e) {
+    debugPrint('❌ LocationService: Error stopping tracking: $e');
+  }
+  }
+
+  void _startBarometer() {
+    if (_barometerStarted) return;
+    try {
+      _barometerMethodChannel.invokeMethod<bool>('startBarometer').then((started) {
+        if (started == true) {
+          _barometerEventSubscription = _barometerEventChannel.receiveBroadcastStream().listen(
+            (pressure) {
+              if (pressure is double) {
+                _barometerController.add(pressure);
+              } else if (pressure is num) {
+                _barometerController.add(pressure.toDouble());
+              }
+            },
+            onError: (error) {
+              debugPrint('⚠️ LocationService: Barometer stream error: $error');
+            },
+            cancelOnError: false,
+          );
+          _barometerStarted = true;
+          debugPrint('✅ LocationService: Barometer tracking started');
+        } else {
+          debugPrint('⚠️ LocationService: Barometer not available on this device');
+        }
+      }).catchError((e) {
+        debugPrint('⚠️ LocationService: Barometer not available: $e');
+      });
     } catch (e) {
-      debugPrint('❌ LocationService: Error stopping tracking: $e');
+      debugPrint('⚠️ LocationService: Could not start barometer: $e');
+    }
+  }
+
+  void _stopBarometer() {
+    if (!_barometerStarted) return;
+    try {
+      _barometerEventSubscription?.cancel();
+      _barometerEventSubscription = null;
+      _barometerMethodChannel.invokeMethod('stopBarometer');
+      _barometerStarted = false;
+      debugPrint('✅ LocationService: Barometer tracking stopped');
+    } catch (e) {
+      debugPrint('⚠️ LocationService: Error stopping barometer: $e');
     }
   }
 
@@ -338,12 +396,14 @@ class LocationService {
   void dispose() {
     debugPrint('🧹 LocationService: Disposing resources...');
 
-    _positionSubscription?.cancel();
-    _iosLocationSubscription?.cancel();
-    _permissionCheckTimer?.cancel();
-    _locationController.close();
-    _permissionController.close();
-    _serviceController.close();
+  _positionSubscription?.cancel();
+  _iosLocationSubscription?.cancel();
+  _permissionCheckTimer?.cancel();
+  _barometerEventSubscription?.cancel();
+  _locationController.close();
+  _permissionController.close();
+  _serviceController.close();
+  _barometerController.close();
 
     // Dispose iOS location service
     _iosLocationService.dispose();

@@ -740,7 +740,7 @@ class ActivityController extends ChangeNotifier {
 
   void _startAccelerometerTracking() {
     try {
-      _accelerometerSubscription = userAccelerometerEvents.listen(
+      _accelerometerSubscription = userAccelerometerEventStream().listen(
         _onAccelerometerUpdate,
         onError: (error) {
           debugPrint('❌ ActivityController: Accelerometer error: $error');
@@ -761,8 +761,8 @@ class ActivityController extends ChangeNotifier {
     // Calculate the magnitude of the 3D acceleration vector
     // This is 'User' acceleration (linear), meaning gravity is already filtered out
     _motionMagnitude = math.sqrt(
-      math.pow(event.x, 2) + 
-      math.pow(event.y, 2) + 
+      math.pow(event.x, 2) +
+      math.pow(event.y, 2) +
       math.pow(event.z, 2)
     );
 
@@ -772,15 +772,16 @@ class ActivityController extends ChangeNotifier {
       _lastSignificantMotionTime = DateTime.now();
     } else {
       // Increased grace period to 3 seconds for more consistent detection during walking gait
-      if (_lastSignificantMotionTime == null || 
+      if (_lastSignificantMotionTime == null ||
           DateTime.now().difference(_lastSignificantMotionTime!).inMilliseconds > 3000) {
-    _isPhysicallyMoving = false;
+        _isPhysicallyMoving = false;
+      }
     }
   }
 
   void _startBarometerTracking() {
     try {
-      _barometerSubscription = barometerEvents.listen(
+      _barometerSubscription = _locationService.barometerStream.listen(
         _onBarometerUpdate,
         onError: (error) {
           debugPrint('⚠️ ActivityController: Barometer not available: $error');
@@ -796,10 +797,10 @@ class ActivityController extends ChangeNotifier {
     _barometerSubscription = null;
   }
 
-  void _onBarometerUpdate(BarometerEvent event) {
-    _currentPressureHpa = event.pressure;
+  void _onBarometerUpdate(double pressureHpa) {
+    _currentPressureHpa = pressureHpa;
     if (_referencePressureHpa == null) {
-      _referencePressureHpa = event.pressure;
+      _referencePressureHpa = pressureHpa;
     }
     // Barometric formula: h = 44330 * (1 - (P/P0)^(1/5.255))
     // Gives altitude in meters above the reference point where P0 was measured

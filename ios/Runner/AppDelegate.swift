@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import CoreLocation
+import CoreMotion
 
 // MARK: - Location Manager
 /// Native iOS Location Manager for reliable background tracking
@@ -291,25 +292,82 @@ class LocationStreamHandler: NSObject, FlutterStreamHandler {
     }
 }
 
+// MARK: - Barometer Manager
+
+@objc class BarometerManager: NSObject, FlutterStreamHandler {
+  static let shared = BarometerManager()
+  private var altimeter: CMAltimeter?
+  private var eventSink: FlutterEventSink?
+  private var isStarted = false
+
+  private override init() {
+    super.init()
+  }
+
+  @objc func start() -> Bool {
+    guard CMAltimeter.isRelativeAltitudeAvailable() else {
+      print("⚠️ BarometerManager: Barometer not available on this device")
+      return false
+    }
+    guard !isStarted else { return true }
+
+    altimeter = CMAltimeter()
+    altimeter?.startRelativeAltitudeUpdates(to: .main) { [weak self] data, error in
+      if let error = error {
+        print("❌ BarometerManager: Error - \(error.localizedDescription)")
+        return
+      }
+      guard let data = data else { return }
+      // CMAltitudeData.pressure is in kPa, convert to hPa (1 kPa = 10 hPa)
+      let pressureHpa = data.pressure.doubleValue * 10.0
+      self?.eventSink?(pressureHpa)
+    }
+    isStarted = true
+    print("✅ BarometerManager: Started")
+    return true
+  }
+
+  @objc func stop() {
+    altimeter?.stopRelativeAltitudeUpdates()
+    altimeter = nil
+    isStarted = false
+    print("✅ BarometerManager: Stopped")
+  }
+
+  func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+    self.eventSink = events
+    return nil
+  }
+
+  func onCancel(withArguments arguments: Any?) -> FlutterError? {
+    eventSink = nil
+    stop()
+    return nil
+  }
+}
+
 // MARK: - App Delegate
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
-    private var locationChannel: FlutterMethodChannel?
-    private var locationEventChannel: FlutterEventChannel?
-    private var locationStreamHandler: LocationStreamHandler?
+  private var locationChannel: FlutterMethodChannel?
+  private var locationEventChannel: FlutterEventChannel?
+  private var locationStreamHandler: LocationStreamHandler?
+  private var barometerChannel: FlutterMethodChannel?
+  private var barometerEventChannel: FlutterEventChannel?
 
-    override func application(
-        _ application: UIApplication,
-        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
-    ) -> Bool {
-        GeneratedPluginRegistrant.register(with: self)
+  override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  ) -> Bool {
+    GeneratedPluginRegistrant.register(with: self)
 
-        setupLocationMethodChannel()
-        LocationManager.shared.initialize()
+    setupLocationMethodChannel()
+    setupBarometerMethodChannel()
+    LocationManager.shared.initialize()
 
-        return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-    }
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
 
     private func setupLocationMethodChannel() {
         guard let controller = window?.rootViewController as? FlutterViewController else { return }
@@ -366,16 +424,44 @@ class LocationStreamHandler: NSObject, FlutterStreamHandler {
                 result(FlutterError(code: "INVALID_ARGUMENT", message: "Expected boolean", details: nil))
             }
 
-        case "setDistanceFilter":
-            if let distance = call.arguments as? Double {
-                LocationManager.shared.setDistanceFilter(distance)
-                result(true)
-            } else {
-                result(FlutterError(code: "INVALID_ARGUMENT", message: "Expected double", details: nil))
-            }
+    case "setDistanceFilter":
+      if let distance = call.arguments as? Double {
+        LocationManager.shared.setDistanceFilter(distance)
+        result(true)
+      } else {
+        result(FlutterError(code: "INVALID_ARGUMENT", message: "Expected double", details: nil))
+      }
 
-        default:
-            result(FlutterMethodNotImplemented)
-        }
+    default:
+      result(FlutterMethodNotImplemented)
     }
+  }
+
+  private func setupBarometerMethodChannel() {
+    guard let controller = window?.rootViewController as? FlutterViewController else { return }
+
+    barometerChannel = FlutterMethodChannel(
+      name: "com.caloriesnotcarbon/barometer",
+      binaryMessenger: controller.binaryMessenger
+    )
+
+    barometerChannel?.setMethodCallHandler { (call, result) in
+      switch call.method {
+      case "startBarometer":
+        let started = BarometerManager.shared.start()
+        result(started)
+      case "stopBarometer":
+        BarometerManager.shared.stop()
+        result(true)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
+    barometerEventChannel = FlutterEventChannel(
+      name: "com.caloriesnotcarbon/barometer_updates",
+      binaryMessenger: controller.binaryMessenger
+    )
+    barometerEventChannel?.setStreamHandler(BarometerManager.shared)
+  }
 }
