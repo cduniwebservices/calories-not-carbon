@@ -493,8 +493,8 @@ class LocalStorageService {
     _isInitialized = true;
 
     // Set default device ID if not exists
-    if (_settingsBox.get('device_id') == null) {
-      await _settingsBox.put(
+    if (_settingsBox?.get('device_id') == null) {
+      await _settingsBox?.put(
         'device_id',
         DateTime.now().millisecondsSinceEpoch.toString(),
       );
@@ -505,7 +505,7 @@ class LocalStorageService {
   static Future<void> saveActivity(ActivitySession session) async {
     final box = _activityBox;
     if (box == null) {
-      EnterpriseLogger().logError('Local DB', 'Cannot save activity: storage not initialized');
+      EnterpriseLogger().logError('Local DB', 'Cannot save activity: storage not initialized', StackTrace.current);
       return;
     }
     try {
