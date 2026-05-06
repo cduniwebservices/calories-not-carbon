@@ -25,7 +25,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   void initState() {
     super.initState();
     // Attempt to sync any pending activities when app starts
-    SyncService().syncPendingActivities();
+    try {
+      SyncService().syncPendingActivities();
+    } catch (_) {
+      // Sync is best-effort; failure must not block the welcome screen
+    }
   }
 
 

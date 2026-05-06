@@ -470,8 +470,12 @@ class LocalStorageService {
   static const String _activityBoxName = 'activities';
   static const String _settingsBoxName = 'settings';
 
-  static late Box<ActivitySession> _activityBox;
-  static late Box<dynamic> _settingsBox;
+  static Box<ActivitySession>? _activityBox;
+  static Box<dynamic>? _settingsBox;
+  static bool _isInitialized = false;
+
+  /// Whether the storage service was successfully initialized.
+  static bool get isInitialized => _isInitialized;
 
   static Future<void> init() async {
     // Register adapters
@@ -486,6 +490,7 @@ class LocalStorageService {
     // Open boxes
     _activityBox = await Hive.openBox<ActivitySession>(_activityBoxName);
     _settingsBox = await Hive.openBox(_settingsBoxName);
+    _isInitialized = true;
 
     // Set default device ID if not exists
     if (_settingsBox.get('device_id') == null) {
@@ -498,8 +503,13 @@ class LocalStorageService {
 
   // Activity Box Operations
   static Future<void> saveActivity(ActivitySession session) async {
+    final box = _activityBox;
+    if (box == null) {
+      EnterpriseLogger().logError('Local DB', 'Cannot save activity: storage not initialized');
+      return;
+    }
     try {
-      await _activityBox.put(session.id, session);
+      await box.put(session.id, session);
       EnterpriseLogger().logInfo('Local DB', 'Activity saved: ${session.id}', metadata: {
         'type': session.activityType.name,
         'state': session.state.name,
@@ -512,15 +522,19 @@ class LocalStorageService {
   }
 
   static ActivitySession? getActivity(String id) {
-    return _activityBox.get(id);
+    return _activityBox?.get(id);
   }
 
   static List<ActivitySession> getAllActivities() {
-    return _activityBox.values.toList();
+    final box = _activityBox;
+    if (box == null) return [];
+    return box.values.toList();
   }
 
   static List<ActivitySession> getPendingSync() {
-    return _activityBox.values.where((a) => !_isSynced(a)).toList();
+    final box = _activityBox;
+    if (box == null) return [];
+    return box.values.where((a) => !_isSynced(a)).toList();
   }
 
   static Future<void> markAsSynced(String id) async {
@@ -540,14 +554,18 @@ class LocalStorageService {
   }
 
   static Future<void> deleteActivity(String id) async {
-    await _activityBox.delete(id);
+    final box = _activityBox;
+    if (box == null) return;
+    await box.delete(id);
     EnterpriseLogger().logInfo('Local DB', 'Activity deleted: $id');
   }
 
   static Future<void> clearAllActivities() async {
+    final box = _activityBox;
+    if (box == null) return;
     try {
-      final count = _activityBox.length;
-      await _activityBox.clear();
+      final count = box.length;
+      await box.clear();
       EnterpriseLogger().logInfo('Local DB', 'Cleared all local activities', metadata: {'count': count});
     } catch (e) {
       EnterpriseLogger().logError('Local DB', 'Failed to clear activities: $e', StackTrace.current);
@@ -556,29 +574,29 @@ class LocalStorageService {
 
   // Settings Operations
   static String getDeviceId() {
-    return _settingsBox.get('device_id', defaultValue: 'unknown') as String;
+    return _settingsBox?.get('device_id', defaultValue: 'unknown') as String? ?? 'unknown';
   }
 
   static Future<void> setSetting(String key, dynamic value) async {
-    await _settingsBox.put(key, value);
+    await _settingsBox?.put(key, value);
   }
 
   static T? getSetting<T>(String key) {
-    return _settingsBox.get(key) as T?;
+    return _settingsBox?.get(key) as T?;
   }
 
   // Onboarding completion tracking
   static bool hasCompletedOnboarding() {
-    return _settingsBox.get('has_completed_onboarding', defaultValue: false) as bool;
+    return _settingsBox?.get('has_completed_onboarding', defaultValue: false) as bool? ?? false;
   }
 
   static Future<void> markOnboardingComplete() async {
-    await _settingsBox.put('has_completed_onboarding', true);
+    await _settingsBox?.put('has_completed_onboarding', true);
     EnterpriseLogger().logInfo('Onboarding', 'User marked onboarding as complete');
   }
 
   static Future<void> resetOnboarding() async {
-    await _settingsBox.put('has_completed_onboarding', false);
+    await _settingsBox?.put('has_completed_onboarding', false);
     EnterpriseLogger().logInfo('Onboarding', 'Onboarding status reset');
   }
 
@@ -587,6 +605,6 @@ class LocalStorageService {
   }
 
   // Box access for external use
-  static Box<ActivitySession> get activityBox => _activityBox;
-  static Box<dynamic> get settingsBox => _settingsBox;
+  static Box<ActivitySession>? get activityBox => _activityBox;
+  static Box<dynamic>? get settingsBox => _settingsBox;
 }

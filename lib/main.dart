@@ -32,11 +32,17 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Restrict orientation to portrait only
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+  try {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  } catch (_) {}
 
+  // Initialize Sentry with appRunner so Flutter errors are still captured.
+  // All other service initializations are inside the appRunner with individual
+  // try/catch so that a failure in any one service (e.g. corrupted Hive box,
+  // missing Supabase credentials) does not prevent the app from starting.
   await SentryFlutter.init(
     (options) {
       options.dsn = const String.fromEnvironment('SENTRY_DSN');
@@ -44,36 +50,96 @@ Future<void> main() async {
       options.profilesSampleRate = 1.0;
     },
     appRunner: () async {
-      // Initialize Hive for local storage
-      await Hive.initFlutter();
-
-      // Initialize Supabase (credentials injected via build-time environment variables)
-      await Supabase.initialize(
-        url: const String.fromEnvironment('SUPABASE_URL'),
-        anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY'),
-      );
-
-      // Register Hive adapters and open boxes
-      await LocalStorageService.init();
-
-      // Start connectivity listener for auto-sync
-      SyncService().startListening();
-
-      // Initialize only essential services
-      final logger = EnterpriseLogger();
-      logger.initialize();
-
-      final performanceService = PerformanceService();
-      performanceService.init();
-
-      final cacheManager = CacheManager();
-      await cacheManager.preloadCriticalData();
-
-      logger.logInfo('App Startup', 'Fitness tracking app initialized');
-
+      await _initializeAppServices();
       runApp(const ProviderScope(child: FitnessApp()));
     },
   );
+}
+
+/// Initializes all app services with individual error handling so that
+/// a failure in any one service (corrupted Hive, missing Supabase
+/// credentials, etc.) does not crash the app on startup.
+/// All errors are logged to the debug console so they appear in the
+/// app's debug panel.
+Future<void> _initializeAppServices() async {
+  // 1. Hive local storage (corrupted box is the most common crash-on-reopen)
+  try {
+    await Hive.initFlutter();
+    await LocalStorageService.init();
+  } catch (e) {
+    debugPrint('⚠️ STARTUP ERROR: Hive init failed: $e');
+    _logInitError('Hive init failed', e);
+    // Hive corruption detected — attempt to delete and re-create boxes
+    try {
+      debugPrint('🔄 STARTUP: Attempting Hive box repair...');
+      await Hive.deleteBoxFromDisk('activities');
+      await Hive.deleteBoxFromDisk('settings');
+      await LocalStorageService.init();
+      debugPrint('✅ STARTUP: Hive box repair succeeded');
+    } catch (repairError) {
+      debugPrint('❌ STARTUP ERROR: Hive repair also failed: $repairError');
+      _logInitError('Hive repair failed', repairError);
+    }
+  }
+
+  // 2. Supabase cloud sync (optional — app works fully offline)
+  try {
+    await Supabase.initialize(
+      url: const String.fromEnvironment('SUPABASE_URL'),
+      anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY'),
+    );
+  } catch (e) {
+    debugPrint('⚠️ STARTUP: Supabase unavailable (offline-only mode): $e');
+    _logInitWarning('Supabase unavailable', e);
+  }
+
+  // 3. Connectivity-based auto-sync (best-effort)
+  try {
+    SyncService().startListening();
+  } catch (e) {
+    debugPrint('⚠️ STARTUP: Sync service failed to start: $e');
+    _logInitError('Sync service start failed', e);
+  }
+
+  // 4. Logger
+  try {
+    final logger = EnterpriseLogger();
+    logger.initialize();
+  } catch (e) {
+    debugPrint('⚠️ STARTUP: Logger init failed: $e');
+  }
+
+  // 5. Performance monitoring
+  try {
+    final performanceService = PerformanceService();
+    performanceService.init();
+  } catch (e) {
+    debugPrint('⚠️ STARTUP: Performance service init failed: $e');
+  }
+
+  // 6. Preload critical data
+  try {
+    final cacheManager = CacheManager();
+    await cacheManager.preloadCriticalData();
+  } catch (e) {
+    debugPrint('⚠️ STARTUP: Cache preload failed: $e');
+    _logInitError('Cache preload failed', e);
+  }
+}
+
+/// Logs a startup error to the debug panel via EnterpriseLogger, which
+/// is safe to call even during early initialization (no-op if not ready).
+void _logInitError(String message, dynamic error) {
+  try {
+    EnterpriseLogger().logError('Startup', '$message: $error', StackTrace.current);
+  } catch (_) {}
+}
+
+/// Logs a startup warning to the debug panel.
+void _logInitWarning(String message, dynamic warning) {
+  try {
+    EnterpriseLogger().logWarning('Startup', '$message: $warning');
+  } catch (_) {}
 }
 
 class FitnessApp extends StatelessWidget {
