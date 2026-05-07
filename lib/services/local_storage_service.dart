@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/fitness_models.dart';
 import 'enterprise_logger.dart';
 
@@ -532,13 +533,13 @@ class LocalStorageService {
 
     // Log the current box file size for diagnostics before deleting
     try {
-      final boxDir = await Hive.boxPath(_activityBoxName);
-      final boxFile = File(boxDir);
+      final appDir = await getApplicationDocumentsDirectory();
+      final boxFile = File('${appDir.path}/$_activityBoxName.hive');
       if (await boxFile.exists()) {
         final size = await boxFile.length();
         debugPrint('📊 LocalStorage: Corrupt box file size: $size bytes');
         EnterpriseLogger().logInfo('Local DB', 'Corrupt box file stats', metadata: {
-          'path': boxDir,
+          'path': boxFile.path,
           'sizeBytes': size,
         });
       }

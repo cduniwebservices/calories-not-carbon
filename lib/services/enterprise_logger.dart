@@ -39,7 +39,12 @@ class EnterpriseLogger {
   }
 
   /// Log error with stack trace
-  void logError(String category, dynamic error, StackTrace? stackTrace) {
+  void logError(
+    String category,
+    dynamic error,
+    StackTrace? stackTrace, {
+    Map<String, dynamic>? metadata,
+  }) {
     _totalErrors++;
     final entry = LogEntry(
       level: LogLevel.error,
@@ -47,6 +52,7 @@ class EnterpriseLogger {
       message: error.toString(),
       timestamp: DateTime.now(),
       stackTrace: stackTrace,
+      metadata: metadata,
     );
 
     _addLog(entry);
