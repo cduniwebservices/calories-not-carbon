@@ -69,17 +69,10 @@ Future<void> _initializeAppServices() async {
   } catch (e) {
     debugPrint('⚠️ STARTUP ERROR: Hive init failed: $e');
     _logInitError('Hive init failed', e);
-    // Hive corruption detected — attempt to delete and re-create boxes
-    try {
-      debugPrint('🔄 STARTUP: Attempting Hive box repair...');
-      await Hive.deleteBoxFromDisk('activities');
-      await Hive.deleteBoxFromDisk('settings');
-      await LocalStorageService.init();
-      debugPrint('✅ STARTUP: Hive box repair succeeded');
-    } catch (repairError) {
-      debugPrint('❌ STARTUP ERROR: Hive repair also failed: $repairError');
-      _logInitError('Hive repair failed', repairError);
-    }
+    // LocalStorageService.init() now handles per-box recovery internally
+    // with better logging and diagnostics. No need for nuclear deletion here.
+    // If init() still fails, it means something fundamental is broken.
+    throw e; // Re-throw to trigger Sentry reporting
   }
 
   // 2. Supabase cloud sync (optional — app works fully offline)

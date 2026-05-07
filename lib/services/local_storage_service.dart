@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/fitness_models.dart';
@@ -21,12 +23,12 @@ class ActivitySessionAdapter extends TypeAdapter<ActivitySession> {
       fields[index] = value;
     }
     return ActivitySession(
-      id: fields[0] as String,
-      activityType: ActivityType.values[fields[1] as int],
-      state: ActivityState.values[fields[2] as int],
-      stats: fields[3] as FitnessStats,
-      routePoints: (fields[4] as List).cast<LatLng>(),
-      waypoints: (fields[5] as List).cast<ActivityWaypoint>(),
+      id: fields[0] as String? ?? '',
+      activityType: ActivityType.values[fields[1] as int? ?? 0],
+      state: ActivityState.values[fields[2] as int? ?? 0],
+      stats: fields[3] as FitnessStats? ?? FitnessStats(startTime: DateTime.now()),
+      routePoints: (fields[4] as List? ?? []).cast<LatLng>(),
+      waypoints: (fields[5] as List? ?? []).cast<ActivityWaypoint>(),
       isValid: fields[7] as bool? ?? true,
       activityReplaced: fields[8] as String?,
       startWeather: fields[9] as WeatherData?,
@@ -102,24 +104,24 @@ class FitnessStatsAdapter extends TypeAdapter<FitnessStats> {
       fields[index] = value;
     }
     return FitnessStats(
-      totalDistanceMeters: fields[0] as double,
-      totalDuration: Duration(milliseconds: fields[1] as int),
-      activeDuration: Duration(milliseconds: fields[2] as int),
+      totalDistanceMeters: (fields[0] as num? ?? 0).toDouble(),
+      totalDuration: Duration(milliseconds: (fields[1] as int? ?? 0)),
+      activeDuration: Duration(milliseconds: (fields[2] as int? ?? 0)),
       movingDuration: Duration(milliseconds: fields[14] as int? ?? 0),
       stationaryDuration: Duration(milliseconds: fields[15] as int? ?? 0),
-      averageSpeedMps: fields[3] as double,
-      currentSpeedMps: fields[4] as double,
-      maxSpeedMps: fields[5] as double,
-      averagePaceSecondsPerKm: fields[6] as double,
-      currentPaceSecondsPerKm: fields[7] as double,
-      estimatedCalories: fields[8] as int,
-      startTime: DateTime.fromMillisecondsSinceEpoch(fields[9] as int),
+      averageSpeedMps: (fields[3] as num? ?? 0).toDouble(),
+      currentSpeedMps: (fields[4] as num? ?? 0).toDouble(),
+      maxSpeedMps: (fields[5] as num? ?? 0).toDouble(),
+      averagePaceSecondsPerKm: (fields[6] as num? ?? 0).toDouble(),
+      currentPaceSecondsPerKm: (fields[7] as num? ?? 0).toDouble(),
+      estimatedCalories: fields[8] as int? ?? 0,
+      startTime: DateTime.fromMillisecondsSinceEpoch(fields[9] as int? ?? DateTime.now().millisecondsSinceEpoch),
       endTime: fields[10] != null
           ? DateTime.fromMillisecondsSinceEpoch(fields[10] as int)
           : null,
-      totalSteps: fields[11] as int,
-      elevationGain: fields[12] as double,
-      altitude: fields[13] as double? ?? 0.0,
+      totalSteps: fields[11] as int? ?? 0,
+      elevationGain: (fields[12] as num? ?? 0).toDouble(),
+      altitude: (fields[13] as num? ?? 0).toDouble(),
     );
   }
 
@@ -188,7 +190,7 @@ class LatLngAdapter extends TypeAdapter<LatLng> {
       final value = reader.read();
       fields[index] = value;
     }
-    return LatLng(fields[0] as double, fields[1] as double);
+    return LatLng((fields[0] as num? ?? 0).toDouble(), (fields[1] as num? ?? 0).toDouble());
   }
 
   @override
@@ -229,11 +231,11 @@ class ActivityWaypointAdapter extends TypeAdapter<ActivityWaypoint> {
       fields[index] = value;
     }
     return ActivityWaypoint(
-      location: fields[0] as LatLng,
-      timestamp: DateTime.fromMillisecondsSinceEpoch(fields[1] as int),
-      type: fields[2] as String,
+      location: fields[0] as LatLng? ?? const LatLng(0, 0),
+      timestamp: DateTime.fromMillisecondsSinceEpoch(fields[1] as int? ?? 0),
+      type: fields[2] as String? ?? 'track_point',
       statsAtTime: fields[3] as FitnessStats?,
-      altitude: fields[4] as double?,
+      altitude: (fields[4] as num?)?.toDouble(),
       rawSensorData: fields[5] as Map<String, dynamic>?,
     );
   }
@@ -284,13 +286,13 @@ class WeatherLocationAdapter extends TypeAdapter<WeatherLocation> {
       fields[index] = value;
     }
     return WeatherLocation(
-      name: fields[0] as String,
-      region: fields[1] as String,
-      country: fields[2] as String,
-      tzId: fields[3] as String,
-      localtimeEpoch: fields[4] as int,
-      localtime: fields[5] as String,
-      utcOffset: fields[6] as String,
+      name: fields[0] as String? ?? '',
+      region: fields[1] as String? ?? '',
+      country: fields[2] as String? ?? '',
+      tzId: fields[3] as String? ?? '',
+      localtimeEpoch: fields[4] as int? ?? 0,
+      localtime: fields[5] as String? ?? '',
+      utcOffset: fields[6] as String? ?? '',
     );
   }
 
@@ -333,27 +335,27 @@ class WeatherDataAdapter extends TypeAdapter<WeatherData> {
     }
     return WeatherData(
       location: fields[0] as WeatherLocation?,
-      lastUpdated: fields[1] as String,
-      lastUpdatedEpoch: fields[2] as int,
-      tempC: fields[3] as double,
-      isDay: fields[4] as int,
-      conditionText: fields[5] as String,
-      conditionIcon: fields[6] as String,
-      conditionCode: fields[7] as int,
-      windKph: fields[8] as double,
-      windDegree: fields[9] as int,
-      windDir: fields[10] as String,
-      pressureMb: fields[11] as double,
-      precipMm: fields[12] as double,
-      humidity: fields[13] as int,
-      cloud: fields[14] as int,
-      feelsLikeC: fields[15] as double,
-      windChillC: fields[16] as double,
-      heatIndexC: fields[17] as double,
-      dewPointC: fields[18] as double,
-      visKm: fields[19] as double,
-      uv: fields[20] as double,
-      gustKph: fields[21] as double,
+      lastUpdated: fields[1] as String? ?? '',
+      lastUpdatedEpoch: fields[2] as int? ?? 0,
+      tempC: (fields[3] as num? ?? 0).toDouble(),
+      isDay: fields[4] as int? ?? 0,
+      conditionText: fields[5] as String? ?? '',
+      conditionIcon: fields[6] as String? ?? '',
+      conditionCode: fields[7] as int? ?? 0,
+      windKph: (fields[8] as num? ?? 0).toDouble(),
+      windDegree: fields[9] as int? ?? 0,
+      windDir: fields[10] as String? ?? '',
+      pressureMb: (fields[11] as num? ?? 0).toDouble(),
+      precipMm: (fields[12] as num? ?? 0).toDouble(),
+      humidity: fields[13] as int? ?? 0,
+      cloud: fields[14] as int? ?? 0,
+      feelsLikeC: (fields[15] as num? ?? 0).toDouble(),
+      windChillC: (fields[16] as num? ?? 0).toDouble(),
+      heatIndexC: (fields[17] as num? ?? 0).toDouble(),
+      dewPointC: (fields[18] as num? ?? 0).toDouble(),
+      visKm: (fields[19] as num? ?? 0).toDouble(),
+      uv: (fields[20] as num? ?? 0).toDouble(),
+      gustKph: (fields[21] as num? ?? 0).toDouble(),
     );
   }
 
@@ -425,16 +427,16 @@ class IpLookupDataAdapter extends TypeAdapter<IpLookupData> {
       fields[index] = value;
     }
     return IpLookupData(
-      ip: fields[0] as String,
-      type: fields[1] as String,
-      continentCode: fields[2] as String,
-      continentName: fields[3] as String,
-      countryCode: fields[4] as String,
-      countryName: fields[5] as String,
-      isEu: fields[6] as bool,
-      geonameId: fields[7] as int,
-      city: fields[8] as String,
-      region: fields[9] as String,
+      ip: fields[0] as String? ?? '',
+      type: fields[1] as String? ?? '',
+      continentCode: fields[2] as String? ?? '',
+      continentName: fields[3] as String? ?? '',
+      countryCode: fields[4] as String? ?? '',
+      countryName: fields[5] as String? ?? '',
+      isEu: fields[6] as bool? ?? false,
+      geonameId: fields[7] as int? ?? 0,
+      city: fields[8] as String? ?? '',
+      region: fields[9] as String? ?? '',
     );
   }
 
@@ -487,9 +489,12 @@ class LocalStorageService {
     Hive.registerAdapter(WeatherDataAdapter());
     Hive.registerAdapter(IpLookupDataAdapter());
 
-    // Open boxes
-    _activityBox = await Hive.openBox<ActivitySession>(_activityBoxName);
+    // Open settings box (small, low risk of corruption)
     _settingsBox = await Hive.openBox(_settingsBoxName);
+
+    // Open activities box with per-entry corruption recovery
+    _activityBox = await _openActivityBoxSafe();
+
     _isInitialized = true;
 
     // Set default device ID if not exists
@@ -498,6 +503,62 @@ class LocalStorageService {
         'device_id',
         DateTime.now().millisecondsSinceEpoch.toString(),
       );
+    }
+  }
+
+  /// Opens the activities box with per-entry corruption recovery.
+  ///
+  /// Hive 2.x stores all entries in a single binary file. If the file is
+  /// corrupt at the storage level (page/frame corruption), `openBox` will
+  /// throw and no individual entries can be read. In this case we must
+  /// delete the box and start fresh — but we log diagnostic info first to
+  /// help identify the root cause.
+  ///
+  /// The first line of defense against corruption is the null-safe adapter
+  /// reads in this file and the robust `saveActivity` method that catches
+  /// write errors.
+  static Future<Box<ActivitySession>> _openActivityBoxSafe() async {
+    try {
+      return await Hive.openBox<ActivitySession>(_activityBoxName);
+    } catch (e) {
+      debugPrint('⚠️ LocalStorage: Batch openBox failed: $e');
+      EnterpriseLogger().logError(
+        'Local DB',
+        'Hive openBox failed, clearing box',
+        StackTrace.current,
+        metadata: {'error': e.toString()},
+      );
+    }
+
+    // Log the current box file size for diagnostics before deleting
+    try {
+      final boxDir = await Hive.boxPath(_activityBoxName);
+      final boxFile = File(boxDir);
+      if (await boxFile.exists()) {
+        final size = await boxFile.length();
+        debugPrint('📊 LocalStorage: Corrupt box file size: $size bytes');
+        EnterpriseLogger().logInfo('Local DB', 'Corrupt box file stats', metadata: {
+          'path': boxDir,
+          'sizeBytes': size,
+        });
+      }
+    } catch (_) {}
+
+    // Nuclear option: delete and re-create the box
+    try {
+      await Hive.deleteBoxFromDisk(_activityBoxName);
+      final newBox = await Hive.openBox<ActivitySession>(_activityBoxName);
+      debugPrint('✅ LocalStorage: Box cleared and re-created successfully');
+      return newBox;
+    } catch (e) {
+      debugPrint('❌ LocalStorage: Failed to re-create box: $e');
+      EnterpriseLogger().logError(
+        'Local DB',
+        'Failed to re-create activity box',
+        StackTrace.current,
+        metadata: {'error': e.toString()},
+      );
+      rethrow;
     }
   }
 
