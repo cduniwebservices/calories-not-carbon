@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
+Map<String, dynamic>? _castToStringMap(dynamic value) {
+  if (value == null) return null;
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return value.map((k, v) => MapEntry(k.toString(), v));
+  return null;
+}
+
 /// Activity state management for fitness tracking
 enum ActivityState { idle, warmingUp, running, paused, completed }
 
@@ -537,7 +544,7 @@ class ActivitySession {
     if (rawRoute.isNotEmpty) {
       if (rawRoute.first is Map && (rawRoute.first as Map).containsKey('location')) {
         // High fidelity format (waypoints)
-        parsedWaypoints = rawRoute.map((wp) => ActivityWaypoint.fromJson(wp as Map<String, dynamic>)).toList();
+        parsedWaypoints = rawRoute.map((wp) => ActivityWaypoint.fromJson(_castToStringMap(wp)!)).toList();
         parsedCoords = parsedWaypoints.map((wp) => wp.location).toList();
       } else {
         // Legacy/simple format (LatLng only)
@@ -583,10 +590,10 @@ class ActivitySession {
       isValid: json['isValid'] ?? json['is_valid'] ?? true,
       activityReplaced: json['activityReplaced'] ?? json['activity_replaced'] as String?,
       startWeather: (json['startWeather'] ?? json['start_weather']) != null 
-          ? WeatherData.fromJson((json['startWeather'] ?? json['start_weather']) as Map<String, dynamic>) 
+          ? WeatherData.fromJson(_castToStringMap(json['startWeather'] ?? json['start_weather'])!) 
           : null,
       startIpLookup: (json['startIpLookup'] ?? json['start_ip_lookup']) != null 
-          ? IpLookupData.fromJson((json['startIpLookup'] ?? json['start_ip_lookup']) as Map<String, dynamic>) 
+          ? IpLookupData.fromJson(_castToStringMap(json['startIpLookup'] ?? json['start_ip_lookup'])!) 
           : null,
       isSynced: json['isSynced'] ?? json['is_synced'] ?? (json['metadata']?['synced'] == true),
       createdAt: (json['createdAt'] ?? json['created_at']) != null
@@ -647,9 +654,9 @@ class ActivityWaypoint {
   }
 
   factory ActivityWaypoint.fromJson(Map<String, dynamic> json) {
-    final locationMap = json['location'] as Map<String, dynamic>;
-    final statsJson = json['statsAtTime'] as Map<String, dynamic>?;
-    final rawSensorJson = json['rawSensorData'] as Map<String, dynamic>?;
+    final locationMap = _castToStringMap(json['location'])!;
+    final statsJson = _castToStringMap(json['statsAtTime']);
+    final rawSensorJson = _castToStringMap(json['rawSensorData']);
 
     return ActivityWaypoint(
       location: LatLng(

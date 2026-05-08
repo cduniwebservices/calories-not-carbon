@@ -6,6 +6,13 @@ import 'package:path_provider/path_provider.dart';
 import '../models/fitness_models.dart';
 import 'enterprise_logger.dart';
 
+Map<String, dynamic>? _castToStringMap(dynamic value) {
+  if (value == null) return null;
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return value.map((k, v) => MapEntry(k.toString(), v));
+  return null;
+}
+
 /// Hive adapters for GPS activity models
 class ActivitySessionAdapter extends TypeAdapter<ActivitySession> {
   @override
@@ -237,7 +244,7 @@ class ActivityWaypointAdapter extends TypeAdapter<ActivityWaypoint> {
       type: fields[2] as String? ?? 'track_point',
       statsAtTime: fields[3] as FitnessStats?,
       altitude: (fields[4] as num?)?.toDouble(),
-      rawSensorData: fields[5] as Map<String, dynamic>?,
+      rawSensorData: _castToStringMap(fields[5]),
     );
   }
 
