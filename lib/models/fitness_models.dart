@@ -824,24 +824,30 @@ class GpsStabilizationState {
   final bool isStabilizing;
   final bool isStable;
   final double? currentAltitude;
+  final double? previousAltitude;
   final double? currentSpeed;
+  final double? previousSpeed;
   final double? altitudeVariance;
   final double? speedVariance;
   final int stableReadingsCount;
   final int requiredStableReadings;
   final double gpsAccuracy;
+  final double? previousAccuracy;
   final String? stabilityMessage;
 
   const GpsStabilizationState({
     this.isStabilizing = false,
     this.isStable = false,
     this.currentAltitude,
+    this.previousAltitude,
     this.currentSpeed,
+    this.previousSpeed,
     this.altitudeVariance,
     this.speedVariance,
     this.stableReadingsCount = 0,
     this.requiredStableReadings = 5,
     this.gpsAccuracy = double.infinity,
+    this.previousAccuracy,
     this.stabilityMessage,
   });
 
@@ -849,24 +855,30 @@ class GpsStabilizationState {
     bool? isStabilizing,
     bool? isStable,
     double? currentAltitude,
+    double? previousAltitude,
     double? currentSpeed,
+    double? previousSpeed,
     double? altitudeVariance,
     double? speedVariance,
     int? stableReadingsCount,
     int? requiredStableReadings,
     double? gpsAccuracy,
+    double? previousAccuracy,
     String? stabilityMessage,
   }) {
     return GpsStabilizationState(
       isStabilizing: isStabilizing ?? this.isStabilizing,
       isStable: isStable ?? this.isStable,
       currentAltitude: currentAltitude ?? this.currentAltitude,
+      previousAltitude: previousAltitude ?? this.previousAltitude,
       currentSpeed: currentSpeed ?? this.currentSpeed,
+      previousSpeed: previousSpeed ?? this.previousSpeed,
       altitudeVariance: altitudeVariance ?? this.altitudeVariance,
       speedVariance: speedVariance ?? this.speedVariance,
       stableReadingsCount: stableReadingsCount ?? this.stableReadingsCount,
       requiredStableReadings: requiredStableReadings ?? this.requiredStableReadings,
       gpsAccuracy: gpsAccuracy ?? this.gpsAccuracy,
+      previousAccuracy: previousAccuracy ?? this.previousAccuracy,
       stabilityMessage: stabilityMessage ?? this.stabilityMessage,
     );
   }

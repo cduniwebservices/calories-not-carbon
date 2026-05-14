@@ -167,6 +167,10 @@ class LocationTrackingTaskHandler extends TaskHandler {
   }
 
   void _onLocationUpdate(Position position) {
+    // Normalize speed: treat negative values (like -1.0 from Android when unknown) as 0.0
+    // This matches iOS behavior in ios_location_service.dart
+    final speed = position.speed != null && position.speed < 0 ? 0.0 : position.speed;
+
     // Send location data to main isolate
     final data = {
       'type': 'location',
@@ -175,7 +179,7 @@ class LocationTrackingTaskHandler extends TaskHandler {
       'accuracy': position.accuracy,
       'altitude': position.altitude,
       'heading': position.heading,
-      'speed': position.speed,
+      'speed': speed,
       'timestamp': position.timestamp?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
 
@@ -186,7 +190,7 @@ class LocationTrackingTaskHandler extends TaskHandler {
       'Lat: ${position.latitude.toStringAsFixed(6)}, '
       'Lng: ${position.longitude.toStringAsFixed(6)}, '
       'Acc: ${position.accuracy.toStringAsFixed(1)}m, '
-      'Speed: ${position.speed.toStringAsFixed(1)}m/s',
+      'Speed: ${speed.toStringAsFixed(1)}m/s',
     );
   }
 }

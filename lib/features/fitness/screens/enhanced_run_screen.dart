@@ -331,10 +331,10 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
     final progress = stabilizationState.progress.clamp(0.0, 1.0);
     final isStable = stabilizationState.isStable;
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
+  return Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // GPS Icon with pulse animation
@@ -352,36 +352,57 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
                 size: 56,
                 color: isStable ? GlobalTheme.primaryNeon : Colors.amber,
               ),
-            )
-                .animate(onPlay: (c) => c.repeat(reverse: true))
-                .scale(duration: 1500.ms, begin: const Offset(0.9, 0.9), end: const Offset(1.05, 1.05)),
+  )
+  .animate(onPlay: (c) => c.repeat(reverse: true))
+  .scale(duration: 1500.ms, begin: const Offset(0.9, 0.9), end: const Offset(1.05, 1.05)),
 
-            const SizedBox(height: 32),
+  const SizedBox(height: 24),
 
-            // Status text
-            Text(
-              isStable ? 'Signal Stable!' : 'Calibrating...',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ).animate().fadeIn(),
+  // Status text
+  Text(
+    isStable ? '✓ Signal Stable - Ready!' : 'Calibrating GPS Signal',
+    style: theme.textTheme.headlineSmall?.copyWith(
+      color: Colors.white,
+      fontWeight: FontWeight.w700,
+    ),
+  ).animate().fadeIn(),
 
-            const SizedBox(height: 12),
+  const SizedBox(height: 8),
 
-            // Stability message
-            Text(
-              stabilizationState.stabilityMessage ?? 'Waiting for accurate readings...',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: GlobalTheme.textSecondary,
-              ),
-            ).animate().fadeIn(delay: 200.ms),
+  // Stability message
+  Text(
+    stabilizationState.stabilityMessage ?? 'Waiting for accurate readings...',
+    textAlign: TextAlign.center,
+    style: theme.textTheme.bodyMedium?.copyWith(
+      color: GlobalTheme.textSecondary,
+    ),
+  ).animate().fadeIn(delay: 200.ms),
 
-            const SizedBox(height: 32),
+  const SizedBox(height: 8),
+  
+  // Requirements info
+  Text(
+    'Waiting for 2 consecutive readings with:',
+    textAlign: TextAlign.center,
+    style: theme.textTheme.bodySmall?.copyWith(
+      color: GlobalTheme.textTertiary,
+    ),
+  ),
+  Text(
+    '• Altitude variance < 2.0m'
+    '\n• Speed variance < 1.0 m/s'
+    '\n• GPS accuracy < 20.0m',
+    textAlign: TextAlign.center,
+    style: theme.textTheme.bodySmall?.copyWith(
+      color: GlobalTheme.textTertiary,
+      fontFamily: 'monospace',
+    ),
+  ),
 
-            // Progress indicator
-            Container(
+  const SizedBox(height: 24),
+
+  // Progress indicator
+          Container(
               width: double.infinity,
               height: 8,
               decoration: BoxDecoration(
@@ -400,101 +421,157 @@ class _EnhancedRunScreenState extends ConsumerState<EnhancedRunScreen>
               ),
             ).animate().slideX(begin: -1, end: 0, duration: 500.ms),
 
-            const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-            // Reading count
-            Text(
-              '${stabilizationState.stableReadingsCount}/${stabilizationState.requiredStableReadings} stable readings',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: GlobalTheme.textTertiary,
-              ),
+          // Reading count
+          Text(
+            'Readings: ${stabilizationState.stableReadingsCount}/${stabilizationState.requiredStableReadings} stable',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: GlobalTheme.textTertiary,
             ),
+          ),
 
-            const SizedBox(height: 32),
+          const SizedBox(height: 24),
 
-            // Current metrics display
-            if (stabilizationState.currentAltitude != null) ...[
-              _buildMetricRow(
-                'Altitude',
-                '${stabilizationState.currentAltitude!.toStringAsFixed(1)} m',
-                Icons.terrain_outlined,
-                stabilizationState.altitudeVariance != null
-                    ? '±${stabilizationState.altitudeVariance!.toStringAsFixed(1)}m variance'
-                    : null,
+          // Current metrics display with previous readings
+          if (stabilizationState.currentAltitude != null) ...[
+            _buildStabilizationMetricRow(
+              theme,
+              'Altitude',
+              Icons.terrain_outlined,
+              stabilizationState.previousAltitude,
+              stabilizationState.currentAltitude!,
+              stabilizationState.altitudeVariance,
+              'm',
+            ),
+            const SizedBox(height: 12),
+            _buildStabilizationMetricRow(
+              theme,
+              'Speed',
+              Icons.speed_outlined,
+              stabilizationState.previousSpeed,
+              stabilizationState.currentSpeed ?? 0.0,
+              stabilizationState.speedVariance,
+              'm/s',
+            ),
+            const SizedBox(height: 12),
+            _buildStabilizationMetricRow(
+              theme,
+              'GPS Accuracy',
+              Icons.gps_fixed_outlined,
+              stabilizationState.previousAccuracy,
+              stabilizationState.gpsAccuracy,
+              null,
+              'm',
+            ),
+          ],
+
+          const SizedBox(height: 24),
+          
+          // Info text
+          Text(
+            'Activity will begin automatically when GPS is stable',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: GlobalTheme.textTertiary,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStabilizationMetricRow(
+    ThemeData theme,
+    String label,
+    IconData icon,
+    double? previousValue,
+    double currentValue,
+    double? variance,
+    String unit,
+  ) {
+    final varianceValue = variance != null ? variance.abs() : null;
+    final displayValue = unit == 'm/s' ? currentValue * 3.6 : currentValue;
+    final displayPrevious = previousValue != null ? (unit == 'm/s' ? previousValue * 3.6 : previousValue) : null;
+    final displayUnit = unit == 'm/s' ? 'km/h' : unit;
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: GlobalTheme.primaryNeon.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: GlobalTheme.primaryNeon, size: 18),
               ),
-              const SizedBox(height: 16),
-              _buildMetricRow(
-                'Speed',
-                '${((stabilizationState.currentSpeed ?? 0) * 3.6).toStringAsFixed(1)} km/h',
-                Icons.speed_outlined,
-                stabilizationState.speedVariance != null
-                    ? '±${(stabilizationState.speedVariance! * 3.6).toStringAsFixed(1)} km/h variance'
-                    : null,
-              ),
-              const SizedBox(height: 16),
-              _buildMetricRow(
-                'Accuracy',
-                '${stabilizationState.gpsAccuracy.toStringAsFixed(1)} m',
-                Icons.gps_fixed_outlined,
-                stabilizationState.gpsAccuracy <= 10
-                    ? 'Excellent'
-                    : stabilizationState.gpsAccuracy <= 20
-                        ? 'Good'
-                        : 'Poor',
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
-
-            const Spacer(),
-
-            // Manual start button (shown when stable)
-            if (isStable)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: GlobalTheme.primaryNeon,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: GlobalTheme.primaryNeon.withOpacity(0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text(
+                'Previous: ',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: GlobalTheme.textTertiary,
                 ),
-                child: InkWell(
-                  onTap: () {
-                    HapticFeedback.mediumImpact();
-                    actions.beginTracking();
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 28),
-                        const SizedBox(width: 12),
-                        Text(
-                          'START ACTIVITY',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: Colors.black,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+              ),
+              Text(
+                displayPrevious != null
+                    ? '${displayPrevious.toStringAsFixed(2)} $displayUnit'
+                    : '--',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: GlobalTheme.textSecondary,
                 ),
-              )
-                  .animate()
-                  .fadeIn(duration: 400.ms)
-                  .scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1))
-                  .then()
-                  .shimmer(duration: 2000.ms, color: Colors.white.withOpacity(0.3)),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                'Current: ',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: GlobalTheme.textTertiary,
+                ),
+              ),
+              Text(
+                '${displayValue.toStringAsFixed(2)} $displayUnit',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          if (varianceValue != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Variance: ±${varianceValue.toStringAsFixed(2)}$unit',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: varianceValue <= (unit == 'm' ? 2.0 : 1.0)
+                    ? Colors.green
+                    : Colors.amber,
+              ),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

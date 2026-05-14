@@ -354,81 +354,95 @@ class ActivityController extends ChangeNotifier {
     });
   }
 
-  /// Check if warm-up has timed out
-  void _checkWarmupTimeout() {
-    if (_warmupStartTime == null || _state != ActivityState.warmingUp) return;
+/// Check if warm-up has timed out
+void _checkWarmupTimeout() {
+  if (_warmupStartTime == null || _state != ActivityState.warmingUp) return;
 
-    final elapsed = DateTime.now().difference(_warmupStartTime!);
-    if (elapsed.inSeconds > _maxWarmupDurationSeconds) {
-      debugPrint('⚠️ ActivityController: GPS warm-up timed out - forcing begin tracking');
-      // Force begin tracking after timeout
-      beginTracking();
+  final elapsed = DateTime.now().difference(_warmupStartTime!);
+  if (elapsed.inSeconds > _maxWarmupDurationSeconds) {
+    debugPrint('⚠️ ActivityController: GPS warm-up timed out - still waiting for stabilization');
+    // Do NOT force begin tracking - wait for stable GPS signal
+    // Update UI to show timeout message
+    if (_gpsStabilizationState != null) {
+      _gpsStabilizationState = _gpsStabilizationState!.copyWith(
+        stabilityMessage: 'GPS taking longer than expected. Waiting for stable signal...',
+      );
+      notifyListeners();
     }
   }
+}
 
-  /// Update GPS stabilization state with new readings
-  void _updateGpsStabilization(LocationData location) {
-    if (_state != ActivityState.warmingUp) return;
+/// Update GPS stabilization state with new readings
+void _updateGpsStabilization(LocationData location) {
+  if (_state != ActivityState.warmingUp) return;
 
-    final altitude = location.geoidHeight ?? location.altitude ?? 0.0;
-    final speed = location.speed ?? 0.0;
-    final accuracy = location.accuracy;
+  final altitude = location.geoidHeight ?? location.altitude ?? 0.0;
+  final speed = location.speed ?? 0.0;
+  final accuracy = location.accuracy;
 
-    // Add readings
-    _altitudeReadings.add(altitude);
-    _speedReadings.add(speed);
+  // Get previous readings for display
+  double? previousAltitude = _gpsStabilizationState?.currentAltitude;
+  double? previousSpeed = _gpsStabilizationState?.currentSpeed;
+  double? previousAccuracy = _gpsStabilizationState?.gpsAccuracy;
 
-    // Keep only last N readings
-    if (_altitudeReadings.length > _requiredStableReadings) {
-      _altitudeReadings.removeAt(0);
-    }
-    if (_speedReadings.length > _requiredStableReadings) {
-      _speedReadings.removeAt(0);
-    }
+  // Add readings
+  _altitudeReadings.add(altitude);
+  _speedReadings.add(speed);
 
-    // Calculate variances if we have enough readings
-    double? altitudeVariance;
-    double? speedVariance;
-    bool isStable = false;
-    String message;
+  // Keep only last N readings
+  if (_altitudeReadings.length > _requiredStableReadings) {
+    _altitudeReadings.removeAt(0);
+  }
+  if (_speedReadings.length > _requiredStableReadings) {
+    _speedReadings.removeAt(0);
+  }
 
-    if (_altitudeReadings.length >= 3) {
-      altitudeVariance = _calculateVariance(_altitudeReadings);
-      speedVariance = _calculateVariance(_speedReadings);
+  // Calculate variances if we have enough readings
+  double? altitudeVariance;
+  double? speedVariance;
+  bool isStable = false;
+  String message;
 
-      // Check stability criteria
-      final altitudeStable = altitudeVariance <= _maxAltitudeVariance;
-      final speedStable = speedVariance <= _maxSpeedVariance;
-      final accuracyGood = accuracy <= _minAccuracyForStability;
+  if (_altitudeReadings.length >= 3) {
+    altitudeVariance = _calculateVariance(_altitudeReadings);
+    speedVariance = _calculateVariance(_speedReadings);
 
-      if (altitudeStable && speedStable && accuracyGood) {
-        isStable = true;
-        message = 'Signal stable - Ready to start';
-      } else {
-        final issues = <String>[];
-        if (!altitudeStable) issues.add('altitude');
-        if (!speedStable) issues.add('speed');
-        if (!accuracyGood) issues.add('accuracy');
-        message = 'Calibrating ${issues.join(', ')}...';
-      }
+    // Check stability criteria
+    final altitudeStable = altitudeVariance <= _maxAltitudeVariance;
+    final speedStable = speedVariance <= _maxSpeedVariance;
+    final accuracyGood = accuracy <= _minAccuracyForStability;
+
+    if (altitudeStable && speedStable && accuracyGood) {
+      isStable = true;
+      message = 'Signal stable - Ready to start';
     } else {
-      message = 'Collecting GPS readings (${_altitudeReadings.length}/$_requiredStableReadings)...';
+      final issues = <String>[];
+      if (!altitudeStable) issues.add('altitude');
+      if (!speedStable) issues.add('speed');
+      if (!accuracyGood) issues.add('accuracy');
+      message = 'Calibrating ${issues.join(', ')}...';
     }
+  } else {
+    message = 'Collecting GPS readings (${_altitudeReadings.length}/$_requiredStableReadings)...';
+  }
 
-    _gpsStabilizationState = GpsStabilizationState(
-      isStabilizing: true,
-      isStable: isStable,
-      currentAltitude: altitude,
-      currentSpeed: speed,
-      altitudeVariance: altitudeVariance,
-      speedVariance: speedVariance,
-      stableReadingsCount: _altitudeReadings.length,
-      requiredStableReadings: _requiredStableReadings,
-      gpsAccuracy: accuracy,
-      stabilityMessage: message,
-    );
+  _gpsStabilizationState = GpsStabilizationState(
+    isStabilizing: true,
+    isStable: isStable,
+    currentAltitude: altitude,
+    previousAltitude: previousAltitude,
+    currentSpeed: speed,
+    previousSpeed: previousSpeed,
+    altitudeVariance: altitudeVariance,
+    speedVariance: speedVariance,
+    stableReadingsCount: _altitudeReadings.length,
+    requiredStableReadings: _requiredStableReadings,
+    gpsAccuracy: accuracy,
+    previousAccuracy: previousAccuracy,
+    stabilityMessage: message,
+  );
 
-    notifyListeners();
+  notifyListeners();
 
     // Auto-begin tracking once stable
     if (isStable && _state == ActivityState.warmingUp) {
@@ -844,15 +858,22 @@ class ActivityController extends ChangeNotifier {
 
     if (timeDiff.inMilliseconds <= 0) return;
 
-    // Staleness check: if no location update for >2 seconds, assume stationary
-    if (_lastLocationUpdateTime != null &&
-        now.difference(_lastLocationUpdateTime!) > _locationStalenessTimeout) {
+  // Staleness check: if no location update for >2 seconds, check accelerometer for motion
+  final bool isLocationStale = _lastLocationUpdateTime != null &&
+      now.difference(_lastLocationUpdateTime!) > _locationStalenessTimeout;
+  
+  if (isLocationStale) {
+    // If location is stale but accelerometer detects motion, keep last known speed
+    // Otherwise assume stationary
+    if (!_isPhysicallyMoving) {
       _currentSpeed = 0.0;
     }
+  }
 
-    // A person is 'moving' if either the GPS reports speed OR the accelerometer detects physical motion
-    // We use a slightly lower speed threshold (0.3 m/s = ~1 km/h) when fused with accelerometer
-    final bool currentlyMoving = (_currentSpeed > 0.5) || (_isPhysicallyMoving && _currentSpeed > 0.1);
+  // A person is 'moving' if either the GPS reports speed OR the accelerometer detects physical motion
+  // When location is stale but accelerometer detects motion, we still count as moving
+  final bool currentlyMoving = (_currentSpeed > 0.5) || 
+      (_isPhysicallyMoving && (_currentSpeed > 0.1 || isLocationStale));
 
     if (currentlyMoving) {
       _movingDuration += timeDiff;

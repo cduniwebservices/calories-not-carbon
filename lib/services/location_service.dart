@@ -492,33 +492,37 @@ class LocationService {
     // Could emit error state to stream if needed
   }
 
-  /// Handle location updates from background isolate
-  void _onBackgroundLocationUpdate(dynamic message) {
-    if (message is Map<String, dynamic>) {
-      if (message['type'] == 'location') {
-        try {
-          final lat = message['latitude'] as double;
-          final lon = message['longitude'] as double;
-          final alt = message['altitude'] as double?;
-          
-          double? geoidHeight;
-          if (alt != null) {
-            geoidHeight = _geoidService.getOrthometricHeight(alt, lat, lon);
-          }
+/// Handle location updates from background isolate
+void _onBackgroundLocationUpdate(dynamic message) {
+  if (message is Map<String, dynamic>) {
+    if (message['type'] == 'location') {
+      try {
+        final lat = message['latitude'] as double;
+        final lon = message['longitude'] as double;
+        final alt = message['altitude'] as double?;
 
-          final locationData = LocationData(
-            latitude: lat,
-            longitude: lon,
-            accuracy: message['accuracy'] as double,
-            altitude: alt,
-            geoidHeight: geoidHeight,
-            heading: message['heading'] as double?,
-            speed: message['speed'] as double?,
-            timestamp: DateTime.parse(message['timestamp'] as String),
-          );
+        double? geoidHeight;
+        if (alt != null) {
+          geoidHeight = _geoidService.getOrthometricHeight(alt, lat, lon);
+        }
 
-          _currentLocation = locationData;
-          _locationController.add(locationData);
+        // Normalize speed: treat negative values as 0.0
+        final rawSpeed = message['speed'] as double?;
+        final speed = rawSpeed != null && rawSpeed < 0 ? 0.0 : rawSpeed;
+
+        final locationData = LocationData(
+          latitude: lat,
+          longitude: lon,
+          accuracy: message['accuracy'] as double,
+          altitude: alt,
+          geoidHeight: geoidHeight,
+          heading: message['heading'] as double?,
+          speed: speed,
+          timestamp: DateTime.parse(message['timestamp'] as String),
+        );
+
+        _currentLocation = locationData;
+        _locationController.add(locationData);
 
           debugPrint(
             '📍 LocationService: Background location updated - '
@@ -639,6 +643,13 @@ class LocationData {
       );
     }
 
+    // Normalize speed: treat negative values (like -1.0 from Android when unknown) as 0.0
+    // This matches iOS behavior in ios_location_service.dart
+    double? speed = position.speed;
+    if (speed != null && speed < 0) {
+      speed = 0.0;
+    }
+
     return LocationData(
       latitude: position.latitude,
       longitude: position.longitude,
@@ -646,7 +657,7 @@ class LocationData {
       altitude: position.altitude,
       geoidHeight: gHeight,
       heading: position.heading,
-      speed: position.speed,
+      speed: speed,
       timestamp: position.timestamp,
     );
   }
